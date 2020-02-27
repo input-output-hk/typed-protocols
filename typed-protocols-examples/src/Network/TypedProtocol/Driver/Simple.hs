@@ -37,9 +37,9 @@ module Network.TypedProtocol.Driver.Simple (
 
 import Network.TypedProtocol.Core
 import Network.TypedProtocol.Pipelined
+import Network.TypedProtocol.Driver
 import Network.TypedProtocol.Channel
 import Network.TypedProtocol.Codec
-import Network.TypedProtocol.Driver.General
 
 import Control.Monad.Class.MonadSTM
 import Control.Monad.Class.MonadAsync
