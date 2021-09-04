@@ -217,6 +217,5 @@ data Peer ps pr pl q st m a where
     :: Peer ps pr 'Pipelined              q  st' m a
     -- ^ continuation
     -> Peer ps pr 'Pipelined (Tr st st <| q) st' m a
-    -> Peer ps pr 'Pipelined (Tr st st <| q) st' m stm a
 
 deriving instance Functor m => Functor (Peer ps (pr :: PeerRole) pl q (st :: ps) m)
