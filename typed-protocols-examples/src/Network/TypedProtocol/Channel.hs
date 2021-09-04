@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE RankNTypes          #-}
@@ -10,6 +11,9 @@ module Network.TypedProtocol.Channel
   , fixedInputChannel
   , mvarsAsChannel
   , handlesAsChannel
+#if !defined(mingw32_HOST_OS)
+  , socketAsChannel
+#endif
   , createConnectedChannels
   , createConnectedBufferedChannels
   , createPipelineTestChannels
@@ -26,6 +30,11 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import           Data.ByteString.Lazy.Internal (smallChunkSize)
 import           Numeric.Natural
+
+#if !defined(mingw32_HOST_OS)
+import           Network.Socket (Socket)
+import qualified Network.Socket.ByteString.Lazy as Socket
+#endif
 
 import qualified System.IO as IO (Handle, hFlush, hIsEOF)
 
@@ -250,6 +259,23 @@ delayChannel :: MonadDelay m
 delayChannel delay = channelEffect (\_ -> return ())
                                    (\_ -> threadDelay delay)
 
+
+#if !defined(mingw32_HOST_OS)
+socketAsChannel :: Socket
+                -> Channel IO LBS.ByteString
+socketAsChannel sock =
+    Channel{send, recv}
+  where
+    send :: LBS.ByteString -> IO ()
+    send = Socket.sendAll sock
+
+    recv :: IO (Maybe LBS.ByteString)
+    recv = do
+      bs <- Socket.recv sock (fromIntegral smallChunkSize)
+      if LBS.null bs
+        then return Nothing
+        else return (Just bs)
+#endif
 
 -- | Channel which logs sent and received messages.
 --
