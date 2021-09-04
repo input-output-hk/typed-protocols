@@ -51,6 +51,7 @@ library
                      contra-tracer,
                      io-classes,
                      si-timers,
+                     network,
                      time,
                      typed-protocols,
                      typed-protocols-cborg
