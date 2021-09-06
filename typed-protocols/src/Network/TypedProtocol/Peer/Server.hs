@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds                #-}
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE GADTs                    #-}
 {-# LANGUAGE PatternSynonyms          #-}
 {-# LANGUAGE PolyKinds                #-}
@@ -57,6 +58,7 @@ pattern Yield :: forall ps pl st m a.
                  ()
               => forall st'.
                  ( SingI st
+                 , SingI st'
                  , StateAgency st ~ ServerAgency
                  )
               => Message ps st st'
@@ -136,5 +138,6 @@ pattern CollectDone :: forall ps st q st' m a.
                     -- ^ continuation
                     -> Server ps 'Pipelined (Tr st st <| q) st' m a
 pattern CollectDone k = TP.CollectDone k
+
 
 {-# COMPLETE Effect, Yield, Await, Done, YieldPipelined, Collect, CollectDone #-}

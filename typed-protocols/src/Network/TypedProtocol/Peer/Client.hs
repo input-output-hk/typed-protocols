@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds                #-}
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE GADTs                    #-}
 {-# LANGUAGE PatternSynonyms          #-}
 {-# LANGUAGE PolyKinds                #-}
@@ -57,6 +58,7 @@ pattern Yield :: forall ps pl st m a.
                  ()
               => forall st'.
                  ( SingI st
+                 , SingI st'
                  , StateAgency st ~ ClientAgency
                  )
               => Message ps st st'

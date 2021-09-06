@@ -1,17 +1,20 @@
-{-# LANGUAGE DataKinds             #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE NamedFieldPuns        #-}
-{-# LANGUAGE PolyKinds             #-}
-{-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TypeApplications      #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE TypeInType            #-}
+{-# LANGUAGE DataKinds                #-}
+{-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE FlexibleInstances        #-}
+{-# LANGUAGE GADTs                    #-}
+{-# LANGUAGE NamedFieldPuns           #-}
+{-# LANGUAGE PolyKinds                #-}
+{-# LANGUAGE QuantifiedConstraints    #-}
+{-# LANGUAGE RankNTypes               #-}
+{-# LANGUAGE ScopedTypeVariables      #-}
+{-# LANGUAGE StandaloneDeriving       #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TypeApplications         #-}
+{-# LANGUAGE TypeFamilies             #-}
+{-# LANGUAGE TypeInType               #-}
 -- @UndecidableInstances@ extension is required for defining @Show@ instance of
 -- @'AnyMessage'@ and @'AnyMessage'@.
-{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE UndecidableInstances     #-}
 
 module Network.TypedProtocol.Codec
   ( -- * Defining and using Codecs
@@ -20,6 +23,11 @@ module Network.TypedProtocol.Codec
   , isoCodec
   , mapFailureCodec
     -- ** Related types
+  , IsActiveState (..)
+  , ActiveState
+  , ActiveAgency
+  , ActiveAgency' (..)
+  , notActiveState
   , PeerRole (..)
   , SomeMessage (..)
   , CodecFailure (..)
@@ -37,7 +45,7 @@ module Network.TypedProtocol.Codec
   , prop_codec_binary_compat
   , prop_codecs_compatM
   , prop_codecs_compat
-  , SamePeerHasAgency (..)
+  , SomeState (..)
   ) where
 
 import           Control.Exception (Exception)
@@ -46,7 +54,7 @@ import           Data.Monoid (All (..))
 
 import           Data.Singletons
 
-import           Network.TypedProtocol.Core (PeerRole (..), Protocol (..))
+import           Network.TypedProtocol.Core
 
 
 -- | When decoding a 'Message' we only know the expected \"from\" state. We
@@ -55,7 +63,11 @@ import           Network.TypedProtocol.Core (PeerRole (..), Protocol (..))
 -- type to hide the \"to"\ state.
 --
 data SomeMessage (st :: ps) where
-     SomeMessage :: Message ps st st' -> SomeMessage st
+     SomeMessage :: ( SingI st
+                    , SingI st'
+                    , ActiveState st
+                    )
+                 => Message ps st st' -> SomeMessage st
 
 
 -- | A codec for a 'Protocol' handles the encoding and decoding of typed
@@ -133,12 +145,14 @@ data SomeMessage (st :: ps) where
 data Codec ps failure m bytes = Codec {
        encode :: forall (st :: ps) (st' :: ps).
                  SingI st
+              => ActiveState st
               => Message ps st st'
               -> bytes,
 
        decode :: forall (st :: ps).
-                 SingI st
-              => m (DecodeStep bytes failure m (SomeMessage st))
+                 ActiveState st
+              => Sing st
+              -> m (DecodeStep bytes failure m (SomeMessage st))
      }
 
 hoistCodec
@@ -147,7 +161,7 @@ hoistCodec
   -> Codec ps failure m bytes
   -> Codec ps failure n bytes
 hoistCodec nat codec = codec
-  { decode = fmap (hoistDecodeStep nat) . nat $ decode codec
+  { decode = fmap (hoistDecodeStep nat) . nat . decode codec
   }
 
 isoCodec :: Functor m
@@ -157,7 +171,7 @@ isoCodec :: Functor m
          -> Codec ps failure m bytes'
 isoCodec f finv Codec {encode, decode} = Codec {
       encode = \msg -> f $ encode msg,
-      decode = isoDecodeStep f finv <$> decode
+      decode = \tok -> isoDecodeStep f finv <$> decode tok
     }
 
 mapFailureCodec
@@ -167,7 +181,7 @@ mapFailureCodec
   -> Codec ps failure' m bytes
 mapFailureCodec f Codec {encode, decode} = Codec {
     encode = encode,
-    decode = mapFailureDecodeStep f <$> decode
+    decode = \tok -> mapFailureDecodeStep f <$> decode tok
   }
 
 -- The types here are pretty fancy. The decode is polymorphic in the protocol
@@ -294,7 +308,9 @@ runDecoderPure runM decoder bs = runM (runDecoder bs =<< decoder)
 --
 data AnyMessage ps where
   AnyMessage :: forall ps (st :: ps) (st' :: ps).
-                SingI st
+                ( SingI st
+                , ActiveState st
+                )
              => Message ps (st :: ps) (st' :: ps)
              -> AnyMessage ps
 
@@ -316,7 +332,7 @@ prop_codecM
   -> AnyMessage ps
   -> m Bool
 prop_codecM Codec {encode, decode} (AnyMessage (msg :: Message ps st st')) = do
-    r <- decode >>= runDecoder [encode msg]
+    r <- decode sing >>= runDecoder [encode msg]
     case r :: Either failure (SomeMessage st) of
       Right (SomeMessage msg') -> return $ AnyMessage msg' == AnyMessage msg
       Left _                   -> return False
@@ -355,7 +371,7 @@ prop_codec_splitsM
 prop_codec_splitsM splits
                    Codec {encode, decode} (AnyMessage (msg :: Message ps st st')) = do
     and <$> sequence
-      [ do r <- decode >>= runDecoder bytes'
+      [ do r <- decode sing >>= runDecoder bytes'
            case r :: Either failure (SomeMessage st) of
              Right (SomeMessage msg') -> return $ AnyMessage msg' == AnyMessage msg
              Left _                   -> return False
@@ -383,12 +399,12 @@ prop_codec_splits splits runM codec msg =
 -- Used for the existential @st :: ps@ parameter when expressing that for each
 -- value of 'PeerHasAgency' for protocol A, there is a corresponding
 -- 'PeerHasAgency' for protocol B of some @st :: ps@.
-data SamePeerHasAgency (pr :: PeerRole) (ps :: Type) where
-  SamePeerHasAgency
-    :: forall (pr :: PeerRole) ps (st :: ps) proxy.
-       SingI st
-    => !(proxy st)
-    -> SamePeerHasAgency pr ps
+data SomeState (ps :: Type) where
+  SomeState
+    :: forall ps (st :: ps).
+       ActiveState st
+    => Sing st
+    -> SomeState ps
 
 -- | Binary compatibility of two protocols
 --
@@ -410,7 +426,7 @@ prop_codec_binary_compatM
      )
   => Codec psA failure m bytes
   -> Codec psB failure m bytes
-  -> (forall pr (stA :: psA). Sing stA -> SamePeerHasAgency pr psB)
+  -> (forall (stA :: psA). ActiveState stA => Sing stA -> SomeState psB)
      -- ^ The states of A map directly of states of B.
   -> AnyMessage psA
   -> m Bool
@@ -420,18 +436,18 @@ prop_codec_binary_compatM
   let stokA :: Sing stA
       stokA = sing
   in case stokEq stokA of
-    SamePeerHasAgency (_ :: proxy stB) -> do
+    SomeState (stokB :: Sing stB) -> do
       -- 1.
       let bytesA = encode codecA msgA
       -- 2.
-      r1 <- decode codecB >>= runDecoder [bytesA]
+      r1 <- decode codecB stokB >>= runDecoder [bytesA]
       case r1 :: Either failure (SomeMessage stB) of
         Left _     -> return False
         Right (SomeMessage msgB) -> do
           -- 3.
           let bytesB = encode codecB msgB
           -- 4.
-          r2 <- decode codecA >>= runDecoder [bytesB]
+          r2 <- decode codecA (sing :: Sing stA) >>= runDecoder [bytesB]
           case r2 :: Either failure (SomeMessage stA) of
             Left _                    -> return False
             Right (SomeMessage msgA') -> return $ AnyMessage msgA' == AnyMessage msgA
@@ -445,7 +461,7 @@ prop_codec_binary_compat
   => (forall a. m a -> a)
   -> Codec psA failure m bytes
   -> Codec psB failure m bytes
-  -> (forall pr (stA :: psA). Sing stA -> SamePeerHasAgency pr psB)
+  -> (forall (stA :: psA). Sing stA -> SomeState psB)
   -> AnyMessage psA
   -> Bool
 prop_codec_binary_compat runM codecA codecB stokEq msgA =
@@ -468,11 +484,11 @@ prop_codecs_compatM
   -> m Bool
 prop_codecs_compatM codecA codecB
                     (AnyMessage (msg :: Message ps st st')) =
-    getAll <$> do r <- decode codecB >>= runDecoder [encode codecA msg]
+    getAll <$> do r <- decode codecB (sing :: Sing st) >>= runDecoder [encode codecA msg]
                   case r :: Either failure (SomeMessage st) of
                     Right (SomeMessage msg') -> return $ All $ AnyMessage msg' == AnyMessage msg
                     Left _                   -> return $ All False
-            <> do r <- decode codecA >>= runDecoder [encode codecB msg]
+            <> do r <- decode codecA (sing :: Sing st) >>= runDecoder [encode codecB msg]
                   case r :: Either failure (SomeMessage st) of
                     Right (SomeMessage msg') -> return $ All $ AnyMessage msg' == AnyMessage msg
                     Left _                   -> return $ All False

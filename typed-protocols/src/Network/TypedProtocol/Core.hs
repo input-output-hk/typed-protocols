@@ -1,17 +1,24 @@
 {-# LANGUAGE BangPatterns             #-}
+{-# LANGUAGE ConstraintKinds          #-}
 {-# LANGUAGE DataKinds                #-}
 {-# LANGUAGE DeriveFunctor            #-}
 {-# LANGUAGE EmptyCase                #-}
+{-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE GADTs                    #-}
+{-# LANGUAGE MultiParamTypeClasses    #-}
 {-# LANGUAGE PolyKinds                #-}
 {-# LANGUAGE QuantifiedConstraints    #-}
 {-# LANGUAGE RankNTypes               #-}
+{-# LANGUAGE ScopedTypeVariables      #-}
 {-# LANGUAGE StandaloneDeriving       #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE TypeFamilyDependencies   #-}
 {-# LANGUAGE TypeInType               #-}
 {-# LANGUAGE TypeOperators            #-}
+-- need for 'Show' instance of 'ProtocolState'
+{-# LANGUAGE UndecidableInstances     #-}
 
 
 -- | This module defines the core of the typed protocol framework.
@@ -29,6 +36,7 @@ module Network.TypedProtocol.Core
   , PeerRole (..)
   , SingPeerRole (..)
   , Agency (..)
+  , SingAgency (..)
   , RelativeAgency (..)
   , Relative
   , ReflRelativeAgency (..)
@@ -41,6 +49,11 @@ module Network.TypedProtocol.Core
   , type (|>)
   , SingQueue (..)
   , (|>)
+  , ActiveAgency
+  , ActiveAgency' (..)
+  , IsActiveState (..)
+  , ActiveState
+  , notActiveState
     -- * Protocol proofs and tests
     -- $tests
     -- $lemmas
@@ -50,7 +63,7 @@ module Network.TypedProtocol.Core
   , ReflNobodyHasAgency (..)
   ) where
 
-import           Data.Kind (Type)
+import           Data.Kind (Constraint, Type)
 
 import           Data.Singletons
 
@@ -206,6 +219,8 @@ data SingPeerRole pr where
     SingAsClient :: SingPeerRole AsClient
     SingAsServer :: SingPeerRole AsServer
 
+deriving instance Show (SingPeerRole pr)
+
 type instance Sing = SingPeerRole
 instance SingI AsClient where
     sing = SingAsClient
@@ -217,6 +232,21 @@ data Agency where
     ServerAgency :: Agency
     NobodyAgency :: Agency
 
+type SingAgency :: Agency -> Type
+data SingAgency a where
+    SingClientAgency :: SingAgency ClientAgency
+    SingServerAgency :: SingAgency ServerAgency
+    SingNobodyAgency :: SingAgency NobodyAgency
+
+deriving instance Show (SingAgency a)
+
+type instance Sing = SingAgency
+instance SingI ClientAgency where
+    sing = SingClientAgency
+instance SingI ServerAgency where
+    sing = SingServerAgency
+instance SingI NobodyAgency where
+    sing = SingNobodyAgency
 
 data RelativeAgency where
     WeHaveAgency    :: RelativeAgency
@@ -340,6 +370,46 @@ class Protocol ps where
   --
   type StateAgency (st :: ps) :: Agency
 
+type ActiveAgency' :: ps -> Agency -> Type
+data ActiveAgency' st agency where
+  ClientHasAgency :: StateAgency st ~ ClientAgency
+                  => ActiveAgency' st ClientAgency
+  ServerHasAgency :: StateAgency st ~ ServerAgency
+                  => ActiveAgency' st ServerAgency
+
+deriving instance Show (ActiveAgency' st agency)
+
+type ActiveAgency :: ps -> Type
+type ActiveAgency st = ActiveAgency' st (StateAgency st)
+
+-- | A type class which restricts states to ones that have `ClientAgency` or
+-- `ServerAgency`, excluding `NobodyAgency`.
+--
+-- One can use `notActive' to eliminate cases for which both @'IsActiveState'
+-- st@ is in scope and for which we have an evidence that the state is not
+-- active (i.e. a singleton).  This is useful when writing a 'Codec'.
+--
+class IsActiveState st (agency :: Agency) where
+  activeAgency :: ActiveAgency' st agency
+
+instance ClientAgency ~ StateAgency st
+      => IsActiveState st ClientAgency where
+  activeAgency = ClientHasAgency
+instance ServerAgency ~ StateAgency st
+      => IsActiveState st ServerAgency where
+  activeAgency = ServerHasAgency
+
+type ActiveState :: ps -> Constraint
+type ActiveState st = IsActiveState st (StateAgency st)
+
+notActiveState :: forall ps (st :: ps).
+                  StateAgency st ~ NobodyAgency
+               => ActiveState st
+               => Sing st
+               -> forall a. a
+notActiveState (_ :: Sing st) =
+  case activeAgency :: ActiveAgency st of {}
+
 
 -- | A type function to flip the client and server roles.
 --
@@ -359,7 +429,7 @@ data ReflNobodyHasAgency ra ra' where
 
 
 -- | A proof that if both @Relative pr a@ and @Relative (FlipAgency pr) a@ are
--- equal then nobody has agency.  In particual this lemma excludes the
+-- equal then nobody has agency.  In particular this lemma excludes the
 -- possibility that client and server has agency at the same state.
 --
 exclusionLemma_ClientAndServerHaveAgency
