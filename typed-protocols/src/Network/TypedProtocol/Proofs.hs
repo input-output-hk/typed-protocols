@@ -1,8 +1,8 @@
 {-# LANGUAGE DataKinds                #-}
 {-# LANGUAGE EmptyCase                #-}
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE GADTs                    #-}
 {-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE QuantifiedConstraints    #-}
 {-# LANGUAGE RankNTypes               #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
@@ -163,7 +163,10 @@ data STrans tr where
 -- instance
 type SQueue :: forall ps -> PeerRole -> ps -> Queue ps -> ps -> Type
 data SQueue ps pr st q st' where
-  ConsMsgQ :: SingI st
+  ConsMsgQ :: ( SingI st
+              , SingI st'
+              , ActiveState st
+              )
            => (ReflRelativeAgency (StateAgency st)
                                    WeHaveAgency
                                   (Relative pr (StateAgency st)))
@@ -179,7 +182,10 @@ data SQueue ps pr st q st' where
 
 -- | Push a `ConsMsgQ` to the back of `SQueue`.
 --
-snocMsgQ :: SingI st'
+snocMsgQ :: ( SingI st'
+            , SingI st''
+            , ActiveState st'
+            )
          => (ReflRelativeAgency (StateAgency st')
                                  WeHaveAgency
                                 (Relative pr (StateAgency st')))

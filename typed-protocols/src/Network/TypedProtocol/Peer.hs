@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds                #-}
 {-# LANGUAGE DeriveFunctor            #-}
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE GADTs                    #-}
 {-# LANGUAGE PolyKinds                #-}
 {-# LANGUAGE RankNTypes               #-}
@@ -100,7 +101,8 @@ data Peer ps pr pl q st m a where
   -- >   return $ ... -- another Peer value
   --
   Effect
-    :: m (Peer ps pr pl q st m a)
+    :: forall ps pr pl q st m a.
+       m (Peer ps pr pl q st m a)
     -- ^ monadic continuation
     ->    Peer ps pr pl q st m a
 
@@ -113,7 +115,11 @@ data Peer ps pr pl q st m a where
   -- > Yield ReflClientAgency MsgPing $ ...
   --
   Yield
-    :: SingI st
+    :: forall ps pr pl (st :: ps) (st' :: ps) m a.
+       ( SingI st
+       , SingI st'
+       , ActiveState st
+       )
     => ReflRelativeAgency (StateAgency st)
                            WeHaveAgency
                           (Relative pr (StateAgency st))
@@ -142,12 +148,15 @@ data Peer ps pr pl q st m a where
   -- >   MsgPing -> ...
   --
   Await
-    :: SingI st
+    :: forall ps pr pl (st :: ps) m a.
+       ( SingI st
+       , ActiveState st
+       )
     => ReflRelativeAgency (StateAgency st)
                            TheyHaveAgency
                           (Relative pr (StateAgency st))
     -- ^ agency proof
-    -> (forall st'. Message ps st st'
+    -> (forall (st' :: ps). Message ps st st'
         -> Peer ps pr pl Empty st' m a)
     -- ^ continuation
     -> Peer     ps pr pl Empty st  m a
@@ -163,7 +172,8 @@ data Peer ps pr pl q st m a where
   -- >       (Done ReflNobodyAgency TokDone result)
   --
   Done
-    :: SingI st
+    :: forall ps pr pl (st :: ps) m a.
+       SingI st
     => ReflRelativeAgency (StateAgency st)
                            NobodyHasAgency
                           (Relative pr (StateAgency st))
@@ -181,7 +191,11 @@ data Peer ps pr pl q st m a where
   -- the queue.
   --
   YieldPipelined
-    :: (SingI st, SingI st')
+    :: forall ps pr (st :: ps) (st' :: ps) q st'' m a.
+       ( SingI st
+       , SingI st'
+       , ActiveState st
+       )
     => ReflRelativeAgency (StateAgency st)
                            WeHaveAgency
                           (Relative pr (StateAgency st))
@@ -195,14 +209,17 @@ data Peer ps pr pl q st m a where
   -- | Partially collect promised transition.
   --
   Collect
-    :: (SingI st')
+    :: forall ps pr (st' :: ps) (st'' :: ps) q st m a.
+       ( SingI st'
+       , ActiveState st'
+       )
     => ReflRelativeAgency (StateAgency st')
                            TheyHaveAgency
                           (Relative pr (StateAgency st'))
     -- ^ agency proof
     -> Maybe (Peer ps pr 'Pipelined (Tr st' st'' <| q) st m a)
     -- ^ continuation, executed if no message has arrived so far
-    -> (forall stNext. Message ps st' stNext
+    -> (forall (stNext :: ps). Message ps st' stNext
         -> Peer ps pr 'Pipelined (Tr stNext st'' <| q) st m a)
     -- ^ continuation
     -> Peer     ps pr 'Pipelined (Tr st'    st'' <| q) st m a
@@ -214,7 +231,8 @@ data Peer ps pr pl q st m a where
   -- which needs to know the transition type at compile time.
   --
   CollectDone
-    :: Peer ps pr 'Pipelined              q  st' m a
+    :: forall ps pr (st :: ps) q (st' :: ps) m a.
+       Peer ps pr 'Pipelined              q  st' m a
     -- ^ continuation
     -> Peer ps pr 'Pipelined (Tr st st <| q) st' m a
 

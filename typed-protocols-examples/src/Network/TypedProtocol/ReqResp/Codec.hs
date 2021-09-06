@@ -11,6 +11,7 @@ module Network.TypedProtocol.ReqResp.Codec where
 import           Data.Singletons
 
 import           Network.TypedProtocol.Codec
+import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.PingPong.Codec (decodeTerminatedFrame)
 import           Network.TypedProtocol.ReqResp.Type
 import           Text.Read (readMaybe)
@@ -33,11 +34,12 @@ codecReqResp =
 
     decode :: forall req' resp' m'
                      (st :: ReqResp req' resp')
-           .  (Monad m', SingI st, Read req', Read resp')
-           => m' (DecodeStep String CodecFailure m' (SomeMessage st))
-    decode =
+           .  (Monad m', Read req', Read resp', ActiveState st)
+           => Sing st
+           -> m' (DecodeStep String CodecFailure m' (SomeMessage st))
+    decode stok =
       decodeTerminatedFrame '\n' $ \str trailing ->
-        case (sing :: Sing st, break (==' ') str) of
+        case (stok, break (==' ') str) of
           (SingIdle, ("MsgReq", str'))
              | Just resp <- readMaybe str'
             -> DecodeDone (SomeMessage (MsgReq resp)) trailing
@@ -61,16 +63,16 @@ codecReqRespId =
     encode :: forall (st  :: ReqResp req resp)
                      (st' :: ReqResp req resp)
            .  SingI st
+           => ActiveState st
            => Message (ReqResp req resp) st st'
            -> AnyMessage (ReqResp req resp)
     encode msg = AnyMessage msg
 
     decode :: forall (st :: ReqResp req resp)
-           .  SingI st
-           => m (DecodeStep (AnyMessage (ReqResp req resp)) CodecFailure m (SomeMessage st))
-    decode =
-      let stok :: Sing st
-          stok = sing in
+           .  ActiveState st
+           => Sing st
+           -> m (DecodeStep (AnyMessage (ReqResp req resp)) CodecFailure m (SomeMessage st))
+    decode stok =
       pure $ DecodePartial $ \mb ->
         case mb of
           Nothing -> return $ DecodeFail (CodecFailure "expected more data")
@@ -83,6 +85,11 @@ codecReqRespId =
               (SingBusy, MsgResp{})
                 -> DecodeDone (SomeMessage msg) Nothing
 
-              (_      , _     ) -> DecodeFail failure
-                where failure = CodecFailure ("unexpected server message: " ++ show msg)
+              (SingIdle, _) ->
+                DecodeFail failure
+                  where failure = CodecFailure ("unexpected client message: " ++ show msg)
+              (SingBusy, _) ->
+                DecodeFail failure
+                  where failure = CodecFailure ("unexpected server message: " ++ show msg)
 
+              (a@SingDone, _) -> notActiveState a

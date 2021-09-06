@@ -1,5 +1,5 @@
 {-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE EmptyCase                #-}
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE GADTs                    #-}
 {-# LANGUAGE NamedFieldPuns           #-}
 {-# LANGUAGE PolyKinds                #-}
@@ -18,6 +18,7 @@ module Network.TypedProtocol.Driver
   , SomeMessage (..)
     -- * Running a peer
   , runPeerWithDriver
+    -- * Re-exports
   , DecodeStep (..)
   ) where
 
@@ -64,6 +65,8 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
           --
           sendMessage    :: forall (st :: ps) (st' :: ps).
                             SingI st
+                         => SingI st'
+                         => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 WeHaveAgency
                                                (Relative pr (StateAgency st))
@@ -77,6 +80,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
           --
           recvMessage    :: forall (st :: ps).
                             SingI st
+                         => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
                                                (Relative pr (StateAgency st))
@@ -92,6 +96,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
           --
           tryRecvMessage :: forall (st :: ps).
                             SingI st
+                         => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
                                                (Relative pr (StateAgency st))
