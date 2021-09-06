@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds                #-}
+{-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE GADTs                    #-}
 {-# LANGUAGE PatternSynonyms          #-}
 {-# LANGUAGE PolyKinds                #-}
@@ -63,6 +64,7 @@ pattern Yield :: forall ps pl st m a.
                  ()
               => forall st'.
                  ( SingI st
+                 , SingI st'
                  , StateAgency st ~ ServerAgency
                  )
               => Message ps st st'
@@ -122,7 +124,9 @@ pattern YieldPipelined msg receiver k = TP.YieldPipelined ReflServerAgency msg r
 --
 pattern Collect :: forall ps st n c m a.
                    ()
-                => SingI st
+                => ( SingI st
+                   , ActiveState st
+                   )
                 => Maybe (Server ps ('Pipelined c) (S n) st m a)
                 -- ^ continuation, executed if no message has arrived so far
                 -> (c -> Server  ps ('Pipelined c)    n  st m a)
@@ -144,6 +148,7 @@ pattern ReceiverEffect k = TP.ReceiverEffect k
 pattern ReceiverAwait :: forall ps st stdone m c.
                          ()
                       => ( SingI st
+                         , ActiveState st
                          , StateAgency st ~ ClientAgency
                          )
                       => (forall st'. Message  ps st st'

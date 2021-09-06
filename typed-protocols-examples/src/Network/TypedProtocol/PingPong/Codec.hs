@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE NamedFieldPuns      #-}
@@ -9,6 +10,7 @@ module Network.TypedProtocol.PingPong.Codec where
 import           Data.Singletons
 
 import           Network.TypedProtocol.Codec
+import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.PingPong.Type
 
 
@@ -26,14 +28,18 @@ codecPingPong =
     encode MsgPong = "pong\n"
 
     decode :: forall (st :: PingPong).
-              SingI st
-           => m (DecodeStep String CodecFailure m (SomeMessage st))
-    decode =
+              ActiveState st
+           => Sing st
+           -> m (DecodeStep String CodecFailure m (SomeMessage st))
+    decode stok =
       decodeTerminatedFrame '\n' $ \str trailing ->
-        case (sing :: Sing st, str) of
-          (SingBusy, "pong") -> DecodeDone (SomeMessage MsgPong) trailing
-          (SingIdle, "ping") -> DecodeDone (SomeMessage MsgPing) trailing
-          (SingIdle, "done") -> DecodeDone (SomeMessage MsgDone) trailing
+        case (stok, str) of
+          (SingBusy, "pong") ->
+            DecodeDone (SomeMessage MsgPong) trailing
+          (SingIdle, "ping") ->
+            DecodeDone (SomeMessage MsgPing) trailing
+          (SingIdle, "done") ->
+            DecodeDone (SomeMessage MsgDone) trailing
 
           (_       , _     ) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)
@@ -66,17 +72,18 @@ codecPingPongId =
     Codec{encode,decode}
   where
     encode :: forall (st :: PingPong) (st' :: PingPong)
-           .  SingI st
+           .  ( SingI st
+              , ActiveState st
+              )
            => Message PingPong st st'
            -> AnyMessage PingPong
     encode msg = AnyMessage msg
 
-    decode :: forall (st :: PingPong)
-           .  SingI st
-           => m (DecodeStep (AnyMessage PingPong) CodecFailure m (SomeMessage st))
-    decode =
-      let stok :: Sing st
-          stok = sing in
+    decode :: forall (st :: PingPong).
+              ActiveState st
+           => Sing st
+           -> m (DecodeStep (AnyMessage PingPong) CodecFailure m (SomeMessage st))
+    decode stok =
       pure $ DecodePartial $ \mb ->
         case mb of
           Nothing -> return $ DecodeFail (CodecFailure "expected more data")
@@ -89,5 +96,11 @@ codecPingPongId =
               (SingIdle, MsgDone) ->
                 DecodeDone (SomeMessage msg) Nothing
 
-              (_      , _     ) -> DecodeFail failure
-                where failure = CodecFailure ("unexpected client message: " ++ show msg )
+              (SingIdle, _) ->
+                DecodeFail failure
+                  where failure = CodecFailure ("unexpected client message: " ++ show msg)
+              (SingBusy, _) ->
+                DecodeFail failure
+                  where failure = CodecFailure ("unexpected server message: " ++ show msg)
+
+              (a@SingDone, _) -> notActiveState a
