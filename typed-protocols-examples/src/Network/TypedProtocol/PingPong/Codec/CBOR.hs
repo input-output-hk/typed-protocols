@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE PolyKinds           #-}
@@ -34,18 +35,17 @@ codecPingPong = mkCodecCborLazyBS encodeMsg decodeMsg
   encodeMsg MsgDone = CBOR.encodeWord 2
 
   decodeMsg :: forall s (st :: PingPong).
-               SingI st
-            => CBOR.Decoder s (SomeMessage st)
-  decodeMsg = do
+               ActiveState st
+            => Sing st
+            -> CBOR.Decoder s (SomeMessage st)
+  decodeMsg stok = do
     key <- CBOR.decodeWord
-    case (sing :: Sing st, key) of
-      (SingIdle, 0) -> return $ SomeMessage MsgPing
-      (SingBusy, 1) -> return $ SomeMessage MsgPong
-      (SingIdle, 2) -> return $ SomeMessage MsgDone
+    case (stok, key) of
+      (SingIdle, 0)   -> return $ SomeMessage MsgPing
+      (SingBusy, 1)   -> return $ SomeMessage MsgPong
+      (SingIdle, 2)   -> return $ SomeMessage MsgDone
 
       -- TODO proper exceptions
-      (SingIdle, _) -> fail "codecPingPong.StIdle: unexpected key"
-      (SingBusy, _) -> fail "codecPingPong.StBusy: unexpected key"
-      (SingDone, _) -> fail "codecPingPong.StDone: unexpected key"
-
-
+      (SingIdle, _)   -> fail "codecPingPong.StIdle: unexpected key"
+      (SingBusy, _)   -> fail "codecPingPong.StBusy: unexpected key"
+      (a@SingDone, _) -> notActiveState a

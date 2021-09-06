@@ -1,4 +1,5 @@
 {-# LANGUAGE BangPatterns        #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE EmptyCase           #-}
 {-# LANGUAGE GADTs               #-}
@@ -68,6 +69,8 @@ data Driver ps (pr :: PeerRole) dstate m =
         Driver {
           sendMessage :: forall (st :: ps) (st' :: ps).
                          SingI st
+                      => SingI st'
+                      => ActiveState st
                       => ReflRelativeAgency (StateAgency st)
                                              WeHaveAgency
                                             (Relative pr (StateAgency st))
@@ -76,6 +79,7 @@ data Driver ps (pr :: PeerRole) dstate m =
 
         , recvMessage :: forall (st :: ps).
                          SingI st
+                      => ActiveState st
                       => ReflRelativeAgency (StateAgency st)
                                              TheyHaveAgency
                                             (Relative pr (StateAgency st))
@@ -85,13 +89,18 @@ data Driver ps (pr :: PeerRole) dstate m =
         , initialDState :: dstate
         }
 
+
 -- | When decoding a 'Message' we only know the expected \"from\" state. We
 -- cannot know the \"to\" state as this depends on the message we decode. To
 -- resolve this we use the 'SomeMessage' wrapper which uses an existential
 -- type to hide the \"to"\ state.
 --
 data SomeMessage (st :: ps) where
-     SomeMessage :: Message ps st st' -> SomeMessage st
+     SomeMessage :: ( SingI st
+                    , SingI st'
+                    , ActiveState st
+                    )
+                 => Message ps st st' -> SomeMessage st
 
 
 --

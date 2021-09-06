@@ -90,7 +90,9 @@ driverSimple tracer Codec{encode, decode} channel@Channel{send} =
     Driver { sendMessage, recvMessage, initialDState = Nothing }
   where
     sendMessage :: forall (st :: ps) (st' :: ps).
-                   SingI st
+                   ( SingI st
+                   , ActiveState st
+                   )
                 => ReflRelativeAgency (StateAgency st)
                                        WeHaveAgency
                                       (Relative pr (StateAgency st))
@@ -101,14 +103,16 @@ driverSimple tracer Codec{encode, decode} channel@Channel{send} =
       traceWith tracer (TraceSendMsg (AnyMessage msg))
 
     recvMessage :: forall (st :: ps).
-                   SingI st
+                   ( SingI st
+                   , ActiveState st
+                   )
                 => ReflRelativeAgency (StateAgency st)
                                        TheyHaveAgency
                                       (Relative pr (StateAgency st))
                 -> Maybe bytes
                 -> m (SomeMessage st, Maybe bytes)
     recvMessage !_refl trailing = do
-      decoder <- decode
+      decoder <- decode sing
       result  <- runDecoderWithChannel channel trailing decoder
       case result of
         Right x@(SomeMessage msg, _trailing') -> do
