@@ -37,6 +37,7 @@ import           Data.Function ((&))
 import           Data.Kind (Type)
 import           Data.Singletons
 import           Network.TypedProtocol.Core
+import           Network.TypedProtocol.Peer
 
 -- $about
 --
