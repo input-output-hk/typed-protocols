@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE PolyKinds           #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Network.TypedProtocol.ReqResp.Client
@@ -12,10 +13,14 @@ module Network.TypedProtocol.ReqResp.Client
   , reqRespClientPeerPipelined
   , ReqRespIdle (..)
   , reqRespClientPeerIdle
+    -- * Request once
+  , requestOnce
   ) where
 
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Peer.Client
+import           Network.TypedProtocol.Peer.Server (Server)
+import           Network.TypedProtocol.Proofs (connect)
 import           Network.TypedProtocol.ReqResp.Type
 
 data ReqRespClient req resp m a where
@@ -58,6 +63,18 @@ reqRespClientPeer (SendMsgReq req next) =
       Effect $ do
         client <- next resp
         pure $ reqRespClientPeer client
+
+
+
+requestOnce :: forall req resp m.
+               Monad m
+            => (forall x. Server (ReqResp req resp) NonPipelined Z StIdle m x)
+            -> (req -> m resp)
+requestOnce server req = (\(resp, _, _) -> resp)
+                     <$> reqRespClientPeer client `connect` server
+  where
+    client :: ReqRespClient req resp m resp
+    client = SendMsgReq req $ \resp -> pure $ SendMsgDone (pure resp)
 
 
 --
