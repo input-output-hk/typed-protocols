@@ -116,10 +116,9 @@ runPeerWithDriver
      Monad m
   => Driver ps pr dstate m
   -> Peer ps pr NonPipelined Z st m a
-  -> dstate
   -> m (a, dstate)
-runPeerWithDriver Driver{sendMessage, recvMessage} =
-    flip go
+runPeerWithDriver Driver{sendMessage, recvMessage, initialDState} =
+    go initialDState
   where
     go :: forall st'.
           dstate
@@ -166,15 +165,14 @@ runPipelinedPeerWithDriver
      MonadAsync m
   => Driver ps pr dstate m
   -> Peer ps pr ('Pipelined c) Z st m a
-  -> dstate
   -> m (a, dstate)
-runPipelinedPeerWithDriver driver peer dstate0 = do
+runPipelinedPeerWithDriver driver@Driver{initialDState} peer = do
     receiveQueue <- atomically newTQueue
     collectQueue <- atomically newTQueue
     a <- runPipelinedPeerReceiverQueue receiveQueue collectQueue driver
            `withAsyncLoop`
          runPipelinedPeerSender        receiveQueue collectQueue driver
-                                       peer dstate0
+                                       peer initialDState
     return a
 
   where
