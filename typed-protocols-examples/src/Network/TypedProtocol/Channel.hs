@@ -3,6 +3,7 @@
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 
 module Network.TypedProtocol.Channel
   ( Channel (..)
@@ -16,6 +17,7 @@ module Network.TypedProtocol.Channel
 #endif
   , createConnectedChannels
   , createConnectedBufferedChannels
+  , createConnectedBufferedChannelsUnbounded
   , createPipelineTestChannels
   , channelEffect
   , delayChannel
@@ -29,6 +31,7 @@ import           Control.Monad.Class.MonadTimer.SI
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import           Data.ByteString.Lazy.Internal (smallChunkSize)
+import           Data.Proxy
 import           Numeric.Natural
 
 #if !defined(mingw32_HOST_OS)
@@ -128,12 +131,20 @@ mvarsAsChannel bufferRead bufferWrite =
 --
 -- This is primarily useful for testing protocols.
 --
-createConnectedChannels :: MonadSTM m => m (Channel m a, Channel m a)
+createConnectedChannels :: forall m a. (MonadLabelledSTM m, MonadTraceSTM m, Show a) => m (Channel m a, Channel m a)
 createConnectedChannels = do
     -- Create two TMVars to act as the channel buffer (one for each direction)
     -- and use them to make both ends of a bidirectional channel
-    bufferA <- atomically $ newEmptyTMVar
-    bufferB <- atomically $ newEmptyTMVar
+    bufferA <- atomically $ do
+      v <- newEmptyTMVar
+      labelTMVar v "buffer-a"
+      traceTMVar (Proxy @m) v $ \_ a -> pure $ TraceString ("buffer-a: " ++ show a)
+      return v
+    bufferB <- atomically $ do
+      v <- newEmptyTMVar
+      traceTMVar (Proxy @m) v $ \_ a -> pure $ TraceString ("buffer-b: " ++ show a)
+      labelTMVar v "buffer-b"
+      return v
 
     return (mvarsAsChannel bufferB bufferA,
             mvarsAsChannel bufferA bufferB)
@@ -164,6 +175,27 @@ createConnectedBufferedChannels sz = do
         send x = atomically (writeTBQueue bufferWrite x)
         recv   = atomically (Just <$> readTBQueue bufferRead)
 
+
+-- | Create a pair of channels that are connected via two unbounded buffers.
+--
+-- This is primarily useful for testing protocols.
+--
+createConnectedBufferedChannelsUnbounded :: forall m a. MonadSTM m
+                                         => m (Channel m a, Channel m a)
+createConnectedBufferedChannelsUnbounded = do
+    -- Create two TQueues to act as the channel buffers (one for each
+    -- direction) and use them to make both ends of a bidirectional channel
+    bufferA <- newTQueueIO
+    bufferB <- newTQueueIO
+
+    return (queuesAsChannel bufferB bufferA,
+            queuesAsChannel bufferA bufferB)
+  where
+    queuesAsChannel bufferRead bufferWrite =
+        Channel{send, recv}
+      where
+        send x  = atomically (writeTQueue bufferWrite x)
+        recv    = atomically (     Just <$> readTQueue bufferRead)
 
 -- | Create a pair of channels that are connected via N-place buffers.
 --
