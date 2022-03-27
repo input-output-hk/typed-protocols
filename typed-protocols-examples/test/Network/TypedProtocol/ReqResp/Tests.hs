@@ -189,7 +189,7 @@ prop_connectPipelined cs f xs =
 -- Properties using channels, codecs and drivers.
 --
 
-prop_channel :: (MonadSTM m, MonadAsync m, MonadCatch m)
+prop_channel :: (MonadLabelledSTM m, MonadTraceSTM m, MonadAsync m, MonadCatch m)
              => (Int -> Int -> (Int, Int)) -> [Int]
              -> m Bool
 prop_channel f xs = do
