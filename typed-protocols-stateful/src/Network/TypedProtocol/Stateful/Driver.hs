@@ -1,87 +1,41 @@
-{-# LANGUAGE BangPatterns        #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE BangPatterns             #-}
+{-# LANGUAGE DataKinds                #-}
+{-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE GADTs                    #-}
+{-# LANGUAGE NamedFieldPuns           #-}
+{-# LANGUAGE PolyKinds                #-}
+{-# LANGUAGE RankNTypes               #-}
+{-# LANGUAGE ScopedTypeVariables      #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TypeOperators            #-}
 
--- | Actions for running 'Peer's with a 'Driver'
+-- | Actions for running 'Peer's with a 'Driver'.  This module should be
+-- imported qualified.
 --
-module Network.TypedProtocol.Driver
-  ( -- * Introduction
-    -- $intro
-    -- * Driver interface
-    Driver (..)
-  , DriverState (..)
-  , SomeMessage (..)
-    -- * Running a peer
-  , runPeerWithDriver
+module Network.TypedProtocol.Stateful.Driver
+  ( -- * Running a peer
+    runPeerWithDriver
     -- * Re-exports
   , DecodeStep (..)
+  , Driver (..)
+  , DriverState (..)
+  , SomeMessage (..)
   ) where
 
 import           Control.Applicative (Alternative, (<|>))
 import           Control.Monad.Class.MonadSTM
 
-import           Data.Singletons
+import           Data.Kind (Type)
 import           Data.Type.Queue
+import           Data.Singletons
 
 import           Network.TypedProtocol.Codec (DecodeStep (..), SomeMessage (..))
 import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer
+import           Network.TypedProtocol.Driver (DriverState (..))
+import           Network.TypedProtocol.Stateful.Peer
+import           Unsafe.Coerce (unsafeCoerce)
 
-
--- $intro
---
--- A 'Peer' is a particular implementation of an agent that engages in a
--- typed protocol. To actually run one we need a source and sink for the typed
--- protocol messages. These are provided by a 'Channel' and a 'Codec'. The
--- 'Channel' represents one end of an untyped duplex message transport, and
--- the 'Codec' handles conversion between the typed protocol messages and
--- the untyped channel.
---
--- So given the 'Peer' and a compatible 'Codec' and 'Channel' we can run the
--- peer in some appropriate monad. The peer and codec have to agree on
--- the same protocol and role in that protocol. The codec and channel have to
--- agree on the same untyped medium, e.g. text or bytes. All three have to
--- agree on the same monad in which they will run.
---
--- This module provides drivers for normal and pipelined peers. There is
--- very little policy involved here so typically it should be possible to
--- use these drivers, and customise things by adjusting the peer, or codec
--- or channel.
---
--- It is of course possible to write custom drivers and the code for these ones
--- may provide a useful starting point. The 'runDecoder' function may be a
--- helpful utility for use in custom drives.
---
-
-
--- | 'Driver' can be interrupted and might need to resume.  'DriverState'
--- records its state, so it can resume.
---
-data DriverState ps (pr :: PeerRole) (st :: ps) bytes failure dstate m
-    = DecoderState   (DecodeStep bytes failure m (SomeMessage st))
-                     !dstate
-      -- ^ 'tryRecvMessage' can return either 'DecodeStep' with
-      -- current 'dstate' or a parsed message.
-
-    | DriverState    !dstate
-      -- ^ dstate which was returned by 'recvMessage'
-
-    | DriverStateSTM (STM m (SomeMessage st, dstate))
-                     !dstate
-      -- ^ 'recvMessageSTM' might leave us with an stm action.
-
-
---
--- Driver interface
---
-
-data Driver ps (pr :: PeerRole) bytes failure dstate m =
+data Driver ps (pr :: PeerRole) bytes failure dstate f m =
         Driver {
           -- | Send a message.
           --
@@ -92,6 +46,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
                          => ReflRelativeAgency (StateAgency st)
                                                 WeHaveAgency
                                                (Relative pr (StateAgency st))
+                         -> f st'
                          -> Message ps st st'
                          -> m ()
 
@@ -110,6 +65,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
                                                (Relative pr (StateAgency st))
+                         -> f st
                          -> DriverState ps pr st bytes failure dstate m
                          -> m (SomeMessage st, dstate)
 
@@ -130,6 +86,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
                                                (Relative pr (StateAgency st))
+                         -> f st
                          -> DriverState ps pr st bytes failure dstate m
                          -> m (Either (DriverState ps pr st bytes failure dstate m)
                                       ( SomeMessage st
@@ -145,6 +102,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
                                                (Relative pr (StateAgency st))
+                         -> f st
                          -> DriverState ps pr st bytes failure dstate m
                          -> m (STM m (SomeMessage st, dstate))
 
@@ -157,15 +115,37 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
 --
 
 
+-- | A queue singleton which allows at the same time track information about
+-- the protocol state.  We could use `SingQueueF`, however this removes one
+-- level of indirection.
+-- 
+--
+type SingQueueS :: (ps -> Type) -> Queue ps -> Type
+data SingQueueS f q where
+    SingEmptyS :: SingQueueS f Empty
+    SingConsS  :: forall ps f (st :: ps) (st' :: ps) (q :: Queue ps).
+                  !(f st) 
+               -> !(SingQueueS f q)
+               -> SingQueueS f (Tr st st' <| q)
+
+snocS :: forall ps f (st :: ps) (st' :: ps) (q :: Queue ps).
+         SingQueueS f q
+      -> f st
+      -> Proxy st'
+      -> SingQueueS f (q |> Tr st st')
+snocS  SingEmptyS     !f  _  = SingConsS f SingEmptyS
+snocS (SingConsS f q) !f' p = SingConsS f (snocS q f' p)
+
 -- | Run a peer with the given driver.
 --
 -- This runs the peer to completion (if the protocol allows for termination).
 --
 runPeerWithDriver
-  :: forall ps (st :: ps) pr pl bytes failure dstate m a.
+  :: forall ps (st :: ps) pr pl bytes failure dstate (f :: ps -> Type) m a.
      (Alternative (STM m), MonadSTM m)
-  => Driver ps pr bytes failure dstate m
-  -> Peer ps pr pl Empty st m (STM m) a
+  => Driver ps pr bytes failure dstate f m
+  -> f st
+  -> Peer ps pr pl Empty st f m (STM m) a
   -> m (a, dstate)
 runPeerWithDriver Driver{ sendMessage
                         , recvMessage
@@ -177,61 +157,74 @@ runPeerWithDriver Driver{ sendMessage
     goEmpty
        :: forall st'.
           dstate
-       -> Peer ps pr pl 'Empty st' m (STM m) a
+       -> f st'
+       -> Peer ps pr pl 'Empty st' f m (STM m) a
        -> m (a, dstate)
-    goEmpty !dstate (Effect k) = k >>= goEmpty dstate
+    goEmpty !dstate !f (Effect k) = k >>= goEmpty dstate f
 
-    goEmpty !dstate (Done _ x) = return (x, dstate)
+    goEmpty !dstate  _ (Done _ x) = return (x, dstate)
 
-    goEmpty !dstate (Yield refl msg k) = do
-      sendMessage refl msg
-      goEmpty dstate k
+    goEmpty !dstate  _ (Yield refl !f msg k) = do
+      sendMessage refl f msg
+      goEmpty dstate f k
 
-    goEmpty !dstate (Await refl k) = do
-      (SomeMessage msg, dstate') <- recvMessage refl (DriverState dstate)
-      goEmpty dstate' (k msg)
+    goEmpty !dstate !f (Await refl k) = do
+      (SomeMessage msg, dstate') <- recvMessage refl f (DriverState dstate)
+      case k f msg of
+        (k', f') -> goEmpty dstate' f' k'
 
-    goEmpty !dstate (YieldPipelined refl msg k) = do
-      sendMessage refl msg
-      go singSingleton (DriverState dstate) k
+    goEmpty !dstate  _ (YieldPipelined refl f msg k) = do
+      sendMessage refl f msg
+      go (SingConsS f SingEmptyS) (DriverState dstate) k
 
 
     go :: forall st1 st2 st3 q'.
-          SingQueue (Tr st1 st2 <| q')
+          SingQueueS f (Tr st1 st2 <| q')
        -> DriverState ps pr st1 bytes failure dstate m
-       -> Peer ps pr pl (Tr st1 st2 <| q') st3 m (STM m) a
+       -> Peer ps pr pl (Tr st1 st2 <| q') st3 f m (STM m) a
        -> m (a, dstate)
     go q !dstate (Effect k) = k >>= go q dstate
 
     go q !dstate (YieldPipelined
-                  refl
+                  refl f
                   (msg :: Message ps st3 st')
-                  (k   :: Peer ps pr pl ((Tr st1 st2 <| q') |> Tr st' st'') st'' m (STM m) a))
+                  (k   :: Peer ps pr pl ((Tr st1 st2 <| q') |> Tr st' st'') st'' f m (STM m) a))
                 = do
-      sendMessage refl msg
-      go (q `snoc` (SingTr :: SingTrans (Tr st' st'')))
+      sendMessage refl f msg
+      go (snocS q f (Proxy :: Proxy st''))
          dstate k
 
-    go (SingCons q) !dstate (Collect refl Nothing k) = do
-      (SomeMessage msg, dstate') <- recvMessage refl dstate
-      go (SingCons q) (DriverState dstate') (k msg)
+    go (SingConsS f q) !dstate (Collect refl Nothing k) = do
+      (SomeMessage msg, dstate') <- recvMessage refl f dstate
+      case k f msg of
+        (k', f') -> go (SingConsS f' q) (DriverState dstate') k'
 
-    go q@(SingCons q') !dstate (Collect refl (Just k') k) = do
-      r <- tryRecvMessage refl dstate
+    go q@(SingConsS f q') !dstate (Collect refl (Just k') k) = do
+      r <- tryRecvMessage refl f dstate
       case r of
         Left dstate' ->
           go q dstate' k'
         Right (SomeMessage msg, dstate') ->
-          go (SingCons q') (DriverState dstate') (k msg)
+          case k f msg of
+            (k'', f'') -> go (SingConsS f'' q') (DriverState dstate') k''
 
-    go (SingCons SingEmpty) (DriverState dstate) (CollectDone k) =
-      goEmpty dstate k
+    go (SingConsS (f :: f stX) SingEmptyS)
+       (DriverState dstate)
+       (CollectDone k :: Peer ps pr pl (Cons (Tr stX stY) Empty) stZ f m stm a) =
+      -- we collected all messages, which means that we reached the type:
+      -- @Peer ps pr pl (Tr st st <| Empty) st f m stm a@
+      -- but GHC has trouble to infer this.
+      -- TODO: provide some aid for GHC to avoid the `unsafeCoerce`.
+      goEmpty dstate (coerce f) k
+        where
+          coerce :: f stA -> f stZ
+          coerce = unsafeCoerce
 
-    go (SingCons q@SingCons {}) (DriverState dstate) (CollectDone k) =
+    go (SingConsS _ (q@SingConsS {})) (DriverState dstate) (CollectDone k) =
       go q (DriverState dstate) k
 
-    go q@(SingCons q') !dstate (CollectSTM refl k' k) = do
-      stm <- recvMessageSTM refl dstate
+    go q@(SingConsS f q') !dstate (CollectSTM refl k' k) = do
+      stm <- recvMessageSTM refl f dstate
       -- Note that the 'stm' action also returns next @dstate@.  For this
       -- reason, using a simpler 'CollectSTM' which takes `STM m Message` as an
       -- argument and computes the result by itself is not possible.
@@ -240,17 +233,18 @@ runPeerWithDriver Driver{ sendMessage
          <|> Right <$> k'
       case r of
         Left (SomeMessage msg, dstate') ->
-          go (SingCons q') (DriverState dstate') (k msg)
+          case k f msg of
+            (k'', f'') -> go (SingConsS f'' q') (DriverState dstate') k''
         Right k'' ->
           go q (DriverStateSTM stm (getDState dstate)) k''
 
 
-    go SingCons{} DecoderState{}   CollectDone{} =
+    go _ DecoderState{}   CollectDone {} =
       -- 'CollectDone' can only be executed once `Collect` or `CollectSTM` was
       -- effective, which means we cannot receive a partial decoder here.
       error "runPeerWithDriver: unexpected parital decoder"
 
-    go SingCons{} DriverStateSTM{} CollectDone{} =
+    go _ DriverStateSTM{} CollectDone {} =
       -- 'CollectDone' can only placed when once `Collect` or `CollectSTM` was
       -- effective, we cannot have 'DriverStateSTM' at this stage.
       error "runPeerWithDriver: unexpected driver state"

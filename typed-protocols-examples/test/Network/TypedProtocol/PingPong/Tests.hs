@@ -36,11 +36,12 @@ import           Network.TypedProtocol.PingPong.Examples
 import           Network.TypedProtocol.PingPong.Server
 import           Network.TypedProtocol.PingPong.Type
 
+import           Control.Applicative (Alternative)
 import           Control.Monad.Class.MonadAsync
 import           Control.Monad.Class.MonadSTM
 import           Control.Monad.Class.MonadTest
 import           Control.Monad.Class.MonadThrow
-import           Control.Monad.Class.MonadTimer
+import           Control.Monad.Class.MonadTimer.SI
 import           Control.Monad.IOSim
 import           Control.Monad.ST (runST)
 import           Control.Tracer (Tracer (..), nullTracer)
@@ -348,8 +349,9 @@ prop_connect_pipelined_stm choices (NonNegative n) =
 
 -- | Run a non-pipelined client and server over a channel using a codec.
 --
-prop_channel :: ( MonadLabelledSTM m, MonadTraceSTM m, MonadAsync m
-                , MonadCatch m, MonadMask m, MonadThrow (STM m))
+prop_channel :: ( Alternative (STM m), MonadLabelledSTM m, MonadTraceSTM m
+                , MonadAsync m, MonadCatch m, MonadDelay m, MonadMask m
+                , MonadThrow (STM m))
              => NonNegative Int
              -> m Bool
 prop_channel (NonNegative n) = do
@@ -371,8 +373,9 @@ prop_channel_ST n =
     runSimOrThrow (prop_channel n)
 
 
-prop_channel_stm :: ( MonadLabelledSTM m, MonadAsync m, MonadCatch m, MonadMask m
-                    , MonadTraceSTM m, MonadTest m, MonadThrow (STM m), MonadTimer m )
+prop_channel_stm :: ( Alternative (STM m), MonadLabelledSTM m, MonadAsync m
+                    , MonadCatch m, MonadDelay m, MonadMask m, MonadTraceSTM m
+                    , MonadTest m, MonadThrow (STM m), MonadTimer m )
              => DiffTime
              -> DiffTime
              -> NonNegative Int

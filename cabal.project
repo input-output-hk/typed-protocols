@@ -18,5 +18,6 @@ index-state:
 packages: ./typed-protocols
           ./typed-protocols-cborg
           ./typed-protocols-examples
+          ./typed-protocols-stateful
 
 test-show-details: direct

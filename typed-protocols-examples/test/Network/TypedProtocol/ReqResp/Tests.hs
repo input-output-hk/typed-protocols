@@ -30,6 +30,7 @@ import           Network.TypedProtocol.ReqResp.Examples
 import           Network.TypedProtocol.ReqResp.Server
 import           Network.TypedProtocol.ReqResp.Type
 
+import           Control.Applicative (Alternative)
 import           Control.Exception (throw)
 import           Control.Monad.Class.MonadAsync
 import           Control.Monad.Class.MonadST
@@ -194,8 +195,8 @@ prop_connectPipelined cs f xs =
 -- Properties using channels, codecs and drivers.
 --
 
-prop_channel :: ( MonadLabelledSTM m, MonadAsync m, MonadCatch m, MonadMask m
-                , MonadTraceSTM m, MonadThrow (STM m))
+prop_channel :: ( Alternative (STM m), MonadLabelledSTM m, MonadAsync m
+                , MonadCatch m, MonadMask m, MonadTraceSTM m, MonadThrow (STM m))
              => (Int -> Int -> (Int, Int)) -> [Int]
              -> m Bool
 prop_channel f xs = do
@@ -218,8 +219,9 @@ prop_channel_ST f xs =
     runSimOrThrow (prop_channel f xs)
 
 
-prop_channelPipelined :: ( MonadLabelledSTM m, MonadAsync m, MonadCatch m
-                         , MonadMask m, MonadThrow (STM m), MonadDelay m
+prop_channelPipelined :: ( Alternative (STM m), MonadLabelledSTM m
+                         , MonadAsync m, MonadCatch m, MonadMask m
+                         , MonadThrow (STM m), MonadDelay m
                          , MonadTraceSTM m, MonadST m)
                       => (Int -> Int -> (Int, Int)) -> [Int]
                       -> m Bool

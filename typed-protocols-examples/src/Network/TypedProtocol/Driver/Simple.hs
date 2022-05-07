@@ -6,6 +6,7 @@
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeOperators        #-}
 -- @UndecidableInstances@ extensions is required for defining @Show@ instance
 -- of @'TraceSendRecv'@.
 {-# LANGUAGE UndecidableInstances #-}
@@ -40,7 +41,7 @@ import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Driver
 import           Network.TypedProtocol.Peer
 
-import           Control.Applicative ((<|>))
+import           Control.Applicative (Alternative, (<|>))
 import           Control.Concurrent.Class.MonadSTM.Strict
 import           Control.Exception (SomeAsyncException (..))
 import           Control.Monad.Class.MonadAsync
@@ -97,7 +98,8 @@ data SomeAsync m where
 -- exceptions.  There can be at most one such thread at a time.
 --
 driverSimple :: forall ps (pr :: PeerRole) failure bytes m.
-                ( MonadAsync      m
+                ( Alternative (STM m)
+                , MonadAsync      m
                 , MonadMask       m
                 , MonadThrow (STM m)
                 , Exception failure
@@ -233,7 +235,8 @@ driverSimple tracer Codec{encode, decode} channel@Channel{send} = do
 --
 runPeer
   :: forall ps (st :: ps) pr pl failure bytes m a .
-     ( MonadAsync      m
+     ( Alternative (STM m)
+     , MonadAsync      m
      , MonadMask       m
      , MonadThrow (STM m)
      , Exception failure
@@ -287,7 +290,7 @@ runDecoderWithChannel Channel{recv} = go
 -- | Like 'runDecoderWithChannel' but it is only using 'tryRecv', and returns
 -- either when we decoding finished, errored or 'tryRecv' returned 'Nothing'.
 --
-tryRunDecoderWithChannel :: Monad m
+tryRunDecoderWithChannel :: (Alternative (STM m), Monad m)
                          => Channel m bytes
                          -> Maybe bytes
                          -> DecodeStep bytes failure m (SomeMessage st)
@@ -317,7 +320,8 @@ data Role = Client | Server
 -- for example 'createConnectedChannels'.
 --
 runConnectedPeers :: forall ps pr pr' pl pl' st failure bytes m a b.
-                     ( MonadAsync      m
+                     ( Alternative (STM m)
+                     , MonadAsync      m
                      , MonadMask       m
                      , MonadCatch      m
                      , MonadThrow (STM m)
@@ -345,7 +349,8 @@ runConnectedPeers createChannels tracer codec client server =
 -- 'Handshake' protocol which knows how to decode different versions.
 --
 runConnectedPeersAsymmetric
-    :: ( MonadAsync      m
+    :: ( Alternative (STM m)
+       , MonadAsync      m
        , MonadMask       m
        , MonadThrow (STM m)
        , Exception failure
