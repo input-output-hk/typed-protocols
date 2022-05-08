@@ -4,6 +4,7 @@ packages: ./typed-protocols
           ./typed-protocols-cborg
           ./typed-protocols-examples
           ./typed-protocols-stateful
+          ./typed-protocols-stateful-cborg
 
 source-repository-package
   type: git
