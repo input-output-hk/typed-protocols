@@ -140,5 +140,5 @@ connect
     -> f st
     -> ST.Peer ps             pr  pl  Empty st f m (STM m) a
     -> ST.Peer ps (FlipAgency pr) pl' Empty st f m (STM m) b
-    -> m (a, b, TerminalStates ps pr)
+    -> m (a, b, TerminalStates ps)
 connect csA csB f a b = TP.connect csA csB (removeState f a) (removeState f b)

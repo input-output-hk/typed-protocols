@@ -214,11 +214,7 @@ prop_connect (NonNegative n) =
            (pingPongClientPeer (pingPongClientCount n))
            (pingPongServerPeer  pingPongServerCount))
 
-    of ((), n', TerminalStates SingDone
-                               ReflNobodyAgency
-                               SingDone
-                               ReflNobodyAgency) ->
-        n == n'
+    of ((), n', TerminalStates SingDone SingDone) -> n == n'
 
 
 --
@@ -238,11 +234,7 @@ connect_pipelined client cs =
             (pingPongClientPeerPipelined client)
             (pingPongServerPeer pingPongServerCount))
 
-    of (reqResps, n, TerminalStates SingDone
-                                    ReflNobodyAgency
-                                    SingDone
-                                    ReflNobodyAgency) ->
-         (n, reqResps)
+    of (reqResps, n, TerminalStates SingDone SingDone) -> (n, reqResps)
 
 
 connect_pipelined_stm :: (forall s. PingPongClientPipelined (IOSim s) [Either Int Int])
@@ -254,10 +246,7 @@ connect_pipelined_stm client cs =
             (pingPongClientPeerPipelinedSTM client)
             (pingPongServerPeer pingPongServerCount))
 
-    of (reqResps, n, TerminalStates SingDone
-                                    ReflNobodyAgency
-                                    SingDone
-                                    ReflNobodyAgency) ->
+    of (reqResps, n, TerminalStates SingDone SingDone) ->
          (n, reqResps)
 
 

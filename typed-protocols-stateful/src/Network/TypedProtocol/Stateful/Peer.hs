@@ -166,7 +166,9 @@ data Peer ps pr pl q st f m stm a where
   --
   Done
     :: forall ps pr pl (st :: ps) f m stm a.
-       SingI st
+       ( SingI st
+       , StateAgency st ~ NobodyAgency
+       )
     => ReflRelativeAgency (StateAgency st)
                            NobodyHasAgency
                           (Relative pr (StateAgency st))
