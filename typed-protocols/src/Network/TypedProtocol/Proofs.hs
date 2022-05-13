@@ -7,6 +7,7 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
 
 
 -- This is already implied by the -Wall in the .cabal file, but lets just be
@@ -82,7 +83,7 @@ connect
       (Monad m, SingI pr)
    => Peer ps             pr  NonPipelined Z initSt m a
    -> Peer ps (FlipAgency pr) NonPipelined Z initSt m b
-   -> m (a, b, TerminalStates ps pr)
+   -> m (a, b, TerminalStates ps)
 connect = go
   where
     singPeerRole :: Sing pr
@@ -91,14 +92,14 @@ connect = go
     go :: forall (st :: ps).
           Peer ps             pr  NonPipelined Z st m a
        -> Peer ps (FlipAgency pr) NonPipelined Z st m b
-       -> m (a, b, TerminalStates ps pr)
-    go (Done reflA a)  (Done reflB b)  = return (a, b, terminals)
+       -> m (a, b, TerminalStates ps)
+    go (Done ReflNobodyAgency a)  (Done ReflNobodyAgency b) =
+        return (a, b, terminals)
       where
-        terminals :: TerminalStates ps pr
+        terminals :: TerminalStates ps
         terminals = TerminalStates (sing :: Sing st)
-                                    reflA
                                    (sing :: Sing st)
-                                    reflB
+
     go (Effect a )      b              = a >>= \a' -> go a' b
     go  a              (Effect b)      = b >>= \b' -> go a  b'
     go (Yield _ msg a) (Await _ b)     = go  a     (b msg)
@@ -134,18 +135,15 @@ connect = go
 -- | The terminal states for the protocol. Used in 'connect' and
 -- 'connectPipelined' to return the states in which the peers terminated.
 --
-data TerminalStates ps (pr :: PeerRole) where
+data TerminalStates ps where
      TerminalStates
-       :: forall ps pr (st :: ps) (st' :: ps).
-          Sing st
-       -> ReflRelativeAgency (StateAgency st)
-                              NobodyHasAgency
-                             (Relative             pr  (StateAgency st))
+       :: forall ps (st :: ps) (st' :: ps).
+          ( StateAgency st  ~ NobodyAgency
+          , StateAgency st' ~ NobodyAgency
+          )
+       => Sing st
        -> Sing st'
-       -> ReflRelativeAgency (StateAgency st')
-                              NobodyHasAgency
-                             (Relative (FlipAgency pr) (StateAgency st'))
-       -> TerminalStates ps pr
+       -> TerminalStates ps
 
 --
 -- Remove Pipelining
@@ -248,7 +246,7 @@ connectPipelined
     -> [Bool]
     -> Peer ps             pr  ('Pipelined c)  Z st m a
     -> Peer ps (FlipAgency pr) ('Pipelined c') Z st m b
-    -> m (a, b, TerminalStates ps pr)
+    -> m (a, b, TerminalStates ps)
 connectPipelined csA csB a b =
     connect (forgetPipelined csA a)
             (forgetPipelined csB b)

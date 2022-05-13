@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns             #-}
 {-# LANGUAGE CPP                      #-}
 {-# LANGUAGE DataKinds                #-}
 {-# LANGUAGE FlexibleInstances        #-}
@@ -6,10 +5,7 @@
 {-# LANGUAGE NamedFieldPuns           #-}
 {-# LANGUAGE PolyKinds                #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TupleSections            #-}
-{-# LANGUAGE TypeApplications         #-}
-{-# LANGUAGE TypeOperators            #-}
 
 -- orphaned arbitrary instances
 {-# OPTIONS_GHC -Wno-orphans #-}
@@ -19,7 +15,6 @@ module Network.TypedProtocol.ReqResp.Tests (tests) where
 
 import           Network.TypedProtocol.Channel
 import           Network.TypedProtocol.Codec
-import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Driver.Simple
 import           Network.TypedProtocol.Proofs
 
@@ -163,10 +158,7 @@ prop_connect f xs =
              (reqRespClientPeer (reqRespClientMap xs))
              (reqRespServerPeer (reqRespServerMapAccumL (\a -> pure . f a) 0)))
 
-      of (c, s, TerminalStates SingDone
-                               ReflNobodyAgency
-                               SingDone
-                               ReflNobodyAgency) ->
+      of (c, s, TerminalStates SingDone SingDone) ->
            (s, c) == mapAccumL f 0 xs
 
 
@@ -178,10 +170,7 @@ prop_connectPipelined cs f xs =
              (promoteToPipelined $ reqRespServerPeer
                (reqRespServerMapAccumL (\a -> pure . f a) 0)))
 
-      of (c, s, TerminalStates SingDone
-                               ReflNobodyAgency
-                               SingDone
-                               ReflNobodyAgency) ->
+      of (c, s, TerminalStates SingDone SingDone) ->
            (s, c) == mapAccumL f 0 xs
 
 
