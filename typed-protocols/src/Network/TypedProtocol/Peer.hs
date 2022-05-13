@@ -181,7 +181,9 @@ data Peer ps pr pl n st m a where
   --
   Done
     :: forall ps pr pl (st :: ps) m a.
-       SingI st
+       ( SingI st
+       , StateAgency st ~ NobodyAgency
+       )
     => NobodyHasAgencyProof pr st
     -- ^ (no) agency proof
     -> a

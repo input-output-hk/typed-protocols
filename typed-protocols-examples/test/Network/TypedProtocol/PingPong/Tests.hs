@@ -18,7 +18,6 @@ module Network.TypedProtocol.PingPong.Tests
 
 import           Network.TypedProtocol.Channel
 import           Network.TypedProtocol.Codec
-import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Driver.Simple
 import           Network.TypedProtocol.Proofs
 
@@ -196,11 +195,7 @@ prop_connect (NonNegative n) =
            (pingPongClientPeer (pingPongClientCount n))
            (pingPongServerPeer  pingPongServerCount))
 
-    of ((), n', TerminalStates SingDone
-                               ReflNobodyAgency
-                               SingDone
-                               ReflNobodyAgency) ->
-        n == n'
+    of ((), n', TerminalStates SingDone SingDone) -> n == n'
 
 
 --
@@ -219,11 +214,7 @@ connect_pipelined client cs =
          (connectPipelined cs []
             (pingPongClientPeerPipelined client)
             (promoteToPipelined $ pingPongServerPeer pingPongServerCount))
-
-    of (reqResps, n, TerminalStates SingDone
-                                    ReflNobodyAgency
-                                    SingDone
-                                    ReflNobodyAgency) ->
+    of (reqResps, n, TerminalStates SingDone SingDone) ->
          (n, reqResps)
 
 
