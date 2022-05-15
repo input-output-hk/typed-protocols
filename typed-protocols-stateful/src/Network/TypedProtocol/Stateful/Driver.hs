@@ -26,6 +26,7 @@ import           Control.Applicative ((<|>))
 import           Control.Monad.Class.MonadSTM
 
 import           Data.Kind (Type)
+import           Data.Type.Equality
 import           Data.Type.Queue
 import           Data.Singletons
 
@@ -33,7 +34,6 @@ import           Network.TypedProtocol.Codec (DecodeStep (..), SomeMessage (..))
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Driver (DriverState (..))
 import           Network.TypedProtocol.Stateful.Peer
-import           Unsafe.Coerce (unsafeCoerce)
 
 data Driver ps (pr :: PeerRole) bytes failure dstate f m =
         Driver {
@@ -195,12 +195,16 @@ runPeerWithDriver Driver{ sendMessage
        (CollectDone k :: Peer ps pr pl (Cons (Tr stX stY) Empty) stZ f m stm a) =
       -- we collected all messages, which means that we reached the type:
       -- @Peer ps pr pl (Tr st st <| Empty) st f m stm a@
-      -- but GHC has trouble to infer this.
-      -- TODO: provide some aid for GHC to avoid the `unsafeCoerce`.
+      -- we use the 'IsLast' constraint available by unpacking the
+      -- 'CollectDone' constructor to provide evince that 'stX' and 'stZ' are
+      -- equal.
       goEmpty dstate (coerce f) k
         where
-          coerce :: f stA -> f stZ
-          coerce = unsafeCoerce
+          coerce :: f stX -> f stZ
+          coerce =
+            case lastRefl (Proxy :: Proxy (Cons (Tr stX stY) Empty))
+                   :: Tr stZ stZ :~: Tr stX stY of
+              Refl -> id
 
     go (SingConsF _ q@SingConsF {}) (DriverState dstate) (CollectDone k) =
       go q (DriverState dstate) k

@@ -1,9 +1,11 @@
 {-# LANGUAGE DataKinds                #-}
 {-# LANGUAGE DeriveFunctor            #-}
 {-# LANGUAGE FlexibleContexts         #-}
+{-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE GADTs                    #-}
 {-# LANGUAGE PolyKinds                #-}
 {-# LANGUAGE RankNTypes               #-}
+{-# LANGUAGE MultiParamTypeClasses    #-}
 {-# LANGUAGE StandaloneDeriving       #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeOperators            #-}
@@ -15,12 +17,30 @@
 -- __Note__: 'Network.TypedProtocol.Peer.Client.Client' and
 -- 'Network.TypedProtocol.Peer.Server.Server' patterns are easier to use.
 --
-module Network.TypedProtocol.Stateful.Peer (Peer (..)) where
+module Network.TypedProtocol.Stateful.Peer (Peer (..), IsLast (..)) where
 
-import           Data.Kind (Type)
+import           Data.Kind (Constraint, Type)
+import           Data.Type.Equality
+import           Data.Type.Queue
 import           Data.Singletons
 
 import           Network.TypedProtocol.Core as Core
+
+
+-- | The 'IsLast' constraint allows to verify that the last transition has the
+-- expected type.  When we collect the final identity transition the peer must
+-- continue in the right state.  Although this is true by construction, we need
+-- to provide evidence for GHC.
+--
+type  IsLast :: forall ps -> Queue ps -> ps -> Constraint
+class IsLast ps q st where
+    lastRefl :: Proxy q -> Tr st st :~: Last q
+
+instance IsLast ps (Cons (Tr st st) Empty) st where
+    lastRefl _ = Refl
+instance IsLast ps q st
+      => IsLast ps (Cons tr q) st where
+    lastRefl = lastRefl
 
 
 -- | A description of a peer that engages in a protocol.
@@ -55,7 +75,7 @@ import           Network.TypedProtocol.Core as Core
 --   other peer has agency)
 --
 -- The 'Yield', 'Await' and 'Done' constructors require to provide an evidence
--- that the appropriate peer has agency.  This information is suplied using
+-- that the appropriate peer has agency.  This information is supplied using
 -- one of the constructors of 'ReflRelativeAgency'.
 --
 -- While this evidence must be provided, the types guarantee that it is not
@@ -233,7 +253,8 @@ data Peer ps pr pl q st f m stm a where
   --
   CollectDone
     :: forall ps pr (st :: ps) q (st' :: ps) f m stm a.
-       Peer ps pr 'Pipelined              q  st' f m stm a
+       IsLast ps (Tr st st <| q) st'
+    => Peer ps pr 'Pipelined              q  st' f m stm a
     -- ^ continuation
     -> Peer ps pr 'Pipelined (Tr st st <| q) st' f m stm a
 
