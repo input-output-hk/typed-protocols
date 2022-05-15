@@ -27,6 +27,7 @@ module Network.TypedProtocol.Stateful.Proofs
 import           Control.Monad.Class.MonadSTM
 
 import           Data.Kind (Type)
+import           Data.Type.Equality
 import           Data.Type.Queue
 import           Data.Singletons
 
@@ -35,7 +36,6 @@ import qualified Network.TypedProtocol.Stateful.Peer as ST
 import           Network.TypedProtocol.Peer
 import           Network.TypedProtocol.Proofs (TerminalStates (..))
 import qualified Network.TypedProtocol.Proofs as TP
-import           Unsafe.Coerce (unsafeCoerce)
 
 -- | Type which is used to track the protocol state while pipeline messages.
 --
@@ -113,7 +113,11 @@ goPipelined
     CollectDone (goEmpty (coerce f) k)
   where
     coerce :: f stX -> f stZ
-    coerce = unsafeCoerce
+    coerce =
+      case ST.lastRefl (Proxy :: Proxy (Cons (Tr stX stY) Empty))
+             :: Tr stZ stZ :~: Tr stX stY of
+        Refl -> id
+      
 
 goPipelined (SingConsF (F _) q) (ST.CollectDone k) =
   CollectDone (goPipelined q k)

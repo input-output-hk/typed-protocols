@@ -24,6 +24,7 @@ module Data.Type.Queue
   , Queue (..)
   , type (|>)
   , type (<|)
+  , Last
     -- ** SingQueue singleton
   , SingQueue (SingCons, SingEmpty, UnsafeSingQueue)
   , singSingleton
@@ -76,6 +77,13 @@ type family as |> b where
      Empty     |> b = Cons b Empty
      (a <| as) |> b = a <| (as |> b)
 infixr 5 |>
+
+-- | Last transition of a 'Queue'
+--
+type        Last :: Queue ps -> Trans ps
+type family Last q where
+  Last (Cons tr Empty) = tr
+  Last (Cons tr q)     = Last q
 
 -- | Singleton data type which allows to track the types of kind
 -- @'Queue' ps@ and store a value which depends on a queued transition.

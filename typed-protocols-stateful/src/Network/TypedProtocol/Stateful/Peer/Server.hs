@@ -22,6 +22,7 @@ module Network.TypedProtocol.Stateful.Peer.Server
   , pattern CollectSTM
   , pattern CollectDone
     -- * re-exports
+  , IsLast (..)
   , Pipelined (..)
   , Queue (..)
   ) where
@@ -30,7 +31,7 @@ import           Data.Kind (Type)
 import           Data.Singletons
 
 import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Stateful.Peer (Peer)
+import           Network.TypedProtocol.Stateful.Peer (Peer, IsLast)
 import qualified Network.TypedProtocol.Stateful.Peer as TP
 
 
@@ -168,7 +169,7 @@ pattern CollectSTM k' k = TP.CollectSTM ReflClientAgency k' k
 -- | Client role pattern for 'TP.CollectDone'
 --
 pattern CollectDone :: forall ps st q st' f m stm a.
-                       ()
+                       IsLast ps (Tr st st <| q) st'
                     => ()
                     => Server ps 'Pipelined              q  st' f m stm a
                     -- ^ continuation
