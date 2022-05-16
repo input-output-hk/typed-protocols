@@ -165,9 +165,7 @@ import           Data.Singletons
 --
 -- As described above, this style of protocol gives agency to only one peer at
 -- once. That is, in each protocol state, one peer has agency (the ability to
--- send) and the other does not (it must only receive). The three associated
--- data families ('ClientHasAgency', 'ServerHasAgency' and 'NobodyHasAgency')
--- define which peer has agency for each state.
+-- send) and the other does not (it must only receive).
 --
 -- In the \"ping\/pong\" protocol example, the idle state is the one in which
 -- the client can send a message, and the busy state is the one in which the
@@ -175,19 +173,29 @@ import           Data.Singletons
 -- further messages. This arrangement is defined as so:
 --
 -- >    -- still within the instance Protocol PingPong
--- >    data ClientHasAgency st where
--- >      TokIdle :: ClientHasAgency StIdle
--- >
--- >    data ServerHasAgency st where
--- >      TokBusy :: ServerHasAgency StBusy
--- >
--- >    data NobodyHasAgency st where
--- >      TokDone :: NobodyHasAgency StDone
+-- >    type StateAgency StIdle = ClientAgency
+-- >    type StateAgency StBusy = ServerAgency
+-- >    type StateAgency StDone = NobodyAgency
 --
 -- In this simple protocol there is exactly one state in each category, but in
 -- general for non-trivial protocols there may be several protocol states in
 -- each category.
 --
+-- Furthermore we use singletons to provide term level reflection of type level
+-- states.  One is required to provide singletons for all types of kind
+-- 'PingPong'.  This is as simple as providing a GADT:
+--
+-- > data SingPingPong (st :: PingPong) where
+-- >   SingIdle :: SingPingPong StIdle
+-- >   SingBusy :: SingPingPong StBusy
+-- >   SingDone :: SingPingPong StDone
+--
+-- together with 'Sing' and 'SingI' instances:
+--
+-- > type instance Sing = SingPingPong
+-- > instance SingI StIdle where sing = SingIdle
+-- > instance SingI StBusy where sing = SingBusy
+-- > instance SingI StDone where sing = SingDone
 
 -- $tests
 -- The mechanism for labelling each protocol state with the agency does not
@@ -275,28 +283,14 @@ data ReflRelativeAgency a r r' where
 
 -- $lemmas
 --
--- The 'connect' and 'connectPipelined' proofs rely on lemmas about the
--- protocol. Specifically they rely on the property that each protocol state
--- is labelled with the agency of one peer or the other, or neither, but never
--- both. Or to put it another way, the protocol states should be partitioned
--- into those with agency for one peer, or the other or neither.
+-- The 'connect' proof rely on lemmas about the protocol. Specifically they
+-- rely on the property that each protocol state is labelled with the agency of
+-- one peer or the other, or neither, but never both.  This property is true by
+-- construction, since we use a type family 'StateAgency' which maps states to
+-- agencies, however we still need an evince that cases where both peer have
+-- the agency or neither of them has it can be eliminated.
 --
--- The way the labelling is encoded does not automatically enforce this
--- property. It is technically possible to set up the labelling for a protocol
--- so that one state is labelled as having both peers with agency, or declaring
--- simultaneously that one peer has agency and that neither peer has agency
--- in a particular state.
---
--- So the overall proofs rely on lemmas that say that the labelling has been
--- done correctly. This type bundles up those three lemmas.
---
--- Specifically proofs that it is impossible for a protocol state to have:
---
--- * client having agency and server having agency
--- * client having agency and nobody having agency
--- * server having agency and nobody having agency
---
--- These lemmas are structured as proofs by contradiction, e.g. stating
+-- The provided lemmas are structured as proofs by contradiction, e.g. stating
 -- \"if the client and the server have agency for this state then it leads to
 -- contradiction\". Contradiction is represented as the 'Void' type that has
 -- no values except ⊥.
@@ -340,20 +334,21 @@ data ReflRelativeAgency a r r' where
 -- | The protocol type class bundles up all the requirements for a typed
 -- protocol.
 --
--- Each protocol consists of three things:
+-- Each protocol consists of four components:
 --
 -- * The protocol itself, which is also expected to be the kind of the types
---   of the protocol states. The class is indexed on the protocol itself.
--- * The protocol messages.
--- * The partition of the protocol states into those in which the client has
---   agency, or the server has agency, or neither have agency.
+--   of the protocol states. The class is indexed on the protocol itself;
+-- * the protocol messages;
+-- * a type level map from the protocol states to agency: in each state either
+--   client or server or nobody has the agency.
+-- * a singleton type for the protocol states (e.g. `Sing` type family
+--   instance), together with 'SingI' instances.
 --
--- The labelling of each protocol state with the peer that has agency in that
--- state is done by giving a definition to the type family
--- 'StateAgency'.  It is required provide 'Sing' type family instance as well
--- as 'SingI' instances for all protocol states.  These singletons allow one to
--- pattern match on the state, which is useful when defining codecs, or
--- providing informative error messages.
+-- It is required provide 'Sing' type family instance as well as 'SingI'
+-- instances for all protocol states.  These singletons allow one to pattern
+-- match on the state, which is useful when defining codecs, or providing
+-- informative error messages, however they are not necessary for proving
+-- correctness of the protocol.
 --
 class Protocol ps where
 
@@ -484,9 +479,9 @@ type family FlipRelAgency ra where
 
 -- | Similar to 'terminationLemma_1'.
 --
--- Note: this could be proven in the same way 'terminationLemma_1' is proved,
--- but instead we use two lemmas to reduce the assumptions (arguments) and
--- we apply 'terminationLemma_1'.
+-- Note: this could be proven the same way 'terminationLemma_1' is proved, but
+-- instead we use two lemmas to reduce the assumptions (arguments) and we apply
+-- 'terminationLemma_1'.
 --
 terminationLemma_2
   :: SingPeerRole pr
