@@ -6,8 +6,9 @@ packages: ./typed-protocols
 
 source-repository-package
   type: git
-  location: /home/coot/clients/iohk/cardano-haskell/io-sim/
-  tag: be95efed038cbb382a31248ea70520e9ed406dea
+  location: https://github.com/input-output-hk/io-sim
+  tag: 606de33fa2f467d108fb1efb86daeb3348bf34e3
+  --sha256: 048djqfdkzrbmdz670knbkjy12wddpvsmhm4x5yldg3w9lwqi1yx
   subdir:
     io-sim
     io-classes
