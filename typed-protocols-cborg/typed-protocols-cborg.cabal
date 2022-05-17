@@ -1,5 +1,5 @@
 name:                typed-protocols-cborg
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            CBOR codecs for typed-protocols
 -- description:
 license:             Apache-2.0
