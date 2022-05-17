@@ -7,9 +7,7 @@ runCommand "check-stylish" {
 } ''
   unpackPhase
   cd $sourceRoot
-  fd . './typed-protocols' -e hs -E Setup.hs -X stylish-haskell -c .stylish-haskell.yaml -i
-  fd . './typed-protocols-cborg' -e hs -E Setup.hs -X stylish-haskell -c .stylish-haskell.yaml -i
-  fd . './typed-protocols-examples' -e hs -E Setup.hs -X stylish-haskell -c .stylish-haskell.yaml -i
+  bash ./scripts/check-stylish.sh
   diff -ru $src .
 
   EXIT_CODE=$?
