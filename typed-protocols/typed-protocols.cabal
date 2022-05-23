@@ -25,6 +25,7 @@ library
                    , Network.TypedProtocol.Driver
                    , Network.TypedProtocol.Proofs
                    , Data.Type.Queue
+  other-modules:     Network.TypedProtocol.Lemmas
 
   other-extensions:  GADTs
                    , RankNTypes
