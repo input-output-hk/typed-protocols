@@ -38,6 +38,7 @@ module Network.TypedProtocol.Proofs
 
 import           Data.Singletons
 import           Network.TypedProtocol.Core
+import           Network.TypedProtocol.Lemmas
 import           Network.TypedProtocol.Peer
 
 -- $about
