@@ -29,7 +29,6 @@ module Network.TypedProtocol.Core
     Protocol (..)
     -- $lemmas
     -- * Engaging in protocols
-    -- $using
   , PeerRole (..)
   , SingPeerRole (..)
   , Agency (..)
@@ -226,9 +225,17 @@ instance SingI AsClient where
 instance SingI AsServer where
     sing = SingAsServer
 
+-- | A promoted data type which denotes three possible agencies a protocol
+-- state might be assigned.
+--
 data Agency where
+    -- | The client has agency.
     ClientAgency :: Agency
+
+    -- | The server has agency.
     ServerAgency :: Agency
+
+    -- | Nobody has agency, terminal state.
     NobodyAgency :: Agency
 
 type SingAgency :: Agency -> Type
@@ -247,12 +254,18 @@ instance SingI ServerAgency where
 instance SingI NobodyAgency where
     sing = SingNobodyAgency
 
+-- | A promoted data type which indicates the effective agency (which is
+-- relative to current role).
+--
 data RelativeAgency where
     WeHaveAgency    :: RelativeAgency
     TheyHaveAgency  :: RelativeAgency
     NobodyHasAgency :: RelativeAgency
 
 
+-- | Compute effective agency with respect to the peer role, for client role,
+-- agency is preserved, while for the server role it is flipped.
+--
 type        Relative :: PeerRole -> Agency -> RelativeAgency
 type family Relative  pr a where
   Relative AsClient ClientAgency = WeHaveAgency
@@ -265,14 +278,13 @@ type family Relative  pr a where
 
 -- | Type equality for 'RelativeAgency' which also carries information about
 -- agency.  It is isomorphic to a product of 'Agency' singleton and
--- @'RelativeAgency' :~: 'RelativeAgency'@.
+-- @r :~: r'@, where both @r@ and @r'@ have kind 'RelativeAgency'.
 --
 type ReflRelativeAgency :: Agency -> RelativeAgency -> RelativeAgency -> Type
 data ReflRelativeAgency a r r' where
     ReflClientAgency :: ReflRelativeAgency ClientAgency r r
     ReflServerAgency :: ReflRelativeAgency ServerAgency r r
     ReflNobodyAgency :: ReflRelativeAgency NobodyAgency r r
-
 
 -- $lemmas
 --
