@@ -76,5 +76,7 @@ instance Protocol PingPong where
   type StateAgency StBusy = ServerAgency
   type StateAgency StDone = NobodyAgency
 
+  type StateToken = SPingPong
+
 
 deriving instance Show (Message PingPong from to)
