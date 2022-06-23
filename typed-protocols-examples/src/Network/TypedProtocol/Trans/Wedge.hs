@@ -107,6 +107,8 @@ instance Protocol (Wedge ps (stIdle :: ps) ps' (stIdle' :: ps')) where
     type StateAgency (StFst st) = StateAgency st
     type StateAgency (StSnd st) = StateAgency st
 
+    type StateToken = SingWedge
+
 
 type PingPong2 = Wedge PingPong.PingPong PingPong.StIdle
                        PingPong.PingPong PingPong.StIdle

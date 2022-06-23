@@ -50,6 +50,8 @@ module Network.TypedProtocol.Core
   , IsActiveState (..)
   , ActiveState
   , notActiveState
+    -- * Utils
+  , stateToken
   ) where
 
 import           Data.Kind (Constraint, Type)
@@ -364,6 +366,16 @@ class Protocol ps where
   -- | Associate an 'Agency' for each state.
   --
   type StateAgency (st :: ps) :: Agency
+
+  -- | A type alias for protocol state token, e.g. term level representation of
+  -- type level state (also known as singleton).
+  --
+  type StateToken :: ps -> Type
+
+-- | An alias for 'sing'.
+--
+stateToken :: (SingI st, Sing st ~ StateToken st) => StateToken st
+stateToken = sing
 
 type ActiveAgency' :: ps -> Agency -> Type
 data ActiveAgency' st agency where
