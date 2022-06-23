@@ -55,6 +55,8 @@ instance Protocol (ReqResp2 req resp) where
   type StateAgency StBusy' = ServerAgency
   type StateAgency StDone  = NobodyAgency
 
+  type StateToken = SReqResp2
+
 
 deriving instance (Show req, Show resp)
                => Show (Message (ReqResp2 req resp) from to)
