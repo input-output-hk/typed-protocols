@@ -55,7 +55,7 @@ data PingPongClient m a where
 -- 'PingPong' protocol.
 --
 pingPongClientPeer
-  :: Monad m
+  :: Functor m
   => PingPongClient m a
   -> Client PingPong NonPipelined Empty StIdle m stm a
 
@@ -79,9 +79,7 @@ pingPongClientPeer (SendMsgPing next) =
     -- one corresponding continuation 'kPong' to handle that response.
     -- The pong reply has no content so there's nothing to pass to our
     -- continuation, but if there were we would.
-      Effect $ do
-        client <- next
-        pure $ pingPongClientPeer client
+      Effect $ pingPongClientPeer <$> next
 
 
 --
