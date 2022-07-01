@@ -38,6 +38,7 @@ library
                    , Network.TypedProtocol.ReqResp2.Type
                    , Network.TypedProtocol.ReqResp2.Client
 
+                   , Network.TypedProtocol.Stateful.PingPong.Client
                    , Network.TypedProtocol.Stateful.ReqResp.Client
                    , Network.TypedProtocol.Stateful.ReqResp.Examples
 
