@@ -7,7 +7,15 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators       #-}
 
-module Network.TypedProtocol.Stateful.ReqResp.Client where
+module Network.TypedProtocol.Stateful.ReqResp.Client
+  ( -- * Non-Pipelined Client
+    ReqRespClient (..)
+  , reqRespClientPeer
+    -- * Pipelined Client
+  , ReqRespClientPipelined (..)
+  , ReqRespIdle (..)
+  , reqRespClientPeerPipelined
+  ) where
 
 import           Control.Monad.Class.MonadSTM (STM)
 
