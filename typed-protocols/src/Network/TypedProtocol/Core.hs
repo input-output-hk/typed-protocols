@@ -41,7 +41,7 @@ module Network.TypedProtocol.Core
   , TheyHaveAgencyProof
   , NobodyHasAgencyProof
   , FlipAgency
-  , Pipelined (..)
+  , IsPipelined (..)
   , Trans (..)
   , SingTrans (..)
   , ActiveAgency
@@ -492,10 +492,10 @@ data SingTrans tr where
 -- | Promoted data type which indicates if 'Peer' is used in
 -- pipelined mode or not.
 --
-data Pipelined where
+data IsPipelined where
     -- | Pipelined peer which is using `c :: Type` for collecting responses
     -- from a pipelined messages.
-    Pipelined    :: Type -> Pipelined
+    Pipelined    :: Type -> IsPipelined
 
     -- | Non-pipelined peer.
-    NonPipelined :: Pipelined
+    NonPipelined :: IsPipelined

@@ -125,7 +125,7 @@ pingPong2Client =
   $ Client.Done ()
 
 
-pingPong2Client' :: forall m. Client.Client PingPong2 ('Pipelined ()) Client.Z StIdle m ()
+pingPong2Client' :: forall m. Client.Client PingPong2 (Pipelined ()) Client.Z StIdle m ()
 pingPong2Client' =
     --
     -- Pipeline first protocol

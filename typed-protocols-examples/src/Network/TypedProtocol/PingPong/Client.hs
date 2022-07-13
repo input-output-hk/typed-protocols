@@ -141,7 +141,7 @@ data PingPongClientIdle (n :: Outstanding) c m a where
 pingPongClientPeerPipelined
   :: Functor m
   => PingPongClientPipelined c m a
-  -> Client PingPong ('Pipelined c) Z StIdle m a
+  -> Client PingPong (Pipelined c) Z StIdle m a
 pingPongClientPeerPipelined (PingPongClientPipelined peer) =
     pingPongClientPeerIdle peer
 
@@ -149,12 +149,12 @@ pingPongClientPeerPipelined (PingPongClientPipelined peer) =
 pingPongClientPeerIdle
   :: forall (n :: Outstanding) c m a. Functor m
   => PingPongClientIdle             n        c m a
-  -> Client PingPong ('Pipelined c) n StIdle   m a
+  -> Client PingPong (Pipelined c) n StIdle   m a
 pingPongClientPeerIdle = go
   where
     go :: forall (n' :: Outstanding).
           PingPongClientIdle             n'        c m a
-       -> Client PingPong ('Pipelined c) n' StIdle   m a
+       -> Client PingPong (Pipelined c) n' StIdle   m a
 
     go (SendMsgPingPipelined receive next) =
       -- Pipelined yield: send `MsgPing`, immediately follow with the next step.
