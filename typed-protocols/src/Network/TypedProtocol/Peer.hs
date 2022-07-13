@@ -95,7 +95,7 @@ import           Network.TypedProtocol.Core as Core
 --
 type Peer :: forall ps
           -> PeerRole
-          -> Pipelined
+          -> IsPipelined
           -> Outstanding
           -> ps
           -> (Type -> Type)
@@ -209,9 +209,9 @@ data Peer ps pr pl n st m a where
     -> Message ps st st'
     -- ^ protocol message
     -> Receiver ps pr st' st'' m c
-    -> Peer ps pr ('Pipelined c) (S n) st'' m a
+    -> Peer ps pr (Pipelined c) (S n) st'' m a
     -- ^ continuation
-    -> Peer ps pr ('Pipelined c)  n    st   m a
+    -> Peer ps pr (Pipelined c)  n    st   m a
 
   -- | Partially collect promised transition.
   --
@@ -220,11 +220,11 @@ data Peer ps pr pl n st m a where
        ( SingI st
        , ActiveState st
        )
-    => Maybe (Peer ps pr ('Pipelined c) (S n) st m a)
+    => Maybe (Peer ps pr (Pipelined c) (S n) st m a)
     -- ^ continuation, executed if no message has arrived so far
-    -> (c ->  Peer ps pr ('Pipelined c)    n  st m a)
+    -> (c ->  Peer ps pr (Pipelined c)    n  st m a)
     -- ^ continuation
-    -> Peer        ps pr ('Pipelined c) (S n) st m a
+    -> Peer        ps pr (Pipelined c) (S n) st m a
 
 deriving instance Functor m => Functor (Peer ps pr pl n st m)
 

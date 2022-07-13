@@ -24,7 +24,7 @@ module Network.TypedProtocol.Peer.Server
   , pattern ReceiverAwait
   , pattern ReceiverDone
     -- * re-exports
-  , Pipelined (..)
+  , IsPipelined (..)
   , Outstanding
   , N (..)
   , Nat (..)
@@ -40,7 +40,7 @@ import qualified Network.TypedProtocol.Peer as TP
 
 
 type Server :: forall ps
-            -> Pipelined
+            -> IsPipelined
             -> Outstanding
             -> ps
             -> (Type -> Type)
@@ -114,9 +114,9 @@ pattern YieldPipelined :: forall ps st n c m a.
                        => Message ps st st'
                        -- ^ pipelined message
                        -> Receiver ps st' st'' m c
-                       -> Server ps ('Pipelined c) (S n) st'' m a
+                       -> Server ps (Pipelined c) (S n) st'' m a
                        -- ^ continuation
-                       -> Server ps ('Pipelined c)    n  st   m a
+                       -> Server ps (Pipelined c)    n  st   m a
 pattern YieldPipelined msg receiver k = TP.YieldPipelined ReflServerAgency msg receiver k
 
 
@@ -127,11 +127,11 @@ pattern Collect :: forall ps st n c m a.
                 => ( SingI st
                    , ActiveState st
                    )
-                => Maybe (Server ps ('Pipelined c) (S n) st m a)
+                => Maybe (Server ps (Pipelined c) (S n) st m a)
                 -- ^ continuation, executed if no message has arrived so far
-                -> (c -> Server  ps ('Pipelined c)    n  st m a)
+                -> (c -> Server  ps (Pipelined c)    n  st m a)
                 -- ^ continuation
-                -> Server        ps ('Pipelined c) (S n) st m a
+                -> Server        ps (Pipelined c) (S n) st m a
 pattern Collect k' k = TP.Collect k' k
 
 
