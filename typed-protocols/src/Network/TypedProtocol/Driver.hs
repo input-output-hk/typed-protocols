@@ -71,18 +71,14 @@ data Driver ps (pr :: PeerRole) dstate m =
                          SingI st
                       => SingI st'
                       => ActiveState st
-                      => ReflRelativeAgency (StateAgency st)
-                                             WeHaveAgency
-                                            (Relative pr (StateAgency st))
+                      => WeHaveAgencyProof pr st
                       -> Message ps st st'
                       -> m ()
 
         , recvMessage :: forall (st :: ps).
                          SingI st
                       => ActiveState st
-                      => ReflRelativeAgency (StateAgency st)
-                                             TheyHaveAgency
-                                            (Relative pr (StateAgency st))
+                      => TheyHaveAgencyProof pr st
                       -> dstate
                       -> m (SomeMessage st, dstate)
 

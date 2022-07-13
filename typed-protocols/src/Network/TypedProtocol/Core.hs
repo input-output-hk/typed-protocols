@@ -37,6 +37,9 @@ module Network.TypedProtocol.Core
   , RelativeAgency (..)
   , Relative
   , ReflRelativeAgency (..)
+  , WeHaveAgencyProof
+  , TheyHaveAgencyProof
+  , NobodyHasAgencyProof
   , FlipAgency
   , Pipelined (..)
   , ActiveAgency
@@ -281,6 +284,44 @@ data ReflRelativeAgency a r r' where
     ReflClientAgency :: ReflRelativeAgency ClientAgency r r
     ReflServerAgency :: ReflRelativeAgency ServerAgency r r
     ReflNobodyAgency :: ReflRelativeAgency NobodyAgency r r
+
+-- | Type of the proof that we have the agency.
+--
+-- 'ReflClientAgency' has this type only iff `'StateAgency' st ~ 'ClientAgency'`
+-- and `pr ~ 'AsClient'`.
+--
+-- 'ReflServerAgency' has this type only iff `'StateAgency' st ~ 'ServerAgency'`
+-- and `pr ~ 'AsServer'`
+--
+type WeHaveAgencyProof :: PeerRole -> ps -> Type
+type WeHaveAgencyProof pr st = ReflRelativeAgency
+                                 (StateAgency st)
+                                  WeHaveAgency
+                                 (Relative pr (StateAgency st))
+
+-- | Type of the proof that the remote side has the agency.
+--
+-- 'ReflClientAgency' has this type only iff `'StateAgency' st ~ 'ClientAgency'`
+-- and `pr ~ 'AsServer'`.
+--
+-- 'ReflServerAgency' has this type only iff `'StateAgency' st ~ 'ServerAgency'`
+-- and `pr ~ 'AsClient'`
+--
+type TheyHaveAgencyProof :: PeerRole -> ps -> Type
+type TheyHaveAgencyProof pr st = ReflRelativeAgency
+                                   (StateAgency st)
+                                    TheyHaveAgency
+                                   (Relative pr (StateAgency st))
+
+
+-- | Type of the proof that nobody has agency in this state.
+--
+-- Only 'ReflNobodyAgency' can fulfil the proof obligation.
+--
+type NobodyHasAgencyProof :: PeerRole -> ps -> Type
+type NobodyHasAgencyProof pr st = ReflRelativeAgency (StateAgency st)
+                                                      NobodyHasAgency
+                                                     (Relative pr (StateAgency st))
 
 -- $lemmas
 --
