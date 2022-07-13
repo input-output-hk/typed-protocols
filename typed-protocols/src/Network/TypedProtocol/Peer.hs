@@ -124,9 +124,7 @@ data Peer ps pr pl q st m stm a where
        , SingI st'
        , ActiveState st
        )
-    => ReflRelativeAgency (StateAgency st)
-                           WeHaveAgency
-                          (Relative pr (StateAgency st))
+    => WeHaveAgencyProof pr st
     -- ^ agency proof
     -> Message ps st st'
     -- ^ protocol message
@@ -156,9 +154,7 @@ data Peer ps pr pl q st m stm a where
        ( SingI st
        , ActiveState st
        )
-    => ReflRelativeAgency (StateAgency st)
-                           TheyHaveAgency
-                          (Relative pr (StateAgency st))
+    => TheyHaveAgencyProof pr st
     -- ^ agency proof
     -> (forall (st' :: ps). Message ps st st'
         -> Peer ps pr pl Empty st' m stm a)
@@ -180,9 +176,7 @@ data Peer ps pr pl q st m stm a where
        ( SingI st
        , StateAgency st ~ NobodyAgency
        )
-    => ReflRelativeAgency (StateAgency st)
-                           NobodyHasAgency
-                          (Relative pr (StateAgency st))
+    => NobodyHasAgencyProof pr st
     -- ^ (no) agency proof
     -> a
     -- ^ returned value
@@ -202,9 +196,7 @@ data Peer ps pr pl q st m stm a where
        , SingI st'
        , ActiveState st
        )
-    => ReflRelativeAgency (StateAgency st)
-                           WeHaveAgency
-                          (Relative pr (StateAgency st))
+    => WeHaveAgencyProof pr st
     -- ^ agency proof
     -> Message ps st st'
     -- ^ protocol message
@@ -219,9 +211,7 @@ data Peer ps pr pl q st m stm a where
        ( SingI st'
        , ActiveState st'
        )
-    => ReflRelativeAgency (StateAgency st')
-                           TheyHaveAgency
-                          (Relative pr (StateAgency st'))
+    => TheyHaveAgencyProof pr st'
     -- ^ agency proof
     -> Maybe (Peer ps pr 'Pipelined (Tr st' st'' <| q) st m stm a)
     -- ^ continuation, executed if no message has arrived so far
@@ -256,9 +246,7 @@ data Peer ps pr pl q st m stm a where
        ( SingI st'
        , ActiveState st'
        )
-    => ReflRelativeAgency (StateAgency st')
-                           TheyHaveAgency
-                          (Relative pr (StateAgency st'))
+    => TheyHaveAgencyProof pr st'
     -- ^ agency proof
     -> stm (Peer ps pr 'Pipelined (Tr st' st'' <| q) st m stm a)
     -- ^ continuation, which is executed if it wins the race with the next
