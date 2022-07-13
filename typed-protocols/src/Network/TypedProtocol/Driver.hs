@@ -71,18 +71,14 @@ data Driver ps (pr :: PeerRole) dstate m =
                          SingI st
                       => SingI st'
                       => ActiveState st
-                      => ReflRelativeAgency (StateAgency st)
-                                             WeHaveAgency
-                                            (Relative pr (StateAgency st))
+                      => WeHaveAgencyProof pr st
                       -> Message ps st st'
                       -> m ()
 
         , recvMessage :: forall (st :: ps).
                          SingI st
                       => ActiveState st
-                      => ReflRelativeAgency (StateAgency st)
-                                             TheyHaveAgency
-                                            (Relative pr (StateAgency st))
+                      => TheyHaveAgencyProof pr st
                       -> dstate
                       -> m (SomeMessage st, dstate)
 
@@ -115,14 +111,14 @@ runPeerWithDriver
   :: forall ps (st :: ps) pr dstate m a.
      Monad m
   => Driver ps pr dstate m
-  -> Peer ps pr NonPipelined Z st m a
+  -> Peer ps pr NonPipelined st m a
   -> m (a, dstate)
 runPeerWithDriver Driver{sendMessage, recvMessage, initialDState} =
     go initialDState
   where
     go :: forall st'.
           dstate
-       -> Peer ps pr 'NonPipelined Z st' m a
+       -> Peer ps pr 'NonPipelined st' m a
        -> m (a, dstate)
     go dstate (Effect k) = k >>= go dstate
     go dstate (Done _ x) = return (x, dstate)

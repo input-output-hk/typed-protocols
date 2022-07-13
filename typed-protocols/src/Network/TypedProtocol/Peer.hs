@@ -132,9 +132,7 @@ data Peer ps pr pl n st m a where
        , SingI st'
        , ActiveState st
        )
-    => ReflRelativeAgency (StateAgency st)
-                           WeHaveAgency
-                          (Relative pr (StateAgency st))
+    => WeHaveAgencyProof pr st
     -- ^ agency proof
     -> Message ps st st'
     -- ^ protocol message
@@ -164,9 +162,7 @@ data Peer ps pr pl n st m a where
        ( SingI st
        , ActiveState st
        )
-    => ReflRelativeAgency (StateAgency st)
-                           TheyHaveAgency
-                          (Relative pr (StateAgency st))
+    => TheyHaveAgencyProof pr st
     -- ^ agency proof
     -> (forall (st' :: ps). Message ps st st'
         -> Peer ps pr pl Z st' m a)
@@ -186,9 +182,7 @@ data Peer ps pr pl n st m a where
   Done
     :: forall ps pr pl (st :: ps) m a.
        SingI st
-    => ReflRelativeAgency (StateAgency st)
-                           NobodyHasAgency
-                          (Relative pr (StateAgency st))
+    => NobodyHasAgencyProof pr st
     -- ^ (no) agency proof
     -> a
     -- ^ returned value
@@ -208,9 +202,7 @@ data Peer ps pr pl n st m a where
        , SingI st'
        , ActiveState st
        )
-    => ReflRelativeAgency (StateAgency st)
-                           WeHaveAgency
-                          (Relative pr (StateAgency st))
+    => WeHaveAgencyProof pr st
     -- ^ agency proof
     -> Message ps st st'
     -- ^ protocol message
@@ -257,9 +249,7 @@ data Receiver ps pr st stdone m c where
   ReceiverAwait  :: ( SingI st
                     , ActiveState st
                     )
-                 => ReflRelativeAgency (StateAgency st)
-                                        TheyHaveAgency
-                                       (Relative pr (StateAgency st))
+                 => TheyHaveAgencyProof pr st
                  -> (forall st'. Message ps st st'
                               -> Receiver ps pr st' stdone m c)
                  -> Receiver ps pr st stdone m c
