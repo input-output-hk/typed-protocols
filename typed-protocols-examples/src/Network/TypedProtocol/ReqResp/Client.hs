@@ -121,7 +121,7 @@ data ReqRespIdle req resp (q :: Queue (ReqResp req resp)) m a where
 reqRespClientPeerPipelined
   :: Functor m
   => ReqRespClientPipelined req resp                   m         a
-  -> Client (ReqResp req resp) 'Pipelined Empty StIdle m (STM m) a
+  -> Client (ReqResp req resp) Pipelined Empty StIdle m (STM m) a
 reqRespClientPeerPipelined (ReqRespClientPipelined peer) =
     reqRespClientPeerIdle peer
 
@@ -130,13 +130,13 @@ reqRespClientPeerIdle
   :: forall req resp (q :: Queue (ReqResp req resp)) m a.
      Functor m
   => ReqRespIdle   req resp               q        m         a
-  -> Client (ReqResp req resp) 'Pipelined q StIdle m (STM m) a
+  -> Client (ReqResp req resp) Pipelined q StIdle m (STM m) a
 
 reqRespClientPeerIdle = go
   where
     go :: forall (q' :: Queue (ReqResp req resp)).
           ReqRespIdle   req resp                      q' m         a
-       -> Client (ReqResp req resp) 'Pipelined q' StIdle m (STM m) a
+       -> Client (ReqResp req resp) Pipelined q' StIdle m (STM m) a
 
     go (SendMsgReqPipelined req next) =
       -- Pipelined yield: send `MsgReq`, immediately follow with the next step.

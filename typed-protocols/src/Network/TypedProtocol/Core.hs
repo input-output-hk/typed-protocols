@@ -40,7 +40,7 @@ module Network.TypedProtocol.Core
   , TheyHaveAgencyProof
   , NobodyHasAgencyProof
   , FlipAgency
-  , Pipelined (..)
+  , IsPipelined (..)
   , Transition (..)
   , SingTrans (..)
   , Queue (..)
@@ -472,4 +472,4 @@ type family FlipAgency pr where
 -- | Promoted data type which indicates if 'Peer' is used in
 -- pipelined mode or not.
 --
-data Pipelined = NonPipelined | Pipelined
+data IsPipelined = NonPipelined | Pipelined

@@ -22,7 +22,7 @@ module Network.TypedProtocol.Peer.Client
   , pattern CollectSTM
   , pattern CollectDone
     -- * re-exports
-  , Pipelined (..)
+  , IsPipelined (..)
   , Queue (..)
   ) where
 
@@ -35,7 +35,7 @@ import qualified Network.TypedProtocol.Peer as TP
 
 
 type Client :: forall ps
-            -> Pipelined
+            -> IsPipelined
             -> Queue ps
             -> ps
             -> (Type -> Type)
@@ -109,9 +109,9 @@ pattern YieldPipelined :: forall ps st q m stm a.
                           )
                        => Message ps st st'
                        -- ^ pipelined message
-                       -> Client ps 'Pipelined (q |> Tr st' st'') st'' m stm a
+                       -> Client ps Pipelined (q |> Tr st' st'') st'' m stm a
                        -- ^ continuation
-                       -> Client ps 'Pipelined  q                 st   m stm a
+                       -> Client ps Pipelined  q                 st   m stm a
 pattern YieldPipelined msg k = TP.YieldPipelined ReflClientAgency msg k
 
 
@@ -122,12 +122,12 @@ pattern Collect :: forall ps st' st'' q st m stm a.
                 => ( SingI st'
                    , StateAgency st' ~ ServerAgency
                    )
-                => Maybe (Client ps 'Pipelined (Tr st' st'' <| q) st m stm a)
+                => Maybe (Client ps Pipelined (Tr st' st'' <| q) st m stm a)
                 -- ^ continuation, executed if no message has arrived so far
                 -> (forall stNext. Message ps st' stNext
-                    -> Client ps 'Pipelined (Tr stNext st'' <| q) st m stm a)
+                    -> Client ps Pipelined (Tr stNext st'' <| q) st m stm a)
                 -- ^ continuation
-                -> Client     ps 'Pipelined (Tr st'    st'' <| q) st m stm a
+                -> Client     ps Pipelined (Tr st'    st'' <| q) st m stm a
 pattern Collect k' k = TP.Collect ReflServerAgency k' k
 
 
@@ -138,12 +138,12 @@ pattern CollectSTM :: forall ps st' st'' q st m stm a.
                    => ( SingI st'
                       , StateAgency st' ~ ServerAgency
                       )
-                   => stm (Client ps 'Pipelined (Tr st' st'' <| q) st m stm a)
+                   => stm (Client ps Pipelined (Tr st' st'' <| q) st m stm a)
                    -- ^ continuation, executed if no message has arrived so far
                    -> (forall stNext. Message ps st' stNext
-                      -> Client ps 'Pipelined (Tr stNext st'' <| q) st m stm a)
+                      -> Client ps Pipelined (Tr stNext st'' <| q) st m stm a)
                    -- ^ continuation
-                   -> Client     ps 'Pipelined (Tr st'    st'' <| q) st m stm a
+                   -> Client    ps Pipelined (Tr st'    st'' <| q) st m stm a
 pattern CollectSTM k' k = TP.CollectSTM ReflServerAgency k' k
 
 
@@ -152,9 +152,9 @@ pattern CollectSTM k' k = TP.CollectSTM ReflServerAgency k' k
 pattern CollectDone :: forall ps st q st' m stm a.
                        ()
                     => ()
-                    => Client ps 'Pipelined              q  st' m stm a
+                    => Client ps Pipelined              q  st' m stm a
                     -- ^ continuation
-                    -> Client ps 'Pipelined (Tr st st <| q) st' m stm a
+                    -> Client ps Pipelined (Tr st st <| q) st' m stm a
 pattern CollectDone k = TP.CollectDone k
 
 

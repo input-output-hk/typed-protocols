@@ -85,7 +85,7 @@ import           Network.TypedProtocol.Core as Core
 --
 type Peer :: forall ps
           -> PeerRole
-          -> Pipelined
+          -> IsPipelined
           -> Queue ps
           -> ps
           -> (Type -> Type)
@@ -200,9 +200,9 @@ data Peer ps pr pl q st m stm a where
     -- ^ agency proof
     -> Message ps st st'
     -- ^ protocol message
-    -> Peer ps pr 'Pipelined (q |> Tr st' st'') st'' m stm a
+    -> Peer ps pr Pipelined (q |> Tr st' st'') st'' m stm a
     -- ^ continuation
-    -> Peer ps pr 'Pipelined  q                 st   m stm a
+    -> Peer ps pr Pipelined  q                 st   m stm a
 
   -- | Partially collect promised transition.
   --
@@ -213,12 +213,12 @@ data Peer ps pr pl q st m stm a where
        )
     => TheyHaveAgencyProof pr st'
     -- ^ agency proof
-    -> Maybe (Peer ps pr 'Pipelined (Tr st' st'' <| q) st m stm a)
+    -> Maybe (Peer ps pr Pipelined (Tr st' st'' <| q) st m stm a)
     -- ^ continuation, executed if no message has arrived so far
     -> (forall (stNext :: ps). Message ps st' stNext
-        -> Peer ps pr 'Pipelined (Tr stNext st'' <| q) st m stm a)
+        -> Peer ps pr Pipelined (Tr stNext st'' <| q) st m stm a)
     -- ^ continuation
-    -> Peer     ps pr 'Pipelined (Tr st'    st'' <| q) st m stm a
+    -> Peer     ps pr Pipelined (Tr st'    st'' <| q) st m stm a
 
   -- | Collect the identity transition.
   --
@@ -228,9 +228,9 @@ data Peer ps pr pl q st m stm a where
   --
   CollectDone
     :: forall ps pr (st :: ps) q (st' :: ps) m stm a.
-       Peer ps pr 'Pipelined              q  st' m stm a
+       Peer ps pr Pipelined              q  st' m stm a
     -- ^ continuation
-    -> Peer ps pr 'Pipelined (Tr st st <| q) st' m stm a
+    -> Peer ps pr Pipelined (Tr st st <| q) st' m stm a
 
   -- The 'Peer' driver will race two transactions, the peer continuation versus
   -- next message.
@@ -248,12 +248,12 @@ data Peer ps pr pl q st m stm a where
        )
     => TheyHaveAgencyProof pr st'
     -- ^ agency proof
-    -> stm (Peer ps pr 'Pipelined (Tr st' st'' <| q) st m stm a)
+    -> stm (Peer ps pr Pipelined (Tr st' st'' <| q) st m stm a)
     -- ^ continuation, which is executed if it wins the race with the next
     -- message.
     -> (forall stNext. Message ps st' stNext
-        -> Peer ps pr 'Pipelined (Tr stNext st'' <| q) st m stm a)
+        -> Peer ps pr Pipelined (Tr stNext st'' <| q) st m stm a)
     -- ^ continuation
-    -> Peer     ps pr 'Pipelined (Tr st'    st'' <| q) st m stm a
+    -> Peer     ps pr Pipelined (Tr st'    st'' <| q) st m stm a
 
 deriving instance (Functor m, Functor stm) => Functor (Peer ps (pr :: PeerRole) pl q (st :: ps) m stm)

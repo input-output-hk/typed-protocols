@@ -141,7 +141,7 @@ data PingPongClientIdle (q :: Queue PingPong) m a where
 pingPongClientPeerPipelined
   :: Functor m
   => PingPongClientPipelined m a
-  -> Client PingPong 'Pipelined Empty StIdle m (STM m) a
+  -> Client PingPong Pipelined Empty StIdle m (STM m) a
 pingPongClientPeerPipelined (PingPongClientPipelined peer) =
     pingPongClientPeerIdle peer
 
@@ -149,12 +149,12 @@ pingPongClientPeerPipelined (PingPongClientPipelined peer) =
 pingPongClientPeerIdle
   :: forall (q :: Queue PingPong) m a. Functor m
   => PingPongClientIdle                q        m a
-  -> Client PingPong 'Pipelined q StIdle m (STM m) a
+  -> Client PingPong Pipelined q StIdle m (STM m) a
 pingPongClientPeerIdle = go
   where
     go :: forall (q' :: Queue PingPong).
           PingPongClientIdle         q'        m         a
-       -> Client PingPong 'Pipelined q' StIdle m (STM m) a
+       -> Client PingPong Pipelined q' StIdle m (STM m) a
 
     go (SendMsgPingPipelined next) =
       -- Pipelined yield: send `MsgPing`, immediately follow with the next step.
@@ -180,7 +180,7 @@ pingPongClientPeerIdle = go
 pingPongClientPeerPipelinedSTM
   :: MonadSTM m
   => PingPongClientPipelined m a
-  -> Client PingPong 'Pipelined Empty StIdle m (STM m) a
+  -> Client PingPong Pipelined Empty StIdle m (STM m) a
 pingPongClientPeerPipelinedSTM (PingPongClientPipelined peer) =
     pingPongClientPeerIdleSTM peer
 
@@ -188,12 +188,12 @@ pingPongClientPeerPipelinedSTM (PingPongClientPipelined peer) =
 pingPongClientPeerIdleSTM
   :: forall (q :: Queue PingPong) m a. MonadSTM m
   => PingPongClientIdle                q        m a
-  -> Client PingPong 'Pipelined q StIdle m (STM m) a
+  -> Client PingPong Pipelined q StIdle m (STM m) a
 pingPongClientPeerIdleSTM = go
   where
     go :: forall (q' :: Queue PingPong).
           PingPongClientIdle         q'        m         a
-       -> Client PingPong 'Pipelined q' StIdle m (STM m) a
+       -> Client PingPong Pipelined q' StIdle m (STM m) a
 
     go (SendMsgPingPipelined next) =
       -- Pipelined yield: send `MsgPing`, immediately follow with the next step.
