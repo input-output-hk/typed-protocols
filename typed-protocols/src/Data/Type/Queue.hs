@@ -18,7 +18,7 @@
 --
 module Data.Type.Queue
   ( -- * Transitions
-    Trans (..)
+    Transition (..)
   , SingTrans (..)
     -- * Queue
   , Queue (..)
@@ -45,13 +45,13 @@ import           Unsafe.Coerce (unsafeCoerce)
 
 -- | Transition kind.
 --
-data Trans ps where
-    Tr :: forall ps. ps -> ps -> Trans ps
+data Transition ps where
+    Tr :: forall ps. ps -> ps -> Transition ps
 
 
--- | Singleton for @'Trans' ps@ kind.
+-- | Singleton for @'Transition' ps@ kind.
 --
-type SingTrans :: Trans ps -> Type
+type SingTrans :: Transition ps -> Type
 data SingTrans tr where
     SingTr :: forall ps (st :: ps) (st' :: ps).
               SingTrans (Tr st st')
@@ -62,17 +62,17 @@ data SingTrans tr where
 --
 data Queue ps where
   Empty :: Queue ps
-  Cons  :: Trans ps -> Queue ps -> Queue ps
+  Cons  :: Transition ps -> Queue ps -> Queue ps
 
 -- | Cons type alias
 --
-type  (<|) :: Trans ps -> Queue ps -> Queue ps
+type  (<|) :: Transition ps -> Queue ps -> Queue ps
 type a <| as = Cons a as
 infixr 5 <|
 
 -- | Snoc operator
 --
-type (|>) :: Queue ps -> Trans ps -> Queue ps
+type (|>) :: Queue ps -> Transition ps -> Queue ps
 type family as |> b where
      Empty     |> b = Cons b Empty
      (a <| as) |> b = a <| (as |> b)
@@ -80,7 +80,7 @@ infixr 5 |>
 
 -- | Last transition of a 'Queue'
 --
-type        Last :: Queue ps -> Trans ps
+type        Last :: Queue ps -> Transition ps
 type family Last q where
   Last (Cons tr Empty) = tr
   Last (Cons tr q)     = Last q

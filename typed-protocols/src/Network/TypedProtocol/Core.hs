@@ -38,7 +38,7 @@ module Network.TypedProtocol.Core
   , ReflRelativeAgency (..)
   , FlipAgency
   , Pipelined (..)
-  , Trans (..)
+  , Transition (..)
   , SingTrans (..)
   , Queue (..)
   , type (<|)
