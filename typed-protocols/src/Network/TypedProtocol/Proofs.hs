@@ -174,8 +174,13 @@ forgetPipelined
   :: forall ps (pr :: PeerRole) (st :: ps) c m a.
      Functor m
   => [Bool]
-  -> Peer ps pr ('Pipelined c) Z st m a
-  -> Peer ps pr 'NonPipelined  Z st m a
+  -- ^ interleaving choices for pipelining allowed by
+  -- `Collect` and `CollectSTM` primitive. False values or `[]` give no
+  -- pipelining.  For the 'CollectSTM' primitive, the stm action must not
+  -- block otherwise even if the choice is to pipeline more (a 'True' value),
+  -- we'll actually collect a result.
+  -> Peer ps pr (Pipelined c) Z st m a
+  -> Peer ps pr  NonPipelined  Z st m a
 forgetPipelined = goSender EmptyQ
   where
     goSender :: forall st' n.
