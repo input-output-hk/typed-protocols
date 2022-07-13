@@ -48,7 +48,7 @@ data F f st st' where
 
 removeState
   :: forall ps (pr :: PeerRole)
-            (pl :: Pipelined)
+            (pl :: IsPipelined)
             (st :: ps)
             (f :: ps -> Type)
             m stm a.
@@ -61,7 +61,7 @@ removeState = goEmpty
 
 goEmpty
   :: forall ps (pr :: PeerRole)
-            (pl :: Pipelined)
+            (pl :: IsPipelined)
             (st :: ps)
             (f :: ps -> Type)
             m stm a.
@@ -88,8 +88,8 @@ goPipelined
      Functor m
   => Functor stm
   => SingQueueF (F f) q
-  -> ST.Peer ps pr 'Pipelined q st f m stm a
-  ->    Peer ps pr 'Pipelined q st   m stm a
+  -> ST.Peer ps pr Pipelined q st f m stm a
+  ->    Peer ps pr Pipelined q st   m stm a
 goPipelined q (ST.Effect k) = Effect (goPipelined q <$> k)
 
 goPipelined q (ST.YieldPipelined
@@ -105,7 +105,7 @@ goPipelined q@(SingConsF (F f) q') (ST.Collect refl k' k) =
 
 goPipelined
   (SingConsF (F (f :: f stX)) SingEmptyF)
-  (ST.CollectDone k :: ST.Peer ps pr 'Pipelined (Cons (Tr stX stY) Empty) stZ f m stm a) =
+  (ST.CollectDone k :: ST.Peer ps pr Pipelined (Cons (Tr stX stY) Empty) stZ f m stm a) =
     -- we collected all messages, which means that we reached the type:
     -- @Peer ps pr pl (Tr st st <| Empty) st f m stm a@
     -- but we don't have an evidence that stX and stY are equal to stZ, we'd
@@ -133,8 +133,8 @@ goPipelined SingEmptyF _ = error "impossible happend!"
 
 connect
   :: forall ps (pr :: PeerRole)
-               (pl :: Pipelined)
-               (pl' :: Pipelined)
+               (pl :: IsPipelined)
+               (pl' :: IsPipelined)
                (st :: ps)
                (f :: ps -> Type)
                m a b.

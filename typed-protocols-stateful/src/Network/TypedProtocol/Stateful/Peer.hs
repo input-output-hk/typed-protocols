@@ -85,7 +85,7 @@ instance IsLast ps q st
 --
 type Peer :: forall ps
           -> PeerRole
-          -> Pipelined
+          -> IsPipelined
           -> Queue ps
           -> ps
           -> (ps -> Type)
@@ -218,9 +218,9 @@ data Peer ps pr pl q st f m stm a where
     -> f st'
     -> Message ps st st'
     -- ^ protocol message
-    -> Peer ps pr 'Pipelined (q |> Tr st' st'') st'' f m stm a
+    -> Peer ps pr Pipelined (q |> Tr st' st'') st'' f m stm a
     -- ^ continuation
-    -> Peer ps pr 'Pipelined  q                 st   f m stm a
+    -> Peer ps pr Pipelined  q                 st   f m stm a
 
   -- | Partially collect promised transition.
   --
@@ -233,17 +233,17 @@ data Peer ps pr pl q st f m stm a where
                            TheyHaveAgency
                           (Relative pr (StateAgency st'))
     -- ^ agency singleton
-    -> Maybe (Peer ps pr 'Pipelined (Tr st' st'' <| q) st f m stm a)
+    -> Maybe (Peer ps pr Pipelined (Tr st' st'' <| q) st f m stm a)
     -- ^ continuation, executed if no message has arrived so far
     -> (forall (stNext :: ps).
            f st'
         -> Message ps st' stNext
-        -> ( Peer ps pr 'Pipelined (Tr stNext st'' <| q) st f m stm a
+        -> ( Peer ps pr Pipelined (Tr stNext st'' <| q) st f m stm a
            , f stNext
            )
        )
     -- ^ continuation
-    -> Peer     ps pr 'Pipelined (Tr st'    st'' <| q) st f m stm a
+    -> Peer     ps pr Pipelined (Tr st'    st'' <| q) st f m stm a
 
   -- | Collect the identity transition.
   --
@@ -254,9 +254,9 @@ data Peer ps pr pl q st f m stm a where
   CollectDone
     :: forall ps pr (st :: ps) q (st' :: ps) f m stm a.
        IsLast ps (Tr st st <| q) st'
-    => Peer ps pr 'Pipelined              q  st' f m stm a
+    => Peer ps pr Pipelined              q  st' f m stm a
     -- ^ continuation
-    -> Peer ps pr 'Pipelined (Tr st st <| q) st' f m stm a
+    -> Peer ps pr Pipelined (Tr st st <| q) st' f m stm a
 
   -- The 'Peer' driver will race two transactions, the peer continuation versus
   -- next message.
@@ -274,18 +274,18 @@ data Peer ps pr pl q st f m stm a where
                            TheyHaveAgency
                           (Relative pr (StateAgency st'))
     -- ^ agency singleton
-    -> stm (Peer ps pr 'Pipelined (Tr st' st'' <| q) st f m stm a)
+    -> stm (Peer ps pr Pipelined (Tr st' st'' <| q) st f m stm a)
     -- ^ continuation, which is executed if it wins the race with the next
     -- message.
     -> (forall stNext.
            f st'
         -> Message ps st' stNext
-        -> ( Peer ps pr 'Pipelined (Tr stNext st'' <| q) st f m stm a
+        -> ( Peer ps pr Pipelined (Tr stNext st'' <| q) st f m stm a
            , f stNext
            )
        )
     -- ^ continuation
-    -> Peer     ps pr 'Pipelined (Tr st'    st'' <| q) st f m stm a
+    -> Peer     ps pr Pipelined (Tr st'    st'' <| q) st f m stm a
 
 
 deriving instance (Functor m, Functor stm) => Functor (Peer ps (pr :: PeerRole) pl q (st :: ps) f m stm)

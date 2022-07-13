@@ -111,7 +111,7 @@ pingPongClientPeerPipelined
   :: Functor m
   => (f StBusy -> f StIdle)
   -> PingPongClientPipelined f m a
-  -> Client PingPong 'Pipelined Empty StIdle f m (STM m) a
+  -> Client PingPong Pipelined Empty StIdle f m (STM m) a
 pingPongClientPeerPipelined busyToIdle (PingPongClientPipelined peer) =
     pingPongClientPeerIdle busyToIdle peer
 
@@ -120,12 +120,12 @@ pingPongClientPeerIdle
      Functor m
   => (f StBusy -> f StIdle)
   -> PingPongClientIdle                q f m         a
-  -> Client PingPong 'Pipelined q StIdle f m (STM m) a
+  -> Client PingPong Pipelined q StIdle f m (STM m) a
 pingPongClientPeerIdle busyToIdle = go
   where
     go :: forall (q' :: Queue PingPong).
           PingPongClientIdle         q'        f m         a
-       -> Client PingPong 'Pipelined q' StIdle f m (STM m) a
+       -> Client PingPong Pipelined q' StIdle f m (STM m) a
 
     go (SendMsgPingPipelined f next) =
       YieldPipelined f MsgPing (go next)
@@ -145,7 +145,7 @@ pingPongClientPeerPipelinedSTM
   :: MonadSTM m
   => (f StBusy -> f StIdle)
   -> PingPongClientPipelined f m a
-  -> Client PingPong 'Pipelined Empty StIdle f m (STM m) a
+  -> Client PingPong Pipelined Empty StIdle f m (STM m) a
 pingPongClientPeerPipelinedSTM busyToIdle (PingPongClientPipelined peer) =
     pingPongClientPeerIdleSTM busyToIdle peer
 
@@ -154,12 +154,12 @@ pingPongClientPeerIdleSTM
      MonadSTM m
   => (f StBusy -> f StIdle)
   -> PingPongClientIdle                q f m         a
-  -> Client PingPong 'Pipelined q StIdle f m (STM m) a
+  -> Client PingPong Pipelined q StIdle f m (STM m) a
 pingPongClientPeerIdleSTM busyToIdle = go
   where
     go :: forall (q' :: Queue PingPong).
           PingPongClientIdle         q'        f m         a
-       -> Client PingPong 'Pipelined q' StIdle f m (STM m) a
+       -> Client PingPong Pipelined q' StIdle f m (STM m) a
 
     go (SendMsgPingPipelined f next) =
       YieldPipelined f MsgPing (go next)

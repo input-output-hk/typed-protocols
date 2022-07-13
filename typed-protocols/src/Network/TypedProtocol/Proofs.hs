@@ -217,7 +217,7 @@ snocTrQ tr EmptyQ =
 -- peers. This is a sanity property that shows that pipelining did not give
 -- us extra expressiveness or to break the protocol state machine.
 forgetPipelined
-    :: forall ps (pr :: PeerRole) (pl :: Pipelined) (initSt :: ps) m a.
+    :: forall ps (pr :: PeerRole) (pl :: IsPipelined) (initSt :: ps) m a.
        MonadSTM m
     => [Bool]
     -- ^ interleaving choices for pipelining allowed by
@@ -301,8 +301,8 @@ forgetPipelined cs0 = go cs0 EmptyQ
 --
 connect
   :: forall ps (pr :: PeerRole)
-               (pl :: Pipelined)
-               (pl' :: Pipelined)
+               (pl :: IsPipelined)
+               (pl' :: IsPipelined)
                (st :: ps) m a b.
        (MonadSTM m, SingI pr)
     => [Bool]
