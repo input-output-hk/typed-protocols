@@ -149,14 +149,14 @@ data TerminalStates ps where
 -- Remove Pipelining
 --
 
--- | Singletons for types of kind `Trans`.
+-- | Singletons for types of kind `Transition`.
 --
-type STrans :: Trans ps -> Type
-data STrans tr where
-   STr :: STrans (Tr st st')
+type STransition :: Transition ps -> Type
+data STransition tr where
+   STr :: STransition (Tr st st')
 
 -- | `SQueue` tracks the order of transitions.  We either have an
--- explicit `Message` or a `STrans` singleton, both are pushed by
+-- explicit `Message` or a `STransition` singleton, both are pushed by
 -- `YieldPipelined` operation.
 --
 -- Note: if not the order of arguments 'SQueue' could be given a category
@@ -174,7 +174,7 @@ data SQueue ps pr st q st' where
            -> SQueue  ps pr st' q st''
            -> SQueue  ps pr st  q st''
 
-  ConsTrQ  :: STrans (Tr st st')
+  ConsTrQ  :: STransition (Tr st st')
            -> SQueue ps pr st'               q  st''
            -> SQueue ps pr st  (Tr st st' <| q) st''
 
@@ -199,10 +199,10 @@ snocMsgQ stok msg (ConsTrQ str pq) =
 snocMsgQ stok msg EmptyQ =
   ConsMsgQ stok msg EmptyQ
 
--- | Push a `STrans (Tr st st')` to the back of `SQueue`.
+-- | Push a `STransition (Tr st st')` to the back of `SQueue`.
 --
 snocTrQ :: SingI st'
-        => STrans (Tr st' st'')
+        => STransition (Tr st' st'')
         -> SQueue ps pr st  q                 st'
         -> SQueue ps pr st (q |> Tr st' st'') st''
 snocTrQ tr (ConsMsgQ stok msg pq) =
