@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE RankNTypes          #-}
@@ -10,8 +11,12 @@ module Network.TypedProtocol.Channel
   , fixedInputChannel
   , mvarsAsChannel
   , handlesAsChannel
+#if !defined(mingw32_HOST_OS)
+  , socketAsChannel
+#endif
   , createConnectedChannels
   , createConnectedBufferedChannels
+  , createConnectedBufferedChannelsUnbounded
   , createPipelineTestChannels
   , channelEffect
   , delayChannel
@@ -23,9 +28,24 @@ import           Control.Monad.Class.MonadSTM
 import           Control.Monad.Class.MonadSay
 import           Control.Monad.Class.MonadTimer
 import qualified Data.ByteString as BS
+#if !defined(mingw32_HOST_OS)
+import qualified Data.ByteString.Internal as BS (createAndTrim')
+#endif
 import qualified Data.ByteString.Lazy as LBS
 import           Data.ByteString.Lazy.Internal (smallChunkSize)
+import           Data.Proxy
+#if !defined(mingw32_HOST_OS)
+import           Data.Word (Word8)
+import           Foreign.C.Error (eAGAIN, eWOULDBLOCK, getErrno, throwErrno)
+import           Foreign.C.Types
+import           Foreign.Ptr (Ptr, castPtr)
+#endif
 import           Numeric.Natural
+
+#if !defined(mingw32_HOST_OS)
+import           Network.Socket (Socket, withFdSocket)
+import qualified Network.Socket.ByteString.Lazy as Socket
+#endif
 
 import qualified System.IO as IO (Handle, hFlush, hIsEOF)
 
@@ -40,7 +60,7 @@ data Channel m a = Channel {
        -- It may raise exceptions (as appropriate for the monad and kind of
        -- channel).
        --
-       send :: a -> m (),
+       send    :: a -> m (),
 
        -- | Read some input from the channel, or @Nothing@ to indicate EOF.
        --
@@ -50,7 +70,13 @@ data Channel m a = Channel {
        -- It may raise exceptions (as appropriate for the monad and kind of
        -- channel).
        --
-       recv :: m (Maybe a)
+       recv    :: m (Maybe a),
+
+       -- | Try read some input from the channel.  The outer @Nothing@
+       -- indicates that data is not available, the inner @Nothing@ indicates an
+       -- EOF.
+       --
+       tryRecv :: m (Maybe (Maybe a))
      }
 
 
@@ -63,9 +89,12 @@ isoKleisliChannel
   -> (b -> m a)
   -> Channel m a
   -> Channel m b
-isoKleisliChannel f finv Channel{send, recv} = Channel {
-    send = finv >=> send,
-    recv = recv >>= traverse f
+isoKleisliChannel f finv Channel{send, recv, tryRecv} = Channel {
+    send    = finv >=> send,
+    recv    = recv >>= traverse f,
+    tryRecv = tryRecv >>= \ma -> case ma of
+                          Nothing -> return Nothing
+                          Just mb -> Just <$> traverse f mb
   }
 
 
@@ -74,8 +103,9 @@ hoistChannel
   -> Channel m a
   -> Channel n a
 hoistChannel nat channel = Channel
-  { send = nat . send channel
-  , recv = nat (recv channel)
+  { send    = nat . send channel
+  , recv    = nat (recv channel)
+  , tryRecv = nat (tryRecv channel)
   }
 
 -- | A 'Channel' with a fixed input, and where all output is discarded.
@@ -90,7 +120,7 @@ hoistChannel nat channel = Channel
 fixedInputChannel :: MonadSTM m => [a] -> m (Channel m a)
 fixedInputChannel xs0 = do
     v <- atomically $ newTVar xs0
-    return Channel {send, recv = recv v}
+    return Channel {send, recv = recv v, tryRecv = Just <$> recv v}
   where
     recv v = atomically $ do
                xs <- readTVar v
@@ -109,22 +139,31 @@ mvarsAsChannel :: MonadSTM m
                -> TMVar m a
                -> Channel m a
 mvarsAsChannel bufferRead bufferWrite =
-    Channel{send, recv}
+    Channel{send, recv, tryRecv}
   where
-    send x = atomically (putTMVar bufferWrite x)
-    recv   = atomically (Just <$> takeTMVar bufferRead)
+    send x  = atomically (putTMVar bufferWrite x)
+    recv    = atomically (     Just <$>    takeTMVar bufferRead)
+    tryRecv = atomically (fmap Just <$> tryTakeTMVar bufferRead)
 
 
 -- | Create a pair of channels that are connected via one-place buffers.
 --
 -- This is primarily useful for testing protocols.
 --
-createConnectedChannels :: MonadSTM m => m (Channel m a, Channel m a)
+createConnectedChannels :: forall m a. (MonadLabelledSTM m, MonadTraceSTM m, Show a) => m (Channel m a, Channel m a)
 createConnectedChannels = do
     -- Create two TMVars to act as the channel buffer (one for each direction)
     -- and use them to make both ends of a bidirectional channel
-    bufferA <- atomically $ newEmptyTMVar
-    bufferB <- atomically $ newEmptyTMVar
+    bufferA <- atomically $ do
+      v <- newEmptyTMVar
+      labelTMVar v "buffer-a"
+      traceTMVar (Proxy :: Proxy m) v $ \_ a -> pure $ TraceString ("buffer-a: " ++ show a)
+      return v
+    bufferB <- atomically $ do
+      v <- newEmptyTMVar
+      traceTMVar (Proxy :: Proxy m) v $ \_ a -> pure $ TraceString ("buffer-b: " ++ show a)
+      labelTMVar v "buffer-b"
+      return v
 
     return (mvarsAsChannel bufferB bufferA,
             mvarsAsChannel bufferA bufferB)
@@ -150,17 +189,40 @@ createConnectedBufferedChannels sz = do
             queuesAsChannel bufferA bufferB)
   where
     queuesAsChannel bufferRead bufferWrite =
-        Channel{send, recv}
+        Channel{send, recv, tryRecv}
       where
-        send x = atomically (writeTBQueue bufferWrite x)
-        recv   = atomically (Just <$> readTBQueue bufferRead)
+        send x  = atomically (writeTBQueue bufferWrite x)
+        recv    = atomically (     Just <$> readTBQueue bufferRead)
+        tryRecv = atomically (fmap Just <$> tryReadTBQueue bufferRead)
 
+
+-- | Create a pair of channels that are connected via two unbounded buffers.
+--
+-- This is primarily useful for testing protocols.
+--
+createConnectedBufferedChannelsUnbounded :: forall m a. MonadSTM m
+                                         => m (Channel m a, Channel m a)
+createConnectedBufferedChannelsUnbounded = do
+    -- Create two TQueues to act as the channel buffers (one for each
+    -- direction) and use them to make both ends of a bidirectional channel
+    bufferA <- atomically $ newTQueue
+    bufferB <- atomically $ newTQueue
+
+    return (queuesAsChannel bufferB bufferA,
+            queuesAsChannel bufferA bufferB)
+  where
+    queuesAsChannel bufferRead bufferWrite =
+        Channel{send, recv, tryRecv}
+      where
+        send x  = atomically (writeTQueue bufferWrite x)
+        recv    = atomically (     Just <$> readTQueue bufferRead)
+        tryRecv = atomically (fmap Just <$> tryReadTQueue bufferRead)
 
 -- | Create a pair of channels that are connected via N-place buffers.
 --
 -- This variant /fails/ when  'send' would exceed the maximum buffer size.
--- Use this variant when you want the 'PeerPipelined' to limit the pipelining
--- itself, and you want to check that it does not exceed the expected level of
+-- Use this variant when you want the 'Peer' to limit the pipelining itself,
+-- and you want to check that it does not exceed the expected level of
 -- pipelining.
 --
 -- This is primarily useful for testing protocols.
@@ -177,13 +239,14 @@ createPipelineTestChannels sz = do
             queuesAsChannel bufferA bufferB)
   where
     queuesAsChannel bufferRead bufferWrite =
-        Channel{send, recv}
+        Channel{send, recv, tryRecv}
       where
-        send x = atomically $ do
-                   full <- isFullTBQueue bufferWrite
-                   if full then error failureMsg
-                           else writeTBQueue bufferWrite x
-        recv   = atomically (Just <$> readTBQueue bufferRead)
+        send x  = atomically $ do
+                    full <- isFullTBQueue bufferWrite
+                    if full then error failureMsg
+                            else writeTBQueue bufferWrite x
+        recv    = atomically (     Just <$> readTBQueue bufferRead)
+        tryRecv = atomically (fmap Just <$> tryReadTBQueue bufferRead)
 
     failureMsg = "createPipelineTestChannels: "
               ++ "maximum pipeline depth exceeded: " ++ show sz
@@ -194,7 +257,8 @@ createPipelineTestChannels sz = do
 --
 -- The Handles should be open in the appropriate read or write mode, and in
 -- binary mode. Writes are flushed after each write, so it is safe to use
--- a buffering mode.
+-- a buffering mode.  On unix named pipes can be used, see
+-- 'Network.TypedProtocol.ReqResp.Test.prop_namedPipePipelined_IO'
 --
 -- For bidirectional handles it is safe to pass the same handle for both.
 --
@@ -202,7 +266,7 @@ handlesAsChannel :: IO.Handle -- ^ Read handle
                  -> IO.Handle -- ^ Write handle
                  -> Channel IO LBS.ByteString
 handlesAsChannel hndRead hndWrite =
-    Channel{send, recv}
+    Channel{send, recv, tryRecv}
   where
     send :: LBS.ByteString -> IO ()
     send chunk = do
@@ -216,6 +280,14 @@ handlesAsChannel hndRead hndWrite =
         then return Nothing
         else Just . LBS.fromStrict <$> BS.hGetSome hndRead smallChunkSize
 
+    tryRecv :: IO (Maybe (Maybe LBS.ByteString))
+    tryRecv = do
+      eof <- IO.hIsEOF hndRead
+      if eof
+        then return (Just Nothing)
+        else (\bs -> if LBS.null bs then Nothing else Just (Just bs))
+         <$> LBS.hGetNonBlocking hndRead smallChunkSize
+
 
 -- | Transform a channel to add an extra action before /every/ send and after
 -- /every/ receive.
@@ -226,7 +298,7 @@ channelEffect :: forall m a.
               -> (Maybe a -> m ())  -- ^ Action after 'recv'
               -> Channel m a
               -> Channel m a
-channelEffect beforeSend afterRecv Channel{send, recv} =
+channelEffect beforeSend afterRecv Channel{send, recv, tryRecv} =
     Channel{
       send = \x -> do
         beforeSend x
@@ -236,6 +308,13 @@ channelEffect beforeSend afterRecv Channel{send, recv} =
         mx <- recv
         afterRecv mx
         return mx
+
+    , tryRecv = do
+        mmx <- tryRecv
+        case mmx of
+          Nothing -> return mmx
+          Just mx -> afterRecv mx
+                  >> return mmx
     }
 
 -- | Delay a channel on the receiver end.
@@ -253,6 +332,56 @@ delayChannel delay = channelEffect (\_ -> return ())
                                    (\_ -> threadDelay delay)
 
 
+#if !defined(mingw32_HOST_OS)
+socketAsChannel :: Socket
+                -> Channel IO LBS.ByteString
+socketAsChannel sock =
+    Channel{send, recv, tryRecv}
+  where
+    send :: LBS.ByteString -> IO ()
+    send = Socket.sendAll sock
+
+    recv :: IO (Maybe LBS.ByteString)
+    recv = do
+      bs <- Socket.recv sock (fromIntegral smallChunkSize)
+      if LBS.null bs
+        then return Nothing
+        else return (Just bs)
+
+    tryRecv :: IO (Maybe (Maybe LBS.ByteString))
+    tryRecv = do
+      (bs, wouldBlock) <- BS.createAndTrim' smallChunkSize $ \ptr -> do
+        r <- recvBufNoWait sock ptr smallChunkSize
+        case r of
+          (-1) -> return (0, 0, True)
+          (-2) -> throwErrno "tryRecv"
+          _    -> return (0, r, False)
+      return $
+        case () of
+          _ | wouldBlock -> Nothing
+            | BS.null bs -> Just Nothing
+            | otherwise  -> Just (Just (LBS.fromStrict bs))
+
+
+
+-- | Copied from 'Network.Socket.Buffer.recvBufNoWait'.
+--
+recvBufNoWait :: Socket -> Ptr Word8 -> Int -> IO Int
+recvBufNoWait s ptr nbytes = withFdSocket s $ \fd -> do
+    r <- c_recv fd (castPtr ptr) (fromIntegral nbytes) 0{-flags-}
+    if r >= 0 then
+        return $ fromIntegral r
+      else do
+        err <- getErrno
+        if err == eAGAIN || err == eWOULDBLOCK then
+            return (-1)
+          else
+            return (-2)
+
+foreign import ccall unsafe "recv"
+  c_recv :: CInt -> Ptr CChar -> CSize -> CInt -> IO CInt
+#endif
+
 -- | Channel which logs sent and received messages.
 --
 loggingChannel :: ( MonadSay m
@@ -262,10 +391,11 @@ loggingChannel :: ( MonadSay m
                => id
                -> Channel m a
                -> Channel m a
-loggingChannel ident Channel{send,recv} =
+loggingChannel ident Channel{send,recv,tryRecv} =
   Channel {
-    send = loggingSend,
-    recv = loggingRecv
+    send    = loggingSend,
+    recv    = loggingRecv,
+    tryRecv = loggingTryRecv
   }
  where
   loggingSend a = do
@@ -277,4 +407,11 @@ loggingChannel ident Channel{send,recv} =
     case msg of
       Nothing -> return ()
       Just a  -> say (show ident ++ ":recv:" ++ show a)
+    return msg
+
+  loggingTryRecv = do
+    msg <- tryRecv
+    case msg of
+      Just (Just a) -> say (show ident ++ ":recv:" ++ show a)
+      _             -> return ()
     return msg

@@ -1,11 +1,12 @@
 {-# LANGUAGE BangPatterns        #-}
-{-# LANGUAGE EmptyCase           #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE TypeInType          #-}
+{-# LANGUAGE TypeOperators       #-}
 
 -- | Actions for running 'Peer's with a 'Driver'
 --
@@ -14,21 +15,23 @@ module Network.TypedProtocol.Driver
     -- $intro
     -- * Driver interface
     Driver (..)
+  , DriverState (..)
   , SomeMessage (..)
-    -- * Normal peers
+    -- * Running a peer
   , runPeerWithDriver
-    -- * Pipelined peers
-  , runPipelinedPeerWithDriver
+    -- * Re-exports
+  , DecodeStep (..)
   ) where
 
-import           Data.Void (Void)
-
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Pipelined
-
-import           Control.Monad.Class.MonadAsync
-import           Control.Monad.Class.MonadFork
+import           Control.Applicative ((<|>))
 import           Control.Monad.Class.MonadSTM
+
+import           Data.Singletons
+import           Data.Type.Queue
+
+import           Network.TypedProtocol.Codec (DecodeStep (..), SomeMessage (..))
+import           Network.TypedProtocol.Core
+import           Network.TypedProtocol.Peer
 
 
 -- $intro
@@ -57,267 +60,206 @@ import           Control.Monad.Class.MonadSTM
 --
 
 
+-- | 'Driver' can be interrupted and might need to resume.  'DriverState'
+-- records its state, so it can resume.
+--
+data DriverState ps (pr :: PeerRole) (st :: ps) bytes failure dstate m
+    = DecoderState   (DecodeStep bytes failure m (SomeMessage st))
+                     !dstate
+      -- ^ 'tryRecvMessage' can return either 'DecodeStep' with
+      -- current 'dstate' or a parsed message.
+
+    | DriverState    !dstate
+      -- ^ dstate which was returned by 'recvMessage'
+
+    | DriverStateSTM (STM m (SomeMessage st, dstate))
+                     !dstate
+      -- ^ 'recvMessageSTM' might leave us with an stm action.
+
+
 --
 -- Driver interface
 --
 
-data Driver ps dstate m =
+data Driver ps (pr :: PeerRole) bytes failure dstate m =
         Driver {
-          sendMessage :: forall (pr :: PeerRole) (st :: ps) (st' :: ps).
-                         PeerHasAgency pr st
-                      -> Message ps st st'
-                      -> m ()
+          -- | Send a message.
+          --
+          sendMessage    :: forall (st :: ps) (st' :: ps).
+                            SingI st
+                         => SingI st'
+                         => ActiveState st
+                         => ReflRelativeAgency (StateAgency st)
+                                                WeHaveAgency
+                                               (Relative pr (StateAgency st))
+                         -> Message ps st st'
+                         -> m ()
 
-        , recvMessage :: forall (pr :: PeerRole) (st :: ps).
-                         PeerHasAgency pr st
-                      -> dstate
-                      -> m (SomeMessage st, dstate)
+        , -- | Receive a message, a blocking action which reads from the network
+          -- and runs the incremental decoder until a full message is decoded.
+          -- As an input it might receive a 'DecodeStep' previously started with
+          -- 'tryRecvMessage'.
+          --
+          -- It could be implemented in terms of 'recvMessageSTM', but in some
+          -- cases it can be easier (or more performant) to have a different
+          -- implementation.
+          --
+          recvMessage    :: forall (st :: ps).
+                            SingI st
+                         => ActiveState st
+                         => ReflRelativeAgency (StateAgency st)
+                                                TheyHaveAgency
+                                               (Relative pr (StateAgency st))
+                         -> DriverState ps pr st bytes failure dstate m
+                         -> m (SomeMessage st, dstate)
 
-        , startDState :: dstate
+        , -- | 'tryRecvMessage' is used to interpret @'Collect' _ (Just k') k@.
+          -- If it returns we will continue with @k@, otherwise we keep the
+          -- decoder state @DecodeStep@ and continue pipelining using @k'@.
+          --
+          -- 'tryRecvMessage' ought to be non-blocking.
+          --
+          -- It also could be implemented in terms of 'recvMessageSTM', but
+          -- there are cases where a separate implementation would be simpler
+          -- or more performant as it does not need to relay on STM but instead
+          -- relay on non-blocking IO.
+          --
+          tryRecvMessage :: forall (st :: ps).
+                            SingI st
+                         => ActiveState st
+                         => ReflRelativeAgency (StateAgency st)
+                                                TheyHaveAgency
+                                               (Relative pr (StateAgency st))
+                         -> DriverState ps pr st bytes failure dstate m
+                         -> m (Either (DriverState ps pr st bytes failure dstate m)
+                                      ( SomeMessage st
+                                      , dstate
+                                      ))
+
+        , -- | Construct a non-blocking stm action which awaits for the
+          -- message.
+          --
+          recvMessageSTM :: forall (st :: ps).
+                            SingI st
+                         => ActiveState st
+                         => ReflRelativeAgency (StateAgency st)
+                                                TheyHaveAgency
+                                               (Relative pr (StateAgency st))
+                         -> DriverState ps pr st bytes failure dstate m
+                         -> m (STM m (SomeMessage st, dstate))
+
+        , startDState    :: dstate
         }
 
--- | When decoding a 'Message' we only know the expected \"from\" state. We
--- cannot know the \"to\" state as this depends on the message we decode. To
--- resolve this we use the 'SomeMessage' wrapper which uses an existential
--- type to hide the \"to"\ state.
---
-data SomeMessage (st :: ps) where
-     SomeMessage :: Message ps st st' -> SomeMessage st
-
 
 --
--- Running normal non-pipelined peers
+-- Running peers
 --
+
 
 -- | Run a peer with the given driver.
 --
 -- This runs the peer to completion (if the protocol allows for termination).
 --
 runPeerWithDriver
-  :: forall ps (st :: ps) pr dstate m a.
-     Monad m
-  => Driver ps dstate m
-  -> Peer ps pr st m a
-  -> dstate
+  :: forall ps (st :: ps) pr pl bytes failure dstate m a.
+     MonadSTM m
+  => Driver ps pr bytes failure dstate m
+  -> Peer ps pr pl Empty st m (STM m) a
   -> m (a, dstate)
-runPeerWithDriver Driver{sendMessage, recvMessage} =
-    flip go
+runPeerWithDriver Driver{ sendMessage
+                        , recvMessage
+                        , tryRecvMessage
+                        , recvMessageSTM
+                        , startDState } =
+    goEmpty startDState
   where
-    go :: forall st'.
+    goEmpty
+       :: forall st'.
           dstate
-       -> Peer ps pr st' m a
+       -> Peer ps pr pl 'Empty st' m (STM m) a
        -> m (a, dstate)
-    go dstate (Effect k) = k >>= go dstate
-    go dstate (Done _ x) = return (x, dstate)
+    goEmpty !dstate (Effect k) = k >>= goEmpty dstate
 
-    go dstate (Yield stok msg k) = do
-      sendMessage stok msg
-      go dstate k
+    goEmpty !dstate (Done _ x) = return (x, dstate)
 
-    go dstate (Await stok k) = do
-      (SomeMessage msg, dstate') <- recvMessage stok dstate
-      go dstate' (k msg)
+    goEmpty !dstate (Yield refl msg k) = do
+      sendMessage refl msg
+      goEmpty dstate k
 
-    -- Note that we do not complain about trailing data in any case, neither
-    -- the 'Await' nor 'Done' cases.
-    --
-    -- We want to be able to use a non-pipelined peer in communication with
-    -- a pipelined peer, and in that case the non-pipelined peer will in
-    -- general see trailing data after an 'Await' which is the next incoming
-    -- message.
-    --
-    -- Likewise for 'Done', we want to allow for one protocols to be run after
-    -- another on the same channel. It would be legal for the opening message
-    -- of the next protocol arrives in the same data chunk as the final
-    -- message of the previous protocol.
+    goEmpty !dstate (Await refl k) = do
+      (SomeMessage msg, dstate') <- recvMessage refl (DriverState dstate)
+      goEmpty dstate' (k msg)
+
+    goEmpty !dstate (YieldPipelined refl msg k) = do
+      sendMessage refl msg
+      go singSingleton (DriverState dstate) k
 
 
---
--- Running pipelined peers
---
-
--- | Run a pipelined peer with the given driver.
---
--- This runs the peer to completion (if the protocol allows for termination).
---
--- Unlike normal peers, running pipelined peers rely on concurrency, hence the
--- 'MonadAsync' constraint.
---
-runPipelinedPeerWithDriver
-  :: forall ps (st :: ps) pr dstate m a.
-     MonadAsync m
-  => Driver ps dstate m
-  -> PeerPipelined ps pr st m a
-  -> dstate
-  -> m (a, dstate)
-runPipelinedPeerWithDriver driver (PeerPipelined peer) dstate0 = do
-    receiveQueue <- atomically newTQueue
-    collectQueue <- atomically newTQueue
-    a <- runPipelinedPeerReceiverQueue receiveQueue collectQueue driver
-           `withAsyncLoop`
-         runPipelinedPeerSender        receiveQueue collectQueue driver
-                                       peer dstate0
-    return a
-
-  where
-    withAsyncLoop :: m Void -> m x -> m x
-    withAsyncLoop left right = do
-      -- race will throw if either of the threads throw
-      res <- race left right
-      case res of
-        Left v  -> case v of {}
-        Right a -> return a
-
-data ReceiveHandler dstate ps pr m c where
-     ReceiveHandler :: MaybeDState dstate n
-                    -> PeerReceiver ps pr (st :: ps) (st' :: ps) m c
-                    -> ReceiveHandler dstate ps pr m c
-
--- | The handling of trailing data here is quite subtle. Trailing data is data
--- we have read from the channel but the decoder has told us that it comes
--- after the message we decoded. So it potentially belongs to the next message
--- to decode.
---
--- We read from the channel on both the 'runPipelinedPeerSender' and the
--- 'runPipelinedPeerReceiver', and we synchronise our use of trailing data
--- between the two. The scheme for the sender and receiver threads using the
--- channel ensures that only one can use it at once:
---
--- * When there are zero outstanding pipelined receiver handlers then the
---   sending side is allowed to access the channel directly (to do synchronous
---   yield\/awaits). Correspondingly the receiver side is idle and not
---   accessing the channel.
--- * When there are non-zero outstanding pipelined receiver handlers then
---   the receiver side can access the channel, but the sending side is not
---   permitted to do operations that access the channel.
---
--- So the only times we need to synchronise the trailing data are the times
--- when the right to access the channel passes from one side to the other.
---
--- The transitions are as follows:
---
--- * There having been Zero outstanding pipelined requests there is now a
---   new pipelined yield. In this case we must pass the trailing data from
---   the sender thread to the receiver thread. We pass it with the
---   'ReceiveHandler'.
---
--- * When the last pipelined request is collected. In this case we must pass
---   the trailing data from the receiver thread to the sender thread. We pass
---   it with the collected result.
---
--- Note that the receiver thread cannot know what the last pipelined request
--- is, that is tracked on the sender side. So the receiver thread always
--- returns the trailing data with every collected result. It is for the sender
--- thread to decide if it needs to use it. For the same reason, the receiver
--- thread ends up retaining the last trailing data (as well as passing it to
--- the sender). So correspondingly when new trailing data is passed to the
--- receiver thread, it simply overrides any trailing data it already had, since
--- we now know that copy to be stale.
---
-data MaybeDState dstate (n :: N) where
-     HasDState :: dstate -> MaybeDState dstate Z
-     NoDState  ::           MaybeDState dstate (S n)
-
-
-runPipelinedPeerSender
-  :: forall ps (st :: ps) pr dstate c m a.
-     ( MonadSTM    m
-     , MonadThread m
-     )
-  => TQueue m (ReceiveHandler dstate ps pr m c)
-  -> TQueue m (c, dstate)
-  -> Driver ps dstate m
-  -> PeerSender ps pr st Z c m a
-  -> dstate
-  -> m (a, dstate)
-runPipelinedPeerSender receiveQueue collectQueue
-                       Driver{sendMessage, recvMessage}
-                       peer dstate0 = do
-    threadId <- myThreadId
-    labelThread threadId "pipeliend-peer-seneder"
-    go Zero (HasDState dstate0) peer
-  where
-    go :: forall st' n.
-          Nat n
-       -> MaybeDState dstate n
-       -> PeerSender ps pr st' n c m a
+    go :: forall st1 st2 st3 q'.
+          SingQueue (Tr st1 st2 <| q')
+       -> DriverState ps pr st1 bytes failure dstate m
+       -> Peer ps pr pl (Tr st1 st2 <| q') st3 m (STM m) a
        -> m (a, dstate)
-    go n    dstate             (SenderEffect k) = k >>= go n dstate
-    go Zero (HasDState dstate) (SenderDone _ x) = return (x, dstate)
+    go q !dstate (Effect k) = k >>= go q dstate
 
-    go Zero dstate (SenderYield stok msg k) = do
-      sendMessage stok msg
-      go Zero dstate k
+    go q !dstate (YieldPipelined
+                  refl
+                  (msg :: Message ps st3 st')
+                  (k   :: Peer ps pr pl ((Tr st1 st2 <| q') |> Tr st' st'') st'' m (STM m) a))
+                = do
+      sendMessage refl msg
+      go (q `snoc` (SingTr :: SingTrans (Tr st' st'')))
+         dstate k
 
-    go Zero (HasDState dstate) (SenderAwait stok k) = do
-      (SomeMessage msg, dstate') <- recvMessage stok dstate
-      go Zero (HasDState dstate') (k msg)
+    go (SingCons q) !dstate (Collect refl Nothing k) = do
+      (SomeMessage msg, dstate') <- recvMessage refl dstate
+      go (SingCons q) (DriverState dstate') (k msg)
 
-    go n dstate (SenderPipeline stok msg receiver k) = do
-      atomically (writeTQueue receiveQueue (ReceiveHandler dstate receiver))
-      sendMessage stok msg
-      go (Succ n) NoDState k
+    go q@(SingCons q') !dstate (Collect refl (Just k') k) = do
+      r <- tryRecvMessage refl dstate
+      case r of
+        Left dstate' ->
+          go q dstate' k'
+        Right (SomeMessage msg, dstate') ->
+          go (SingCons q') (DriverState dstate') (k msg)
 
-    go (Succ n) NoDState (SenderCollect Nothing k) = do
-      (c, dstate) <- atomically (readTQueue collectQueue)
-      case n of
-        Zero    -> go Zero      (HasDState dstate) (k c)
-        Succ n' -> go (Succ n')  NoDState          (k c)
+    go (SingCons SingEmpty) (DriverState dstate) (CollectDone k) =
+      goEmpty dstate k
 
-    go (Succ n) NoDState (SenderCollect (Just k') k) = do
-      mc <- atomically (tryReadTQueue collectQueue)
-      case mc of
-        Nothing  -> go (Succ n) NoDState  k'
-        Just (c, dstate) ->
-          case n of
-            Zero    -> go Zero      (HasDState dstate) (k c)
-            Succ n' -> go (Succ n')  NoDState          (k c)
+    go (SingCons q@SingCons {}) (DriverState dstate) (CollectDone k) =
+      go q (DriverState dstate) k
 
-
-runPipelinedPeerReceiverQueue
-  :: forall ps pr dstate m c.
-     ( MonadSTM    m
-     , MonadThread m
-     )
-  => TQueue m (ReceiveHandler dstate ps pr m c)
-  -> TQueue m (c, dstate)
-  -> Driver ps dstate m
-  -> m Void
-runPipelinedPeerReceiverQueue receiveQueue collectQueue
-                              driver@Driver{startDState} = do
-    threadId <- myThreadId
-    labelThread threadId "pipelined-recevier-queue"
-    go startDState
-  where
-    go :: dstate -> m Void
-    go receiverDState = do
-      ReceiveHandler senderDState receiver
-        <- atomically (readTQueue receiveQueue)
-      let dstate = case (senderDState, receiverDState) of
-                       (HasDState t, _) -> t
-                       (NoDState,    t) -> t
-      x@(!_c, !dstate') <- runPipelinedPeerReceiver driver dstate receiver
-      atomically (writeTQueue collectQueue x)
-      go dstate'
+    go q@(SingCons q') !dstate (CollectSTM refl k' k) = do
+      stm <- recvMessageSTM refl dstate
+      -- Note that the 'stm' action also returns next @dstate@.  For this
+      -- reason, using a simpler 'CollectSTM' which takes `STM m Message` as an
+      -- argument and computes the result by itself is not possible.
+      r <- atomically $
+             Left  <$> stm
+         <|> Right <$> k'
+      case r of
+        Left (SomeMessage msg, dstate') ->
+          go (SingCons q') (DriverState dstate') (k msg)
+        Right k'' ->
+          go q (DriverStateSTM stm (getDState dstate)) k''
 
 
-runPipelinedPeerReceiver
-  :: forall ps (st :: ps) (stdone :: ps) pr dstate m c.
-     Monad m
-  => Driver ps dstate m
-  -> dstate
-  -> PeerReceiver ps pr (st :: ps) (stdone :: ps) m c
-  -> m (c, dstate)
-runPipelinedPeerReceiver Driver{recvMessage} = go
-  where
-    go :: forall st' st''.
-          dstate
-       -> PeerReceiver ps pr st' st'' m c
-       -> m (c, dstate)
-    go dstate (ReceiverEffect k) = k >>= go dstate
+    go _q             DecoderState {}        CollectDone {} =
+      -- 'CollectDone' can only be executed once `Collect` or `CollectSTM` was
+      -- effective, which means we cannot receive a partial decoder here.
+      error "runPeerWithDriver: unexpected parital decoder"
 
-    go dstate (ReceiverDone x) = return (x, dstate)
+    go _q             DriverStateSTM {}      CollectDone {} =
+      -- 'CollectDone' can only placed when once `Collect` or `CollectSTM` was
+      -- effective, we cannot have 'DriverStateSTM' at this stage.
+      error "runPeerWithDriver: unexpected driver state"
 
-    go dstate (ReceiverAwait stok k) = do
-      (SomeMessage msg, dstate') <- recvMessage stok dstate
-      go dstate' (k msg)
+    --
+    -- lenses
+    --
+
+    getDState :: forall (st' :: ps). DriverState ps pr st' bytes failure dstate m -> dstate
+    getDState (DecoderState   _ dstate) = dstate
+    getDState (DriverState      dstate) = dstate
+    getDState (DriverStateSTM _ dstate) = dstate
