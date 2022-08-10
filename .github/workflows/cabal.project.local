@@ -1,0 +1,16 @@
+documentation: True
+tests:         True
+benchmarks:    True
+
+package typed-protocols
+  ghc-options: -Werror
+  flags: +asserts
+
+package typed-protocols-cborg
+  ghc-options: -Werror
+  flags: +asserts
+
+package typed-protocols-examples
+  ghc-options: -Werror
+  flags: +asserts
+

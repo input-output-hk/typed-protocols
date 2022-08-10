@@ -1,0 +1,177 @@
+name: Haskell CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc: ["8.10.7", "9.2.2"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    defaults:
+      run:
+        shell: ${{ matrix.os == 'windows-latest' && 'msys2 {0}' || 'bash' }}
+
+    steps:
+    - name: "WIN: Setup MSYS2 and libraries"
+      if: runner.os == 'Windows'
+      uses: msys2/setup-msys2@v2
+      with:
+        update: true
+        install: >-
+          base-devel
+          autoconf-wrapper
+          autoconf
+          automake
+          libtool
+          make
+          git
+          mingw-w64-x86_64-jq
+
+    - name: Set cache version
+      run: echo "CACHE_VERSION=pu4Aevoo" >> $GITHUB_ENV
+
+    - name: "LINUX: Setup Haskell"
+      uses: haskell/actions/setup@v1
+      if: runner.os != 'Windows'
+      id: setup-haskell
+      with:
+        ghc-version: ${{ matrix.ghc }}
+        cabal-version: 3.6.2.0
+
+    - name: "WIN: Setup Haskell"
+      id: win-setup-haskell
+      if: runner.os == 'Windows'
+      run: |
+        # see https://gitlab.haskell.org/haskell/ghcup-hs/-/blob/master/scripts/bootstrap/bootstrap-haskell
+        curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | \
+          BOOTSTRAP_HASKELL_NONINTERACTIVE=1 \
+          BOOTSTRAP_HASKELL_ADJUST_CABAL_CONFIG=1 \
+          BOOTSTRAP_HASKELL_ADJUST_BASHRC=1 \
+          BOOTSTRAP_HASKELL_GHC_VERSION="${{ matrix.ghc }}" \
+          BOOTSTRAP_HASKELL_CABAL_VERSION="3.6.2.0" \
+          sh
+
+        # MSYS2 doesn't inherit $GITHUB_PATH so this is needed
+        cat <(echo "source /c/ghcup/env") ~/.bashrc > ~/.bashrc.new
+        mv ~/.bashrc.new ~/.bashrc
+
+        source ~/.bashrc
+
+        # There is an issue with crt libraries, fixed by prepending the ghc
+        # mingw32 libraries directory to every other library directory.
+        echo "# Original cabal config extra-lib-dirs"
+        grep extra-lib-dirs /c/cabal/config
+
+        sed -i 's/C:\\msys64\\mingw64\\lib/C:\\ghcup\\ghc\\8.10.7\\mingw\\x86_64-w64-mingw32\\lib, C:\\msys64\\mingw64\\lib/g' /c/cabal/config
+
+        echo "# Modified cabal config extra-lib-dirs"
+        grep extra-lib-dirs /c/cabal/config
+
+        ghc --version
+        cabal --version
+        echo "::set-output name=cabal-store::$(dirname $(cabal --help | tail -1 | tr -d ' '))\\store"
+
+    - uses: actions/checkout@v2
+
+    - name: "Configure cabal.project.local"
+      run: |
+        cat ./.github/workflows/cabal.project.local > ./cabal.project.local
+        cat ./cabal.project.local
+
+    - name: Record dependencies
+      id: record-deps
+      run: |
+        cabal build all --dry-run
+        cat dist-newstyle/cache/plan.json | jq -r '."install-plan"[].id' | sort | uniq > dependencies.txt
+        echo "::set-output name=weeknum::$(/bin/date -u "+%W")"
+
+    - uses: actions/cache@v3
+      name: "Cache cabal store"
+      with:
+        path: ${{ runner.os == 'Windows' && steps.win-setup-haskell.outputs.cabal-store || steps.setup-haskell.outputs.cabal-store }}
+        key: cache-dependencies-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('dependencies.txt') }}
+        restore-keys: cache-dependencies-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ matrix.ghc }}
+
+    - uses: actions/cache@v3
+      name: "Cache `dist-newstyle`"
+      with:
+        path: |
+          dist-newstyle
+          !dist-newstyle/**/.git
+        key: cache-dist-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ matrix.ghc }}-${{ steps.record-deps.outputs.weeknum }}
+        restore-keys: cache-dist-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ matrix.ghc }}
+
+    - name: Build dependencies
+      run: cabal build --only-dependencies all
+
+    - name: Build projects [build]
+      run: cabal build all
+
+    - name: typed-protocols-examples [test]
+      run: cabal run typed-protocols-examples:test
+
+  stylish-haskell:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Set cache version
+      run: |
+        echo "CACHE_VERSION=hi5eTh3A" >> $GITHUB_ENV
+        echo "STYLISH_HASKELL_VERSION=0.13.0.0" >> $GITHUB_ENV
+
+    - name: "Install build environment (apt-get)"
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install fd-find
+
+    - name: "Setup Haskell"
+      uses: haskell/actions/setup@v1
+      id: setup-haskell
+      with:
+        ghc-version: 8.10.7
+        cabal-version: 3.6.2.0
+
+    - name: "Setup cabal bin path"
+      run: |
+        echo "$HOME/.cabal/bin" >> $GITHUB_PATH
+
+    - uses: actions/cache@v3
+      name: "Cache cabal store"
+      with:
+        path: ${{ steps.setup-haskell.outputs.cabal-store }}
+        key: cache-dependencies-${{ env.CACHE_VERSION }}
+
+    - uses: actions/cache@v3
+      name: "Cache `stylish-haskell`"
+      with:
+        path: ~/.cabal/bin/stylish-haskell
+        key: cabal-path-${{ env.STYLISH_HASKELL_VERSION }}
+
+    # Install stylish-haskell unless the right version is already available
+    # from the cache
+    - name: "Install `stylish-haskell`"
+      run: |
+        if [[ -x $(which stylish-haskell) && $(stylish-haskell --version) == "stylish-haskell ${{ env.STYLISH_HASKELL_VERSION }}" ]];
+        then
+          echo "Using cached `stylish-haskell`"
+        else
+          cabal install stylish-haskell-${{ env.STYLISH_HASKELL_VERSION }}
+        fi
+
+    - name: "`stylish-haskell` version"
+      run: |
+        which stylish-haskell
+        stylish-haskell --version
+
+    - uses: actions/checkout@v2
+
+    - name: "Run `stylish-haskell`"
+      run: |
+        ./scripts/check-stylish.sh
+        git diff --exit-code
+
