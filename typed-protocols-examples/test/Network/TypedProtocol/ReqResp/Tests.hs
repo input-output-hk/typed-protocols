@@ -265,7 +265,11 @@ prop_namedPipePipelined_IO f xs = ioProperty $ do
 prop_socketPipelined_IO :: (Int -> Int -> (Int, Int)) -> [Int]
                         -> Property
 prop_socketPipelined_IO f xs = ioProperty $ do
-    ai : _ <- Socket.getAddrInfo Nothing (Just "127.0.0.1") Nothing
+    ai : _ <- Socket.getAddrInfo (Just Socket.defaultHints
+                                       { Socket.addrFamily     = Socket.AF_INET,
+                                         Socket.addrFlags      = [Socket.AI_PASSIVE],
+                                         Socket.addrSocketType = Socket.Stream })
+                                 (Just "127.0.0.1") Nothing
     bracket
       ((,) <$> Socket.openSocket ai
            <*> Socket.openSocket ai)
