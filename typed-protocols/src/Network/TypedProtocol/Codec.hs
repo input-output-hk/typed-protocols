@@ -429,16 +429,63 @@ prop_codec_binary_compatM
      )
   => Codec psA failure m bytes
   -> Codec psB failure m bytes
-  -> (forall (stA :: psA). ActiveState stA => Sing stA -> SomeState psB)
+  -> (forall (stA :: psA). (ActiveState stA, Sing stA ~ StateToken stA) => StateToken stA -> SomeState psB)
      -- ^ The states of A map directly of states of B.
   -> AnyMessage psA
   -> m Bool
 prop_codec_binary_compatM
     codecA codecB stokEq
     (AnyMessage (msgA :: Message psA stA stA')) =
-  let stokA :: Sing stA
-      stokA = sing
-  in case stokEq stokA of
+  let -- we need the `Sing stA ~ StateToken stA` constraint to use `stateToken`
+      stokA :: Sing stA ~ StateToken stA => StateToken stA
+      stokA = stateToken
+  in
+    -- this does not type check:
+    -- ```
+    -- src/Network/TypedProtocol/Codec.hs:441:11: error:
+    --     • Couldn't match type: Sing
+    --                      with: StateToken
+    --         arising from a use of ‘stokEq’
+    --     • In the expression: stokEq stokA
+    --       In the expression:
+    --         case stokEq stokA of
+    --           SomeState (stokB :: Sing stB)
+    --             -> do let ...
+    --                   r1 <- decode codecB stokB >>= runDecoder [...]
+    --                   ....
+    --       In the expression:
+    --         let
+    --           stokA :: Sing stA ~ StateToken stA => StateToken stA
+    --           stokA = stateToken
+    --         in
+    --           case stokEq stokA of
+    --             SomeState (stokB :: Sing stB)
+    --               -> do let ...
+    --                     ....
+    --     • Relevant bindings include
+    --         stokA :: (Sing st ~ StateToken st) => StateToken st
+    --           (bound at src/Network/TypedProtocol/Codec.hs:440:7)
+    --         msgA :: Message psA st st'
+    --           (bound at src/Network/TypedProtocol/Codec.hs:438:18)
+    --         stokEq :: forall (stA :: psA).
+    --                   (ActiveState stA, Sing stA ~ StateToken stA) =>
+    --                   StateToken stA -> SomeState psB
+    --           (bound at src/Network/TypedProtocol/Codec.hs:437:19)
+    --         codecA :: Codec psA failure m bytes
+    --           (bound at src/Network/TypedProtocol/Codec.hs:437:5)
+    --         prop_codec_binary_compatM :: Codec psA failure m bytes
+    --                                      -> Codec psB failure m bytes
+    --                                      -> (forall (stA :: psA).
+    --                                          (ActiveState stA, Sing stA ~ StateToken stA) =>
+    --                                          StateToken stA -> SomeState psB)
+    --                                      -> AnyMessage psA
+    --                                      -> m Bool
+    --           (bound at src/Network/TypedProtocol/Codec.hs:436:1)
+    --     |
+    -- 441 |   in case stokEq stokA of
+    --     |           ^^^^^^
+    -- ```
+    case stokEq stokA of
     SomeState (stokB :: Sing stB) -> do
       -- 1.
       let bytesA = encode codecA msgA
@@ -464,7 +511,7 @@ prop_codec_binary_compat
   => (forall a. m a -> a)
   -> Codec psA failure m bytes
   -> Codec psB failure m bytes
-  -> (forall (stA :: psA). Sing stA -> SomeState psB)
+  -> (forall (stA :: psA). StateToken stA -> SomeState psB)
   -> AnyMessage psA
   -> Bool
 prop_codec_binary_compat runM codecA codecB stokEq msgA =
