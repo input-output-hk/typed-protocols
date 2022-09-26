@@ -26,6 +26,7 @@ import           Data.Void (Void)
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Pipelined
 
+import           Control.Concurrent.Class.MonadSTM.TQueue
 import           Control.Monad.Class.MonadAsync
 import           Control.Monad.Class.MonadFork
 import           Control.Monad.Class.MonadSTM

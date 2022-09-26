@@ -38,7 +38,6 @@ import           Network.TypedProtocol.Driver
 import           Network.TypedProtocol.Pipelined
 
 import           Control.Monad.Class.MonadAsync
-import           Control.Monad.Class.MonadSTM
 import           Control.Monad.Class.MonadThrow
 import           Control.Tracer (Tracer (..), contramap, traceWith)
 
@@ -138,7 +137,7 @@ runPeer tracer codec channel peer =
 --
 runPipelinedPeer
   :: forall ps (st :: ps) pr failure bytes m a.
-     (MonadSTM m, MonadAsync m, MonadThrow m, Exception failure)
+     (MonadAsync m, MonadThrow m, Exception failure)
   => Tracer m (TraceSendRecv ps)
   -> Codec ps failure m bytes
   -> Channel m bytes
@@ -181,7 +180,7 @@ data Role = Client | Server
 -- The first argument is expected to create two channels that are connected,
 -- for example 'createConnectedChannels'.
 --
-runConnectedPeers :: (MonadSTM m, MonadAsync m, MonadCatch m,
+runConnectedPeers :: (MonadAsync m, MonadCatch m,
                       Exception failure)
                   => m (Channel m bytes, Channel m bytes)
                   -> Tracer m (Role, TraceSendRecv ps)
@@ -199,7 +198,7 @@ runConnectedPeers createChannels tracer codec client server =
     tracerClient = contramap ((,) Client) tracer
     tracerServer = contramap ((,) Server) tracer
 
-runConnectedPeersPipelined :: (MonadSTM m, MonadAsync m, MonadCatch m,
+runConnectedPeersPipelined :: (MonadAsync m, MonadCatch m,
                                Exception failure)
                            => m (Channel m bytes, Channel m bytes)
                            -> Tracer m (PeerRole, TraceSendRecv ps)
