@@ -18,8 +18,8 @@ module Network.TypedProtocol.Channel
   , loggingChannel
   ) where
 
+import           Control.Concurrent.Class.MonadSTM
 import           Control.Monad ((>=>))
-import           Control.Monad.Class.MonadSTM
 import           Control.Monad.Class.MonadSay
 import           Control.Monad.Class.MonadTimer
 import qualified Data.ByteString as BS
@@ -243,9 +243,7 @@ channelEffect beforeSend afterRecv Channel{send, recv} =
 -- This is intended for testing, as a crude approximation of network delays.
 -- More accurate models along these lines are of course possible.
 --
-delayChannel :: ( MonadSTM m
-                , MonadTimer m
-                )
+delayChannel :: MonadTimer m
              => DiffTime
              -> Channel m a
              -> Channel m a
