@@ -122,7 +122,7 @@ jobs:
     - name: Set cache version
       run: |
         echo "CACHE_VERSION=hi5eTh3A" >> $GITHUB_ENV
-        echo "STYLISH_HASKELL_VERSION=0.13.0.0" >> $GITHUB_ENV
+        echo "STYLISH_HASKELL_VERSION=0.14.3.0" >> $GITHUB_ENV
 
     - name: "Install build environment (apt-get)"
       run: |
