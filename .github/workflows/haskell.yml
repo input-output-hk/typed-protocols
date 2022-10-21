@@ -164,7 +164,7 @@ jobs:
         then
           echo "Using cached `stylish-haskell`"
         else
-          cabal install stylish-haskell-${{ env.STYLISH_HASKELL_VERSION }}
+          cabal install --overwrite-policy=always stylish-haskell-${{ env.STYLISH_HASKELL_VERSION }}
         fi
 
     - name: "`stylish-haskell` version"
