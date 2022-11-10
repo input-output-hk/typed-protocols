@@ -11,6 +11,7 @@ author:              Alexander Vieth, Duncan Coutts, Marcin Szamotulski
 maintainer:          alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io
 category:            Control
 build-type:          Simple
+tested-with:         GHC==8.10, GHC==9.2, GHC==9.4
 
 -- These should probably be added at some point.
 -- extra-source-files:  ChangeLog.md, README.md
