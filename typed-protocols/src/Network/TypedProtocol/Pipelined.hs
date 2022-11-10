@@ -7,6 +7,7 @@
 {-# LANGUAGE PolyKinds          #-}
 {-# LANGUAGE RankNTypes         #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeOperators      #-}
 {-# LANGUAGE ViewPatterns       #-}
 
 module Network.TypedProtocol.Pipelined
