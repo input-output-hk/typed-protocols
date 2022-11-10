@@ -19,7 +19,7 @@ Monadic party workshop by Marcin Szamotulski (@coot):
 * [part 2][monadic-party-part-2]
 * [part 2][monadic-party-part-3]
 
-Slides from a talk given at [Haskell Love 2021][haskell-love] by Marcin Szamotulski (@coot).
+Talk at [Haskell Love 2021][haskell-love] by Marcin Szamotulski (@coot), [slides][haskell-love-slides].
 
 An [Agda][typed-protocols-agda] implementation by Marcin Szamotulski (@coot).
 
@@ -29,5 +29,6 @@ An [Agda][typed-protocols-agda] implementation by Marcin Szamotulski (@coot).
 [monadic-party-part-1]: https://www.youtube.com/watch?v=j8gza2L61nM
 [monadic-party-part-2]: https://www.youtube.com/watch?v=oV6KSl1srL8
 [monadic-party-part-3]: https://www.youtube.com/watch?v=nOIQCRPwmPA
-[haskell-love]: https://coot.me/posts/typed-protocols-at-haskell-love.html
+[haskell-love-slides]: https://coot.me/posts/typed-protocols-at-haskell-love.html
+[haskell-love]: https://www.youtube.com/watch?v=EbK6VAqYh3g
 [typed-protocols-agda]: https://coot.me/agda/posts.agda.typed-protocols.html
