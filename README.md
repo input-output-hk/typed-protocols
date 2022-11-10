@@ -1,5 +1,10 @@
+[![Haskell CI](https://img.shields.io/github/workflow/status/input-output-hk/typed-protocols/Haskell%20CI?label=Build&style=for-the-badge)](https://github.com/input-output-hk/typed-protocols/actions/workflows/haskell.yml)
+[![handbook](https://img.shields.io/badge/policy-Cardano%20Engineering%20Handbook-informational?style=for-the-badge)](https://input-output-hk.github.io/cardano-engineering-handbook)
+
+
 typed-protocols
 ===============
+
 
 A robust session type framework which supports [protocol pipelining][protocol-pipelining].
 
