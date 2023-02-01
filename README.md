@@ -1,4 +1,4 @@
-[![Haskell CI](https://img.shields.io/github/workflow/status/input-output-hk/typed-protocols/Haskell%20CI?label=Build&style=for-the-badge)](https://github.com/input-output-hk/typed-protocols/actions/workflows/haskell.yml)
+[![Haskell CI](https://img.shields.io/github/actions/workflow/status/input-output-hk/typed-protocols/haskell.yml?branch=main&label=Build&style=for-the-badge)](https://github.com/input-output-hk/typed-protocols/actions/workflows/haskell.yml)
 [![handbook](https://img.shields.io/badge/policy-Cardano%20Engineering%20Handbook-informational?style=for-the-badge)](https://input-output-hk.github.io/cardano-engineering-handbook)
 
 
