@@ -1,5 +1,5 @@
 name:                typed-protocols-examples
-version:             0.1.0.1
+version:             0.2.0.0
 synopsis:            Examples and tests for the typed-protocols framework
 -- description:
 license:             Apache-2.0
@@ -50,6 +50,7 @@ library
                      serialise,
                      contra-tracer,
                      io-classes,
+                     si-timers,
                      time,
                      typed-protocols,
                      typed-protocols-cborg
@@ -79,6 +80,7 @@ test-suite test
                    , typed-protocols-examples
                    , io-classes
                    , io-sim
+                   , si-timers
                    , QuickCheck
                    , tasty
                    , tasty-quickcheck
