@@ -5,7 +5,6 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE TypeInType          #-}
 
 
 -- This is already implied by the -Wall in the .cabal file, but lets just be
