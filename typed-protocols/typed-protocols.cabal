@@ -7,15 +7,13 @@ license:             Apache-2.0
 license-files:
   LICENSE
   NOTICE
-copyright:           2019 Input Output (Hong Kong) Ltd.
+copyright:           2019-2023 Input Output Global Inc (IOG)
 author:              Alexander Vieth, Duncan Coutts, Marcin Szamotulski
 maintainer:          alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io
 category:            Control
 build-type:          Simple
-tested-with:         GHC==8.10, GHC==9.2, GHC==9.4
-
--- These should probably be added at some point.
--- extra-source-files:  ChangeLog.md, README.md
+tested-with:         GHC == {8.10, 9.2, 9.4, 9.6}
+extra-source-files:  CHANGELOG.md, README.md
 
 library
   exposed-modules:   Network.TypedProtocol
