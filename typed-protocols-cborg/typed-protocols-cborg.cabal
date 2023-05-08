@@ -21,7 +21,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:   Network.TypedProtocol.Codec.CBOR
 
-  build-depends:     base            >=4.12  && <4.18,
+  build-depends:     base            >=4.12  && <4.20,
                      bytestring      >=0.10  && <0.12,
                      cborg           >=0.2.1 && <0.3,
 

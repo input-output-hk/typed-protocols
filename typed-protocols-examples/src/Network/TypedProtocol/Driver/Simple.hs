@@ -6,7 +6,6 @@
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeFamilies         #-}
-{-# LANGUAGE TypeInType           #-}
 -- @UndecidableInstances@ extensions is required for defining @Show@ instance
 -- of @'TraceSendRecv'@.
 {-# LANGUAGE UndecidableInstances #-}

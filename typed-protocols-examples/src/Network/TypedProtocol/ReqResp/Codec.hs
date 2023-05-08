@@ -3,8 +3,8 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeInType          #-}
 
 module Network.TypedProtocol.ReqResp.Codec where
 
