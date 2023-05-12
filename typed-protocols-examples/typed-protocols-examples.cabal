@@ -47,7 +47,7 @@ library
                      bytestring,
                      cborg,
                      serialise,
-                     contra-tracer,
+                     iog-contra-tracer,
                      io-classes,
                      si-timers,
                      time,
@@ -73,7 +73,7 @@ test-suite test
                    , Network.TypedProtocol.ReqResp.Tests
   build-depends:     base
                    , bytestring
-                   , contra-tracer
+                   , iog-contra-tracer
                    , typed-protocols
                    , typed-protocols-cborg
                    , typed-protocols-examples
