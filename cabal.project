@@ -12,9 +12,11 @@ repository cardano-haskell-packages
 
 index-state:
   , hackage.haskell.org 2023-05-04T00:55:55Z
-  , cardano-haskell-packages 2023-05-12T01:10:29Z
+  , cardano-haskell-packages 2023-05-16T03:39:10Z
 
 
 packages: ./typed-protocols
           ./typed-protocols-cborg
           ./typed-protocols-examples
+
+test-show-details: direct
