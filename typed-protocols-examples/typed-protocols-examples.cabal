@@ -1,6 +1,6 @@
 cabal-version:       3.0
 name:                typed-protocols-examples
-version:             0.2.0.1
+version:             0.2.0.2
 synopsis:            Examples and tests for the typed-protocols framework
 -- description:
 license:             Apache-2.0
@@ -47,7 +47,7 @@ library
                      bytestring,
                      cborg,
                      serialise,
-                     iog-contra-tracer,
+                     contra-tracer,
                      io-classes,
                      si-timers,
                      time,
@@ -73,7 +73,7 @@ test-suite test
                    , Network.TypedProtocol.ReqResp.Tests
   build-depends:     base
                    , bytestring
-                   , iog-contra-tracer
+                   , contra-tracer
                    , typed-protocols
                    , typed-protocols-cborg
                    , typed-protocols-examples
