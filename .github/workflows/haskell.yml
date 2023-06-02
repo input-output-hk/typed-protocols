@@ -81,7 +81,7 @@ jobs:
         cabal --version
         echo "cabal-store=$(dirname $(cabal --help | tail -1 | tr -d ' '))\\store" >> $GITHUB_OUTPUT
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: "Configure cabal.project.local"
       run: |
@@ -140,7 +140,7 @@ jobs:
         sudo apt-get -y install fd-find
 
     - name: "Setup Haskell"
-      uses: haskell/actions/setup@v1
+      uses: haskell/actions/setup@v2
       id: setup-haskell
       with:
         ghc-version: 9.2.5
