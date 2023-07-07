@@ -8,6 +8,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies        #-}
 
+{-# OPTIONS_GHC -fno-full-laziness #-}
+
 -- | Actions for running 'Peer's with a 'Driver'
 --
 module Network.TypedProtocol.Driver
@@ -168,7 +170,7 @@ runPipelinedPeerWithDriver driver (PeerPipelined peer) dstate0 = do
       res <- race left right
       case res of
         Left v  -> case v of {}
-        Right a -> return a
+        Right !a -> return a
 
 data ReceiveHandler dstate ps pr m c where
      ReceiveHandler :: MaybeDState dstate n
