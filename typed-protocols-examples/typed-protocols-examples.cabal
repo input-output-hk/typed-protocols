@@ -57,7 +57,7 @@ library
                      network,
                      si-timers,
                      time,
-                     typed-protocols,
+                     typed-protocols ^>= 0.2,
                      typed-protocols-cborg
 
   hs-source-dirs:    src
