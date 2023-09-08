@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE GADTs                    #-}
 {-# LANGUAGE NamedFieldPuns           #-}
+{-# LANGUAGE PatternSynonyms          #-}
 {-# LANGUAGE PolyKinds                #-}
 {-# LANGUAGE QuantifiedConstraints    #-}
 {-# LANGUAGE RankNTypes               #-}
@@ -11,6 +12,7 @@
 -- @UndecidableInstances@ extension is required for defining @Show@ instance of
 -- @'AnyMessage'@ and @'AnyMessage'@.
 {-# LANGUAGE UndecidableInstances     #-}
+{-# LANGUAGE ViewPatterns             #-}
 
 module Network.TypedProtocol.Codec
   ( -- * Defining and using Codecs
@@ -36,6 +38,7 @@ module Network.TypedProtocol.Codec
   , mapFailureDecodeStep
     -- ** Codec properties
   , AnyMessage (..)
+  , pattern AnyMessageAndAgency
   , prop_codecM
   , prop_codec
   , prop_codec_splitsM
@@ -313,11 +316,33 @@ data AnyMessage ps where
              => Message ps (st :: ps) (st' :: ps)
              -> AnyMessage ps
 
+
 -- requires @UndecidableInstances@ and @QuantifiedConstraints@.
 instance (forall (st :: ps) (st' :: ps). Show (Message ps st st'))
       => Show (AnyMessage ps) where
   show (AnyMessage (msg :: Message ps st st')) =
     "AnyMessage " ++ show msg
+
+
+-- | A convenient pattern synonym which unwrap 'AnyMessage' giving both the
+-- singleton for the state and the message.
+--
+pattern AnyMessageAndAgency :: forall ps. ()
+                            => forall (st :: ps) (st' :: ps).
+                               (SingI st, ActiveState st)
+                            => Sing st
+                            -> Message ps st st'
+                            -> AnyMessage ps
+pattern AnyMessageAndAgency sing msg <- AnyMessage (getAgency -> (msg, sing))
+  where
+    AnyMessageAndAgency _ msg = AnyMessage msg
+{-# COMPLETE AnyMessageAndAgency #-}
+
+-- | Internal view pattern for 'AnyMessageAndAgency'
+--
+getAgency :: SingI st => Message ps st st' -> (Message ps st st', Sing st)
+getAgency msg = (msg, sing)
+
 
 -- | The 'Codec' round-trip property: decode after encode gives the same
 -- message. Every codec must satisfy this property.
