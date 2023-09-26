@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE NamedFieldPuns      #-}
@@ -7,6 +8,7 @@
 module Network.TypedProtocol.PingPong.Codec where
 
 import           Network.TypedProtocol.Codec
+import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.PingPong.Type
 
 
@@ -16,28 +18,29 @@ codecPingPong
 codecPingPong =
     Codec{encode, decode}
   where
-    encode :: forall pr (st :: PingPong) (st' :: PingPong)
-           .  PeerHasAgency pr st
-           -> Message PingPong st st'
+    encode :: forall (st :: PingPong) (st' :: PingPong).
+              Message PingPong st st'
            -> String
-    encode (ClientAgency TokIdle) MsgPing = "ping\n"
-    encode (ClientAgency TokIdle) MsgDone = "done\n"
-    encode (ServerAgency TokBusy) MsgPong = "pong\n"
+    encode MsgPing = "ping\n"
+    encode MsgDone = "done\n"
+    encode MsgPong = "pong\n"
 
-    decode :: forall pr (st :: PingPong)
-           .  PeerHasAgency pr st
+    decode :: forall (st :: PingPong).
+              ActiveState st
+           => StateToken st
            -> m (DecodeStep String CodecFailure m (SomeMessage st))
     decode stok =
       decodeTerminatedFrame '\n' $ \str trailing ->
         case (stok, str) of
-          (ServerAgency TokBusy, "pong") -> DecodeDone (SomeMessage MsgPong) trailing
-          (ClientAgency TokIdle, "ping") -> DecodeDone (SomeMessage MsgPing) trailing
-          (ClientAgency TokIdle, "done") -> DecodeDone (SomeMessage MsgDone) trailing
+          (SingBusy, "pong") ->
+            DecodeDone (SomeMessage MsgPong) trailing
+          (SingIdle, "ping") ->
+            DecodeDone (SomeMessage MsgPing) trailing
+          (SingIdle, "done") ->
+            DecodeDone (SomeMessage MsgDone) trailing
 
-          (ServerAgency _      , _     ) -> DecodeFail failure
+          (_       , _     ) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)
-          (ClientAgency _      , _     ) -> DecodeFail failure
-            where failure = CodecFailure ("unexpected client message: " ++ str)
 
 
 decodeTerminatedFrame :: forall m a.
@@ -66,14 +69,17 @@ codecPingPongId
 codecPingPongId =
     Codec{encode,decode}
   where
-    encode :: forall pr (st :: PingPong) (st' :: PingPong)
-           .  PeerHasAgency pr st
-           -> Message PingPong st st'
+    encode :: forall (st :: PingPong) (st' :: PingPong)
+           .  ( StateTokenI st
+              , ActiveState st
+              )
+           => Message PingPong st st'
            -> AnyMessage PingPong
-    encode _ msg = AnyMessage msg
+    encode msg = AnyMessage msg
 
-    decode :: forall pr (st :: PingPong)
-           .  PeerHasAgency pr st
+    decode :: forall (st :: PingPong).
+              ActiveState st
+           => StateToken st
            -> m (DecodeStep (AnyMessage PingPong) CodecFailure m (SomeMessage st))
     decode stok =
       pure $ DecodePartial $ \mb ->
@@ -81,13 +87,18 @@ codecPingPongId =
           Nothing -> return $ DecodeFail (CodecFailure "expected more data")
           Just (AnyMessage msg) -> return $
             case (stok, msg) of
-              (ServerAgency TokBusy, MsgPong) ->
+              (SingBusy, MsgPong) ->
                 DecodeDone (SomeMessage msg) Nothing
-              (ClientAgency TokIdle, MsgPing) ->
+              (SingIdle, MsgPing) ->
                 DecodeDone (SomeMessage msg) Nothing
-              (ClientAgency TokIdle, MsgDone) ->
+              (SingIdle, MsgDone) ->
                 DecodeDone (SomeMessage msg) Nothing
-              (ServerAgency _      , _     ) -> DecodeFail failure
-                where failure = CodecFailure ("unexpected server message: " ++ show msg)
-              (ClientAgency _      , _     ) -> DecodeFail failure
-                where failure = CodecFailure ("unexpected client message: " ++ show msg )
+
+              (SingIdle, _) ->
+                DecodeFail failure
+                  where failure = CodecFailure ("unexpected client message: " ++ show msg)
+              (SingBusy, _) ->
+                DecodeFail failure
+                  where failure = CodecFailure ("unexpected server message: " ++ show msg)
+
+              (a@SingDone, _) -> notActiveState a

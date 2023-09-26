@@ -1,5 +1,8 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE GADTs     #-}
+{-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE KindSignatures      #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators       #-}
 
 module Network.TypedProtocol.PingPong.Client
   ( -- * Normal client
@@ -7,13 +10,16 @@ module Network.TypedProtocol.PingPong.Client
   , pingPongClientPeer
     -- * Pipelined client
   , PingPongClientPipelined (..)
-  , PingPongSender (..)
+  , PingPongClientIdle (..)
   , pingPongClientPeerPipelined
+  , pingPongClientPeerPipelinedSTM
   ) where
 
+import           Control.Monad.Class.MonadSTM
+
 import           Network.TypedProtocol.Core
+import           Network.TypedProtocol.Peer.Client
 import           Network.TypedProtocol.PingPong.Type
-import           Network.TypedProtocol.Pipelined
 
 -- | A ping-pong client, on top of some effect 'm'.
 --
@@ -49,33 +55,31 @@ data PingPongClient m a where
 -- 'PingPong' protocol.
 --
 pingPongClientPeer
-  :: Monad m
+  :: Functor m
   => PingPongClient m a
-  -> Peer PingPong AsClient StIdle m a
+  -> Client PingPong NonPipelined Empty StIdle m stm a
 
 pingPongClientPeer (SendMsgDone result) =
     -- We do an actual transition using 'yield', to go from the 'StIdle' to
     -- 'StDone' state. Once in the 'StDone' state we can actually stop using
     -- 'done', with a return value.
-    Yield (ClientAgency TokIdle) MsgDone (Done TokDone result)
+    Yield MsgDone (Done result)
 
 pingPongClientPeer (SendMsgPing next) =
 
     -- Send our message.
-    Yield (ClientAgency TokIdle) MsgPing $
+    Yield MsgPing $
 
     -- The type of our protocol means that we're now into the 'StBusy' state
     -- and the only thing we can do next is local effects or wait for a reply.
     -- We'll wait for a reply.
-    Await (ServerAgency TokBusy) $ \MsgPong ->
+    Await $ \MsgPong ->
 
     -- Now in this case there is only one possible response, and we have
     -- one corresponding continuation 'kPong' to handle that response.
     -- The pong reply has no content so there's nothing to pass to our
     -- continuation, but if there were we would.
-      Effect $ do
-        client <- next
-        pure $ pingPongClientPeer client
+      Effect $ pingPongClientPeer <$> next
 
 
 --
@@ -89,26 +93,26 @@ data PingPongClientPipelined m a where
   -- | A 'PingPongSender', but starting with zero outstanding pipelined
   -- responses, and for any internal collect type @c@.
   PingPongClientPipelined ::
-      PingPongSender      Z c m a
-   -> PingPongClientPipelined m a
+      PingPongClientIdle      Empty m a
+   -> PingPongClientPipelined       m a
 
 
-data PingPongSender n c m a where
-  -- |
-  -- Send a `Ping` message but alike in `PingPongClient` do not await for the
-  -- resopnse, instead supply a monadic action which will run on a received
+data PingPongClientIdle (q :: Queue PingPong) m a where
+  -- | Send a `Ping` message but alike in `PingPongClient` do not await for the
+  -- response, instead supply a monadic action which will run on a received
   -- `Pong` message.
+  --
   SendMsgPingPipelined
-    :: m c                        -- pong receive action
-    -> PingPongSender (S n) c m a -- continuation
-    -> PingPongSender    n  c m a
+    :: PingPongClientIdle (q |> Tr StBusy StIdle) m a -- continuation
+    -> PingPongClientIdle  q                      m a
 
   -- | Collect the result of a previous pipelined receive action.
   --
   -- This (optionally) provides two choices:
   --
   -- * Continue without a pipelined result
-  -- * Continue with a pipelined result
+  -- * Continue with a pipelined result, which allows to run a monadic action
+  --   when 'MsgPong' is received.
   --
   -- Since presenting the first choice is optional, this allows expressing
   -- both a blocking collect and a non-blocking collect. This allows
@@ -118,58 +122,92 @@ data PingPongSender n c m a where
   -- eagerly.
   --
   CollectPipelined
-    :: Maybe (PingPongSender (S n) c m a)
-    -> (c ->  PingPongSender    n  c m a)
-    ->        PingPongSender (S n) c m a
+    :: Maybe (PingPongClientIdle (Tr StBusy StIdle <| q) m a)
+    -> m     (PingPongClientIdle                      q  m a)
+    ->        PingPongClientIdle (Tr StBusy StIdle <| q) m a
 
   -- | Termination of the ping-pong protocol.
   --
   -- Note that all pipelined results must be collected before terminating.
   --
   SendMsgDonePipelined
-    :: a -> PingPongSender Z c m a
+    :: a -> PingPongClientIdle Empty m a
 
 
 
--- | Interpret a pipelined client as a 'PeerPipelined' on the client side of
+-- | Interpret a pipelined client as a pipelined 'Peer' on the client side of
 -- the 'PingPong' protocol.
 --
 pingPongClientPeerPipelined
-  :: Monad m
-  => PingPongClientPipelined                m a
-  -> PeerPipelined PingPong AsClient StIdle m a
+  :: Functor m
+  => PingPongClientPipelined m a
+  -> Client PingPong Pipelined Empty StIdle m (STM m) a
 pingPongClientPeerPipelined (PingPongClientPipelined peer) =
-    PeerPipelined (pingPongClientPeerSender peer)
+    pingPongClientPeerIdle peer
 
 
-pingPongClientPeerSender
-  :: Monad m
-  => PingPongSender n c m a
-  -> PeerSender PingPong AsClient StIdle n c m a
+pingPongClientPeerIdle
+  :: forall (q :: Queue PingPong) m a. Functor m
+  => PingPongClientIdle                q        m a
+  -> Client PingPong Pipelined q StIdle m (STM m) a
+pingPongClientPeerIdle = go
+  where
+    go :: forall (q' :: Queue PingPong).
+          PingPongClientIdle         q'        m         a
+       -> Client PingPong Pipelined q' StIdle m (STM m) a
 
-pingPongClientPeerSender (SendMsgDonePipelined result) =
-  -- Send `MsgDone` and complete the protocol
-  SenderYield
-    (ClientAgency TokIdle)
-    MsgDone
-    (SenderDone TokDone result)
+    go (SendMsgPingPipelined next) =
+      -- Pipelined yield: send `MsgPing`, immediately follow with the next step.
+      YieldPipelined
+        MsgPing
+        (go next)
 
-pingPongClientPeerSender (SendMsgPingPipelined receive next) =
-  -- Pipelined yield: send `MsgPing`, immediately follow with the next step.
-  -- Await for a response in a continuation.
-  SenderPipeline
-    (ClientAgency TokIdle)
-    MsgPing
-    -- response handler
-    (ReceiverAwait (ServerAgency TokBusy) $ \MsgPong ->
-        ReceiverEffect $ do
-          x <- receive
-          return (ReceiverDone x))
-    -- run the next step of the ping-pong protocol.
-    (pingPongClientPeerSender next)
+    go (CollectPipelined mNone collect) =
+      Collect
+        (go <$> mNone)
+        (\MsgPong -> CollectDone $ Effect (go <$> collect))
 
-pingPongClientPeerSender (CollectPipelined mNone collect) =
-  SenderCollect
-    (fmap pingPongClientPeerSender mNone)
-    (pingPongClientPeerSender . collect)
+    go (SendMsgDonePipelined result) =
+      -- Send `MsgDone` and complete the protocol
+      Yield
+        MsgDone
+        (Done result)
 
+
+-- | Interpret a pipelined client as a pipelined 'Peer' on the client side of
+-- the 'PingPong' protocol.
+--
+pingPongClientPeerPipelinedSTM
+  :: MonadSTM m
+  => PingPongClientPipelined m a
+  -> Client PingPong Pipelined Empty StIdle m (STM m) a
+pingPongClientPeerPipelinedSTM (PingPongClientPipelined peer) =
+    pingPongClientPeerIdleSTM peer
+
+
+pingPongClientPeerIdleSTM
+  :: forall (q :: Queue PingPong) m a. MonadSTM m
+  => PingPongClientIdle                q        m a
+  -> Client PingPong Pipelined q StIdle m (STM m) a
+pingPongClientPeerIdleSTM = go
+  where
+    go :: forall (q' :: Queue PingPong).
+          PingPongClientIdle         q'        m         a
+       -> Client PingPong Pipelined q' StIdle m (STM m) a
+
+    go (SendMsgPingPipelined next) =
+      -- Pipelined yield: send `MsgPing`, immediately follow with the next step.
+      YieldPipelined
+        MsgPing
+        (go next)
+
+    go (CollectPipelined mNone collect) =
+      CollectSTM
+        (maybe retry (pure . go) mNone)
+        (\MsgPong -> CollectDone $ Effect (go <$> collect))
+
+    go (SendMsgDonePipelined result) =
+      -- Send `MsgDone` and complete the protocol
+      Yield
+        MsgDone
+        (Done result)

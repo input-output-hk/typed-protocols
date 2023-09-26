@@ -1,4 +1,6 @@
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE MonoLocalBinds      #-}
 {-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -8,6 +10,9 @@ module Network.TypedProtocol.Codec.CBOR
   , DeserialiseFailure
   , mkCodecCborLazyBS
   , mkCodecCborStrictBS
+    -- * Utils
+  , convertCborDecoderBS
+  , convertCborDecoderLBS
   ) where
 
 import           Control.Monad.Class.MonadST (MonadST (..))
@@ -44,19 +49,21 @@ type DeserialiseFailure = CBOR.DeserialiseFailure
 mkCodecCborStrictBS
   :: forall ps m. MonadST m
 
-  => (forall (pr :: PeerRole) (st :: ps) (st' :: ps).
-             PeerHasAgency pr st
-          -> Message ps st st' -> CBOR.Encoding)
+  => (forall (st :: ps) (st' :: ps).
+             StateTokenI st
+          => ActiveState st
+          => Message ps st st' -> CBOR.Encoding)
 
-  -> (forall (pr :: PeerRole) (st :: ps) s.
-             PeerHasAgency pr st
+  -> (forall (st :: ps) s.
+             ActiveState st
+          => StateToken st
           -> CBOR.Decoder s (SomeMessage st))
 
   -> Codec ps DeserialiseFailure m BS.ByteString
 mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
     Codec {
-      encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
-      decode = \stok     -> convertCborDecoder (cborMsgDecode stok)
+      encode = \msg  -> convertCborEncoder cborMsgEncode msg,
+      decode = \stok -> convertCborDecoder (cborMsgDecode stok)
     }
   where
     convertCborEncoder :: (a -> CBOR.Encoding) -> a -> BS.ByteString
@@ -98,19 +105,21 @@ convertCborDecoderBS cborDecode liftST =
 mkCodecCborLazyBS
   :: forall ps m. MonadST m
 
-  => (forall (pr :: PeerRole) (st :: ps) (st' :: ps).
-             PeerHasAgency pr st
-          -> Message ps st st' -> CBOR.Encoding)
+  => (forall (st :: ps) (st' :: ps).
+             StateTokenI st
+          => ActiveState st
+          => Message ps st st' -> CBOR.Encoding)
 
-  -> (forall (pr :: PeerRole) (st :: ps) s.
-             PeerHasAgency pr st
+  -> (forall (st :: ps) s.
+             ActiveState st
+          => StateToken st
           -> CBOR.Decoder s (SomeMessage st))
 
   -> Codec ps CBOR.DeserialiseFailure m LBS.ByteString
 mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
     Codec {
-      encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
-      decode = \stok     -> convertCborDecoder (cborMsgDecode stok)
+      encode = \msg  -> convertCborEncoder cborMsgEncode msg,
+      decode = \stok -> convertCborDecoder (cborMsgDecode stok)
     }
   where
     convertCborEncoder :: (a -> CBOR.Encoding) -> a -> LBS.ByteString
