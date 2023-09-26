@@ -9,8 +9,6 @@
 
 module Network.TypedProtocol.ReqResp.Type where
 
-import           Data.Singletons
-
 import           Network.TypedProtocol.Core
 
 
@@ -26,13 +24,12 @@ data SReqResp (st :: ReqResp req resp) where
 
 deriving instance Show (SReqResp st)
 
-type instance Sing = SReqResp
-instance SingI StIdle where
-    sing = SingIdle
-instance SingI StBusy where
-    sing = SingBusy
-instance SingI StDone where
-    sing = SingDone
+instance StateTokenI StIdle where
+    stateToken = SingIdle
+instance StateTokenI StBusy where
+    stateToken = SingBusy
+instance StateTokenI StDone where
+    stateToken = SingDone
 
 
 instance Protocol (ReqResp req resp) where

@@ -24,7 +24,6 @@ import qualified Data.ByteString.Builder as BS
 import qualified Data.ByteString.Builder.Extra as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Internal as LBS (smallChunkSize)
-import           Data.Singletons
 
 import           Network.TypedProtocol.Codec
 import           Network.TypedProtocol.Core
@@ -48,13 +47,13 @@ mkCodecCborStrictBS
   :: forall ps m. MonadST m
 
   => (forall (st :: ps) (st' :: ps).
-             SingI st
+             StateTokenI st
           => ActiveState st
           => Message ps st st' -> CBOR.Encoding)
 
   -> (forall (st :: ps) s.
              ActiveState st
-          => Sing st
+          => StateToken st
           -> CBOR.Decoder s (SomeMessage st))
 
   -> Codec ps DeserialiseFailure m BS.ByteString
@@ -104,13 +103,13 @@ mkCodecCborLazyBS
   :: forall ps m. MonadST m
 
   => (forall (st :: ps) (st' :: ps).
-             SingI st
+             StateTokenI st
           => ActiveState st
           => Message ps st st' -> CBOR.Encoding)
 
   -> (forall (st :: ps) s.
              ActiveState st
-          => Sing st
+          => StateToken st
           -> CBOR.Decoder s (SomeMessage st))
 
   -> Codec ps CBOR.DeserialiseFailure m LBS.ByteString

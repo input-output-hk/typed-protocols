@@ -48,13 +48,14 @@ module Network.TypedProtocol.Codec
   , prop_codecs_compatM
   , prop_codecs_compat
   , SomeState (..)
+    -- ** StateToken 
+  , StateToken
+  , StateTokenI (..)
   ) where
 
 import           Control.Exception (Exception)
 import           Data.Kind (Type)
 import           Data.Monoid (All (..))
-
-import           Data.Singletons
 
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Driver (SomeMessage (..))
@@ -115,7 +116,7 @@ import           Network.TypedProtocol.Driver (SomeMessage (..))
 -- >        => m (DecodeStep String String m (SomeMessage st))
 -- > decode =
 -- >   decodeTerminatedFrame '\n' $ \str trailing ->
--- >     case (sing :: Sing st, str) of
+-- >     case (stateToken :: StateToken st, str) of
 -- >       (TokBusy, "pong") ->
 -- >            DecodeDone (SomeMessage MsgPong) trailing
 -- >       (TokIdle, "ping") ->
@@ -134,14 +135,14 @@ import           Network.TypedProtocol.Driver (SomeMessage (..))
 --
 data Codec ps failure m bytes = Codec {
        encode :: forall (st :: ps) (st' :: ps).
-                 SingI st
+                 StateTokenI st
               => ActiveState st
               => Message ps st st'
               -> bytes,
 
        decode :: forall (st :: ps).
                  ActiveState st
-              => Sing st
+              => StateToken st
               -> m (DecodeStep bytes failure m (SomeMessage st))
      }
 
@@ -290,7 +291,7 @@ runDecoderPure runM decoder bs = runM (runDecoder bs =<< decoder)
 -- Codec properties
 --
 
--- | Any message for a protocol, with a 'SingI' constraint which gives access to
+-- | Any message for a protocol, with a 'StateTokenI' constraint which gives access to
 -- protocol state.
 --
 -- Used where we don't know statically what the state type is, but need the
@@ -298,7 +299,7 @@ runDecoderPure runM decoder bs = runM (runDecoder bs =<< decoder)
 --
 data AnyMessage ps where
   AnyMessage :: forall ps (st :: ps) (st' :: ps).
-                ( SingI st
+                ( StateTokenI st
                 , ActiveState st
                 )
              => Message ps (st :: ps) (st' :: ps)
@@ -317,19 +318,19 @@ instance (forall (st :: ps) (st' :: ps). Show (Message ps st st'))
 --
 pattern AnyMessageAndAgency :: forall ps. ()
                             => forall (st :: ps) (st' :: ps).
-                               (SingI st, ActiveState st)
-                            => Sing st
+                               (StateTokenI st, ActiveState st)
+                            => StateToken st
                             -> Message ps st st'
                             -> AnyMessage ps
-pattern AnyMessageAndAgency sing msg <- AnyMessage (getAgency -> (msg, sing))
+pattern AnyMessageAndAgency stateToken msg <- AnyMessage (getAgency -> (msg, stateToken))
   where
     AnyMessageAndAgency _ msg = AnyMessage msg
 {-# COMPLETE AnyMessageAndAgency #-}
 
 -- | Internal view pattern for 'AnyMessageAndAgency'
 --
-getAgency :: SingI st => Message ps st st' -> (Message ps st st', Sing st)
-getAgency msg = (msg, sing)
+getAgency :: StateTokenI st => Message ps st st' -> (Message ps st st', StateToken st)
+getAgency msg = (msg, stateToken)
 
 
 -- | The 'Codec' round-trip property: decode after encode gives the same
@@ -344,7 +345,7 @@ prop_codecM
   -> AnyMessage ps
   -> m Bool
 prop_codecM Codec {encode, decode} (AnyMessage (msg :: Message ps st st')) = do
-    r <- decode sing >>= runDecoder [encode msg]
+    r <- decode stateToken >>= runDecoder [encode msg]
     case r :: Either failure (SomeMessage st) of
       Right (SomeMessage msg') -> return $ AnyMessage msg' == AnyMessage msg
       Left _                   -> return False
@@ -383,7 +384,7 @@ prop_codec_splitsM
 prop_codec_splitsM splits
                    Codec {encode, decode} (AnyMessage (msg :: Message ps st st')) = do
     and <$> sequence
-      [ do r <- decode sing >>= runDecoder bytes'
+      [ do r <- decode stateToken >>= runDecoder bytes'
            case r :: Either failure (SomeMessage st) of
              Right (SomeMessage msg') -> return $! AnyMessage msg' == AnyMessage msg
              Left _                   -> return False
@@ -415,7 +416,7 @@ data SomeState (ps :: Type) where
   SomeState
     :: forall ps (st :: ps).
        ActiveState st
-    => Sing st
+    => StateToken st
     -> SomeState ps
 
 -- | Binary compatibility of two protocols
@@ -438,17 +439,17 @@ prop_codec_binary_compatM
      )
   => Codec psA failure m bytes
   -> Codec psB failure m bytes
-  -> (forall (stA :: psA). ActiveState stA => Sing stA -> SomeState psB)
+  -> (forall (stA :: psA). ActiveState stA => StateToken stA -> SomeState psB)
      -- ^ The states of A map directly of states of B.
   -> AnyMessage psA
   -> m Bool
 prop_codec_binary_compatM
     codecA codecB stokEq
     (AnyMessage (msgA :: Message psA stA stA')) =
-  let stokA :: Sing stA
-      stokA = sing
+  let stokA :: StateToken stA
+      stokA = stateToken
   in case stokEq stokA of
-    SomeState (stokB :: Sing stB) -> do
+    SomeState (stokB :: StateToken stB) -> do
       -- 1.
       let bytesA = encode codecA msgA
       -- 2.
@@ -459,7 +460,7 @@ prop_codec_binary_compatM
           -- 3.
           let bytesB = encode codecB msgB
           -- 4.
-          r2 <- decode codecA (sing :: Sing stA) >>= runDecoder [bytesB]
+          r2 <- decode codecA (stateToken :: StateToken stA) >>= runDecoder [bytesB]
           case r2 :: Either failure (SomeMessage stA) of
             Left _                    -> return False
             Right (SomeMessage msgA') -> return $ AnyMessage msgA' == AnyMessage msgA
@@ -473,7 +474,7 @@ prop_codec_binary_compat
   => (forall a. m a -> a)
   -> Codec psA failure m bytes
   -> Codec psB failure m bytes
-  -> (forall (stA :: psA). Sing stA -> SomeState psB)
+  -> (forall (stA :: psA). StateToken stA -> SomeState psB)
   -> AnyMessage psA
   -> Bool
 prop_codec_binary_compat runM codecA codecB stokEq msgA =
@@ -496,11 +497,11 @@ prop_codecs_compatM
   -> m Bool
 prop_codecs_compatM codecA codecB
                     (AnyMessage (msg :: Message ps st st')) =
-    getAll <$> do r <- decode codecB (sing :: Sing st) >>= runDecoder [encode codecA msg]
+    getAll <$> do r <- decode codecB (stateToken :: StateToken st) >>= runDecoder [encode codecA msg]
                   case r :: Either failure (SomeMessage st) of
                     Right (SomeMessage msg') -> return $! All $ AnyMessage msg' == AnyMessage msg
                     Left _                   -> return $! All False
-            <> do r <- decode codecA (sing :: Sing st) >>= runDecoder [encode codecB msg]
+            <> do r <- decode codecA (stateToken :: StateToken st) >>= runDecoder [encode codecB msg]
                   case r :: Either failure (SomeMessage st) of
                     Right (SomeMessage msg') -> return $! All $ AnyMessage msg' == AnyMessage msg
                     Left _                   -> return $! All False
