@@ -8,8 +8,6 @@
 
 module Network.TypedProtocol.PingPong.Type where
 
-import           Data.Singletons
-
 import           Network.TypedProtocol.Core
 
 
@@ -44,14 +42,12 @@ data SPingPong (st :: PingPong) where
 
 deriving instance Show (SPingPong st)
 
-type instance Sing = SPingPong
-instance SingI StIdle where
-    sing = SingIdle
-instance SingI StBusy where
-    sing = SingBusy
-instance SingI StDone where
-    sing = SingDone
-
+instance StateTokenI StIdle where
+    stateToken = SingIdle
+instance StateTokenI StBusy where
+    stateToken = SingBusy
+instance StateTokenI StDone where
+    stateToken = SingDone
 
 instance Protocol PingPong where
 

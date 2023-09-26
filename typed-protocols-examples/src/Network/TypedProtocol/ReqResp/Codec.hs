@@ -8,8 +8,6 @@
 
 module Network.TypedProtocol.ReqResp.Codec where
 
-import           Data.Singletons
-
 import           Network.TypedProtocol.Codec
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.PingPong.Codec (decodeTerminatedFrame)
@@ -35,7 +33,7 @@ codecReqResp =
     decode :: forall req' resp' m'
                      (st :: ReqResp req' resp')
            .  (Monad m', Read req', Read resp', ActiveState st)
-           => Sing st
+           => StateToken st
            -> m' (DecodeStep String CodecFailure m' (SomeMessage st))
     decode stok =
       decodeTerminatedFrame '\n' $ \str trailing ->
@@ -62,7 +60,7 @@ codecReqRespId =
   where
     encode :: forall (st  :: ReqResp req resp)
                      (st' :: ReqResp req resp)
-           .  SingI st
+           .  StateTokenI st
            => ActiveState st
            => Message (ReqResp req resp) st st'
            -> AnyMessage (ReqResp req resp)
@@ -70,7 +68,7 @@ codecReqRespId =
 
     decode :: forall (st :: ReqResp req resp)
            .  ActiveState st
-           => Sing st
+           => StateToken st
            -> m (DecodeStep (AnyMessage (ReqResp req resp)) CodecFailure m (SomeMessage st))
     decode stok =
       pure $ DecodePartial $ \mb ->

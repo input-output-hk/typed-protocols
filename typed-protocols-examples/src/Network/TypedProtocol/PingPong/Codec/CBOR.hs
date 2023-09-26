@@ -10,7 +10,6 @@ module Network.TypedProtocol.PingPong.Codec.CBOR where
 import           Control.Monad.Class.MonadST
 
 import           Data.ByteString.Lazy (ByteString)
-import           Data.Singletons
 
 import qualified Codec.CBOR.Decoding as CBOR (Decoder, decodeWord)
 import qualified Codec.CBOR.Encoding as CBOR (Encoding, encodeWord)
@@ -36,7 +35,7 @@ codecPingPong = mkCodecCborLazyBS encodeMsg decodeMsg
 
   decodeMsg :: forall s (st :: PingPong).
                ActiveState st
-            => Sing st
+            => StateToken st
             -> CBOR.Decoder s (SomeMessage st)
   decodeMsg stok = do
     key <- CBOR.decodeWord

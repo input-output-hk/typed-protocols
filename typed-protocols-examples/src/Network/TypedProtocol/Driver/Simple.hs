@@ -32,8 +32,6 @@ module Network.TypedProtocol.Driver.Simple
   , runDecoderWithChannel
   ) where
 
-import           Data.Singletons
-
 import           Network.TypedProtocol.Channel
 import           Network.TypedProtocol.Codec
 import           Network.TypedProtocol.Core
@@ -91,7 +89,7 @@ driverSimple tracer Codec{encode, decode} channel@Channel{send} =
     Driver { sendMessage, recvMessage, initialDState = Nothing }
   where
     sendMessage :: forall (st :: ps) (st' :: ps).
-                   ( SingI st
+                   ( StateTokenI st
                    , ActiveState st
                    )
                 => ReflRelativeAgency (StateAgency st)
@@ -104,7 +102,7 @@ driverSimple tracer Codec{encode, decode} channel@Channel{send} =
       traceWith tracer (TraceSendMsg (AnyMessage msg))
 
     recvMessage :: forall (st :: ps).
-                   ( SingI st
+                   ( StateTokenI st
                    , ActiveState st
                    )
                 => ReflRelativeAgency (StateAgency st)
@@ -113,7 +111,7 @@ driverSimple tracer Codec{encode, decode} channel@Channel{send} =
                 -> Maybe bytes
                 -> m (SomeMessage st, Maybe bytes)
     recvMessage !_refl trailing = do
-      decoder <- decode sing
+      decoder <- decode stateToken
       result  <- runDecoderWithChannel channel trailing decoder
       case result of
         Right x@(SomeMessage msg, _trailing') -> do

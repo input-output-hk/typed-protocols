@@ -23,7 +23,6 @@ module Network.TypedProtocol.Driver
   , runPipelinedPeerWithDriver
   ) where
 
-import           Data.Singletons
 import           Data.Void (Void)
 
 import           Network.TypedProtocol.Core
@@ -68,15 +67,15 @@ import           Control.Monad.Class.MonadSTM
 data Driver ps (pr :: PeerRole) dstate m =
         Driver {
           sendMessage :: forall (st :: ps) (st' :: ps).
-                         SingI st
-                      => SingI st'
+                         StateTokenI st
+                      => StateTokenI st'
                       => ActiveState st
                       => WeHaveAgencyProof pr st
                       -> Message ps st st'
                       -> m ()
 
         , recvMessage :: forall (st :: ps).
-                         SingI st
+                         StateTokenI st
                       => ActiveState st
                       => TheyHaveAgencyProof pr st
                       -> dstate
@@ -92,8 +91,8 @@ data Driver ps (pr :: PeerRole) dstate m =
 -- type to hide the \"to"\ state.
 --
 data SomeMessage (st :: ps) where
-     SomeMessage :: ( SingI st
-                    , SingI st'
+     SomeMessage :: ( StateTokenI st
+                    , StateTokenI st'
                     , ActiveState st
                     )
                  => Message ps st st' -> SomeMessage st

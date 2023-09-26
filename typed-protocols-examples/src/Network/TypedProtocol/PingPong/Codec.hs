@@ -7,8 +7,6 @@
 
 module Network.TypedProtocol.PingPong.Codec where
 
-import           Data.Singletons
-
 import           Network.TypedProtocol.Codec
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.PingPong.Type
@@ -29,7 +27,7 @@ codecPingPong =
 
     decode :: forall (st :: PingPong).
               ActiveState st
-           => Sing st
+           => StateToken st
            -> m (DecodeStep String CodecFailure m (SomeMessage st))
     decode stok =
       decodeTerminatedFrame '\n' $ \str trailing ->
@@ -72,7 +70,7 @@ codecPingPongId =
     Codec{encode,decode}
   where
     encode :: forall (st :: PingPong) (st' :: PingPong)
-           .  ( SingI st
+           .  ( StateTokenI st
               , ActiveState st
               )
            => Message PingPong st st'
@@ -81,7 +79,7 @@ codecPingPongId =
 
     decode :: forall (st :: PingPong).
               ActiveState st
-           => Sing st
+           => StateToken st
            -> m (DecodeStep (AnyMessage PingPong) CodecFailure m (SomeMessage st))
     decode stok =
       pure $ DecodePartial $ \mb ->
