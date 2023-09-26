@@ -97,8 +97,8 @@ connect = go
         return (a, b, terminals)
       where
         terminals :: TerminalStates ps
-        terminals = TerminalStates (sing :: Sing st)
-                                   (sing :: Sing st)
+        terminals = TerminalStates (stateToken :: StateToken st)
+                                   (stateToken :: StateToken st)
 
     go (Effect a )      b              = a >>= \a' -> go a' b
     go  a              (Effect b)      = b >>= \b' -> go a  b'
@@ -139,8 +139,8 @@ data TerminalStates ps where
      TerminalStates
        :: forall ps (st :: ps).
           (StateAgency st  ~ NobodyAgency)
-       => Sing st
-       -> Sing st
+       => StateToken st
+       -> StateToken st
        -> TerminalStates ps
 
 --

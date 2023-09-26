@@ -31,7 +31,6 @@ module Network.TypedProtocol.Peer.Client
   ) where
 
 import           Data.Kind (Type)
-import           Data.Singletons
 
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Peer (Peer, N (..),
@@ -63,8 +62,8 @@ pattern Effect mclient = TP.Effect mclient
 pattern Yield :: forall ps pl st m a.
                  ()
               => forall st'.
-                 ( SingI st
-                 , SingI st'
+                 ( StateTokenI st
+                 , StateTokenI st'
                  , StateAgency st ~ ClientAgency
                  )
               => Message ps st st'
@@ -79,7 +78,7 @@ pattern Yield msg k = TP.Yield ReflClientAgency msg k
 --
 pattern Await :: forall ps pl st m a.
                  ()
-              => ( SingI st
+              => ( StateTokenI st
                  , StateAgency st ~ ServerAgency
                  )
               => (forall st'. Message ps st st'
@@ -93,7 +92,7 @@ pattern Await k = TP.Await ReflServerAgency k
 --
 pattern Done :: forall ps pl st m a.
                 ()
-             => ( SingI st
+             => ( StateTokenI st
                 , StateAgency st ~ NobodyAgency
                 )
              => a
@@ -107,8 +106,8 @@ pattern Done a = TP.Done ReflNobodyAgency a
 pattern YieldPipelined :: forall ps st n c m a.
                           ()
                        => forall st' st''.
-                          ( SingI st
-                          , SingI st'
+                          ( StateTokenI st
+                          , StateTokenI st'
                           , StateAgency st ~ ClientAgency
                           )
                        => Message ps st st'
@@ -124,7 +123,7 @@ pattern YieldPipelined msg receiver k = TP.YieldPipelined ReflClientAgency msg r
 --
 pattern Collect :: forall ps st n c m a.
                    ()
-                => ( SingI st
+                => ( StateTokenI st
                    , ActiveState st
                    )
                 => Maybe (Client ps (Pipelined c) (S n) st m a)
@@ -146,7 +145,7 @@ pattern ReceiverEffect k = TP.ReceiverEffect k
 
 pattern ReceiverAwait :: forall ps st stdone m c.
                          ()
-                      => ( SingI st
+                      => ( StateTokenI st
                          , ActiveState st
                          , StateAgency st ~ ServerAgency
                          )

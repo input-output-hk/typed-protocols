@@ -10,7 +10,6 @@ module Network.TypedProtocol.ReqResp.Codec.CBOR where
 import           Control.Monad.Class.MonadST
 
 import           Data.ByteString.Lazy (ByteString)
-import           Data.Singletons
 
 import qualified Codec.CBOR.Decoding as CBOR (Decoder, decodeListLen,
                      decodeWord)
@@ -46,7 +45,7 @@ codecReqResp = mkCodecCborLazyBS encodeMsg decodeMsg
 
   decodeMsg :: forall s (st :: ReqResp req resp).
                ActiveState st
-            => Sing st
+            => StateToken st
             -> CBOR.Decoder s (SomeMessage st)
   decodeMsg stok = do
     _ <- CBOR.decodeListLen
