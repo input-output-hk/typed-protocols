@@ -1,6 +1,5 @@
 {-# LANGUAGE ConstraintKinds          #-}
 {-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE DeriveFunctor            #-}
 {-# LANGUAGE EmptyCase                #-}
 {-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE FlexibleInstances        #-}

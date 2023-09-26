@@ -3,13 +3,10 @@
 {-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE KindSignatures           #-}
 {-# LANGUAGE NamedFieldPuns           #-}
 {-# LANGUAGE NumericUnderscores       #-}
 {-# LANGUAGE PolyKinds                #-}
 {-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE RecordWildCards          #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
 
 -- orphaned arbitrary instances
 {-# OPTIONS_GHC -Wno-orphans #-}
