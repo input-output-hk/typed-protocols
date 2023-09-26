@@ -1,19 +1,13 @@
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE EmptyCase           #-}
 {-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeOperators       #-}
 
 
 
 module Network.TypedProtocol.ReqResp2.Client where
-
-import           Data.Singletons
 
 import           Network.TypedProtocol.ReqResp2.Type
 
@@ -23,7 +17,7 @@ import           Network.TypedProtocol.Peer.Client
 
 
 data F st st' where
-    F :: !(Sing st)
+    F :: !(StateToken st)
       -> !(ReflRelativeAgency (StateAgency st)
                               TheyHaveAgency
                              (Relative AsClient (StateAgency st)))
@@ -49,11 +43,11 @@ reqResp2Client = send SingEmptyF
 
     send !q (Left req : reqs) =
       YieldPipelined (MsgReq  req) (send (q |>
-                                          F (sing @StBusy) ReflServerAgency) reqs)
+                                          F (stateToken @StBusy) ReflServerAgency) reqs)
 
     send !q (Right req : reqs) =
       YieldPipelined (MsgReq' req) (send (q |>
-                                          F (sing @StBusy') ReflServerAgency) reqs)
+                                          F (stateToken @StBusy') ReflServerAgency) reqs)
 
     send !q [] = collect q []
 

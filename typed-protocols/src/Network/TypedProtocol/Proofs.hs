@@ -97,8 +97,8 @@ connectNonPipelined = go
         return (a, b, terminals)
       where
         terminals :: TerminalStates ps
-        terminals = TerminalStates (sing :: Sing st)
-                                   (sing :: Sing st)
+        terminals = TerminalStates (stateToken :: StateToken st)
+                                   (stateToken :: StateToken st)
 
     go (Effect a )      b              = a >>= \a' -> go a' b
     go  a              (Effect b)      = b >>= \b' -> go a  b'
@@ -141,8 +141,8 @@ data TerminalStates ps where
           ( StateAgency st  ~ NobodyAgency
           , StateAgency st' ~ NobodyAgency
           )
-       => Sing st
-       -> Sing st'
+       => StateToken st
+       -> StateToken st'
        -> TerminalStates ps
 
 --
@@ -163,13 +163,13 @@ data STransition tr where
 -- instance
 type SQueue :: forall ps -> PeerRole -> ps -> Queue ps -> ps -> Type
 data SQueue ps pr st q st' where
-  ConsMsgQ :: ( SingI st
-              , SingI st'
+  ConsMsgQ :: ( StateTokenI st
+              , StateTokenI st'
               , ActiveState st
               )
-           => (ReflRelativeAgency (StateAgency st)
-                                   WeHaveAgency
-                                  (Relative pr (StateAgency st)))
+           => ReflRelativeAgency (StateAgency st)
+                                  WeHaveAgency
+                                 (Relative pr (StateAgency st))
            -> Message ps st st'
            -> SQueue  ps pr st' q st''
            -> SQueue  ps pr st  q st''
@@ -182,13 +182,13 @@ data SQueue ps pr st q st' where
 
 -- | Push a `ConsMsgQ` to the back of `SQueue`.
 --
-snocMsgQ :: ( SingI st'
-            , SingI st''
+snocMsgQ :: ( StateTokenI st'
+            , StateTokenI st''
             , ActiveState st'
             )
-         => (ReflRelativeAgency (StateAgency st')
-                                 WeHaveAgency
-                                (Relative pr (StateAgency st')))
+         => ReflRelativeAgency (StateAgency st')
+                                WeHaveAgency
+                               (Relative pr (StateAgency st'))
          -> Message ps st' st''
          -> SQueue  ps pr st q st'
          -> SQueue  ps pr st q st''
@@ -201,7 +201,7 @@ snocMsgQ stok msg EmptyQ =
 
 -- | Push a `STransition (Tr st st')` to the back of `SQueue`.
 --
-snocTrQ :: SingI st'
+snocTrQ :: StateTokenI st'
         => STransition (Tr st' st'')
         -> SQueue ps pr st  q                 st'
         -> SQueue ps pr st (q |> Tr st' st'') st''

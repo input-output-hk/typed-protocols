@@ -19,7 +19,6 @@
 module Network.TypedProtocol.Peer (Peer (..)) where
 
 import           Data.Kind (Type)
-import           Data.Singletons
 
 import           Network.TypedProtocol.Core as Core
 
@@ -120,8 +119,8 @@ data Peer ps pr pl q st m stm a where
   --
   Yield
     :: forall ps pr pl (st :: ps) (st' :: ps) m stm a.
-       ( SingI st
-       , SingI st'
+       ( StateTokenI st
+       , StateTokenI st'
        , ActiveState st
        )
     => WeHaveAgencyProof pr st
@@ -151,7 +150,7 @@ data Peer ps pr pl q st m stm a where
   --
   Await
     :: forall ps pr pl (st :: ps) m stm a.
-       ( SingI st
+       ( StateTokenI st
        , ActiveState st
        )
     => TheyHaveAgencyProof pr st
@@ -173,7 +172,7 @@ data Peer ps pr pl q st m stm a where
   --
   Done
     :: forall ps pr pl (st :: ps) m stm a.
-       ( SingI st
+       ( StateTokenI st
        , StateAgency st ~ NobodyAgency
        )
     => NobodyHasAgencyProof pr st
@@ -192,8 +191,8 @@ data Peer ps pr pl q st m stm a where
   --
   YieldPipelined
     :: forall ps pr (st :: ps) (st' :: ps) q st'' m stm a.
-       ( SingI st
-       , SingI st'
+       ( StateTokenI st
+       , StateTokenI st'
        , ActiveState st
        )
     => WeHaveAgencyProof pr st
@@ -208,7 +207,7 @@ data Peer ps pr pl q st m stm a where
   --
   Collect
     :: forall ps pr (st' :: ps) (st'' :: ps) q st m stm a.
-       ( SingI st'
+       ( StateTokenI st'
        , ActiveState st'
        )
     => TheyHaveAgencyProof pr st'
@@ -243,7 +242,7 @@ data Peer ps pr pl q st m stm a where
   --
   CollectSTM
     :: forall ps pr (st' :: ps) (st'' :: ps) q (st :: ps) m stm a.
-       ( SingI st'
+       ( StateTokenI st'
        , ActiveState st'
        )
     => TheyHaveAgencyProof pr st'

@@ -26,7 +26,6 @@ module Network.TypedProtocol.Driver
 import           Control.Applicative (Alternative, (<|>))
 import           Control.Monad.Class.MonadSTM
 
-import           Data.Singletons
 import           Data.Type.Queue
 
 import           Network.TypedProtocol.Codec (DecodeStep (..), SomeMessage (..))
@@ -86,8 +85,8 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
           -- | Send a message.
           --
           sendMessage    :: forall (st :: ps) (st' :: ps).
-                            SingI st
-                         => SingI st'
+                            StateTokenI st
+                         => StateTokenI st'
                          => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 WeHaveAgency
@@ -105,7 +104,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
           -- implementation.
           --
           recvMessage    :: forall (st :: ps).
-                            SingI st
+                            StateTokenI st
                          => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
@@ -125,7 +124,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
           -- relay on non-blocking IO.
           --
           tryRecvMessage :: forall (st :: ps).
-                            SingI st
+                            StateTokenI st
                          => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
@@ -140,7 +139,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate m =
           -- message.
           --
           recvMessageSTM :: forall (st :: ps).
-                            SingI st
+                            StateTokenI st
                          => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency

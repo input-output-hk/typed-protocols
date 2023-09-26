@@ -16,16 +16,15 @@
 -- need for 'Show' instance of 'ProtocolState'
 {-# LANGUAGE UndecidableInstances     #-}
 
-
 -- | This module defines the core of the typed protocol framework.
 --
-
 module Network.TypedProtocol.Core
   ( -- * Introduction
     -- $intro
     -- * Defining protocols
     -- $defining
     Protocol (..)
+  , StateTokenI (..)
     -- $lemmas
     -- * Engaging in protocols
   , PeerRole (..)
@@ -52,8 +51,6 @@ module Network.TypedProtocol.Core
   , IsActiveState (..)
   , ActiveState
   , notActiveState
-    -- * Utils
-  , stateToken
   ) where
 
 import           Data.Kind (Constraint, Type)
@@ -375,6 +372,9 @@ type NobodyHasAgencyProof pr st = ReflRelativeAgency (StateAgency st)
 -- These lemmas are proven for all protocols.
 --
 
+class StateTokenI st where
+    stateToken :: StateToken st
+
 -- | The protocol type class bundles up all the requirements for a typed
 -- protocol.
 --
@@ -412,10 +412,6 @@ class Protocol ps where
   --
   type StateToken :: ps -> Type
 
--- | An alias for 'sing'.
---
-stateToken :: (SingI st, Sing st ~ StateToken st) => StateToken st
-stateToken = sing
 
 type ActiveAgency' :: ps -> Agency -> Type
 data ActiveAgency' st agency where
@@ -462,9 +458,9 @@ type ActiveState st = IsActiveState st (StateAgency st)
 notActiveState :: forall ps (st :: ps).
                   StateAgency st ~ NobodyAgency
                => ActiveState st
-               => Sing st
+               => StateToken st
                -> forall a. a
-notActiveState (_ :: Sing st) =
+notActiveState (_ :: StateToken st) =
   case activeAgency :: ActiveAgency st of {}
 
 

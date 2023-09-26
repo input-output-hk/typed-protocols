@@ -20,9 +20,9 @@
 module Network.TypedProtocol.Stateful.Peer (Peer (..), IsLast (..)) where
 
 import           Data.Kind (Constraint, Type)
+import           Data.Proxy (Proxy (..))
 import           Data.Type.Equality
 import           Data.Type.Queue
-import           Data.Singletons
 
 import           Network.TypedProtocol.Core as Core
 
@@ -122,8 +122,8 @@ data Peer ps pr pl q st f m stm a where
   --
   Yield
     :: forall ps pr pl (st :: ps) (st' :: ps) f m stm a.
-       ( SingI st
-       , SingI st'
+       ( StateTokenI st
+       , StateTokenI st'
        , ActiveState st
        )
     => ReflRelativeAgency (StateAgency st)
@@ -157,7 +157,7 @@ data Peer ps pr pl q st f m stm a where
   --
   Await
     :: forall ps pr pl (st :: ps) f m stm a.
-       ( SingI st
+       ( StateTokenI st
        , ActiveState st
        )
     => ReflRelativeAgency (StateAgency st)
@@ -186,7 +186,7 @@ data Peer ps pr pl q st f m stm a where
   --
   Done
     :: forall ps pr pl (st :: ps) f m stm a.
-       ( SingI st
+       ( StateTokenI st
        , StateAgency st ~ NobodyAgency
        )
     => ReflRelativeAgency (StateAgency st)
@@ -207,8 +207,8 @@ data Peer ps pr pl q st f m stm a where
   --
   YieldPipelined
     :: forall ps pr (st :: ps) (st' :: ps) q st'' f m stm a.
-       ( SingI st
-       , SingI st'
+       ( StateTokenI st
+       , StateTokenI st'
        , ActiveState st
        )
     => ReflRelativeAgency (StateAgency st)
@@ -226,7 +226,7 @@ data Peer ps pr pl q st f m stm a where
   --
   Collect
     :: forall ps pr (st' :: ps) (st'' :: ps) q st f m stm a.
-       ( SingI st'
+       ( StateTokenI st'
        , ActiveState st'
        )
     => ReflRelativeAgency (StateAgency st')
@@ -267,7 +267,7 @@ data Peer ps pr pl q st f m stm a where
   --
   CollectSTM
     :: forall ps pr (st' :: ps) (st'' :: ps) q (st :: ps) f m stm a.
-       ( SingI st'
+       ( StateTokenI st'
        , ActiveState st'
        )
     => ReflRelativeAgency (StateAgency st')

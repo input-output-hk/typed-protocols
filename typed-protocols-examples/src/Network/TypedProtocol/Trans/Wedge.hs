@@ -17,8 +17,6 @@ module Network.TypedProtocol.Trans.Wedge where
 
 import           Control.Monad.Class.MonadSTM (STM)
 
-import           Data.Singletons
-
 import           Network.TypedProtocol.Core
 
 import qualified Network.TypedProtocol.Peer.Client as Client
@@ -39,25 +37,24 @@ data Wedge ps (stIdle :: ps) ps' (stIdle' :: ps') where
 
 data SingWedge (st ::  Wedge ps (stIdle :: ps) ps' (stIdle' :: ps')) where
     SingStIdle :: SingWedge StIdle
-    SingStFst  :: Sing st
+    SingStFst  :: StateToken st
                -> SingWedge (StFst st)
-    SingStSnd  :: Sing st'
+    SingStSnd  :: StateToken st'
                -> SingWedge (StSnd st')
 
 instance Show (SingWedge StIdle) where
     show SingStIdle    = "SingStIdle"
-instance Show (Sing st) => Show (SingWedge (StFst st)) where
+instance Show (StateToken st) => Show (SingWedge (StFst st)) where
     show (SingStFst s) = "SingStFst " ++ show s
-instance Show (Sing st) => Show (SingWedge (StSnd st)) where
+instance Show (StateToken st) => Show (SingWedge (StSnd st)) where
     show (SingStSnd s) = "SingStSnd " ++ show s
 
-type instance Sing = SingWedge
-instance SingI StIdle where
-    sing = SingStIdle
-instance SingI st => SingI (StFst st) where
-    sing = SingStFst (sing @st)
-instance SingI st => SingI (StSnd st) where
-    sing = SingStSnd (sing @st)
+instance StateTokenI StIdle where
+    stateToken = SingStIdle
+instance StateTokenI st => StateTokenI (StFst st) where
+    stateToken = SingStFst (stateToken @st)
+instance StateTokenI st => StateTokenI (StSnd st) where
+    stateToken = SingStSnd (stateToken @st)
 
 
 -- | A Singleton type which allows to pick the starting protocol state.

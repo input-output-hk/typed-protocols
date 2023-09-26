@@ -27,7 +27,6 @@ module Network.TypedProtocol.Peer.Server
   ) where
 
 import           Data.Kind (Type)
-import           Data.Singletons
 
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Peer (Peer)
@@ -59,8 +58,8 @@ pattern Effect mclient = TP.Effect mclient
 pattern Yield :: forall ps pl st m stm a.
                  ()
               => forall st'.
-                 ( SingI st
-                 , SingI st'
+                 ( StateTokenI st
+                 , StateTokenI st'
                  , StateAgency st ~ ServerAgency
                  )
               => Message ps st st'
@@ -75,7 +74,7 @@ pattern Yield msg k = TP.Yield ReflServerAgency msg k
 --
 pattern Await :: forall ps pl st m stm a.
                  ()
-              => ( SingI st
+              => ( StateTokenI st
                  , StateAgency st ~ ClientAgency
                  )
               => (forall st'. Message ps st st'
@@ -89,7 +88,7 @@ pattern Await k = TP.Await ReflClientAgency k
 --
 pattern Done :: forall ps pl st m stm a.
                 ()
-             => ( SingI st
+             => ( StateTokenI st
                 , StateAgency st ~ NobodyAgency
                 )
              => a
@@ -103,8 +102,8 @@ pattern Done a = TP.Done ReflNobodyAgency a
 pattern YieldPipelined :: forall ps st q m stm a.
                           ()
                        => forall st' st''.
-                          ( SingI st
-                          , SingI st'
+                          ( StateTokenI st
+                          , StateTokenI st'
                           , StateAgency st ~ ServerAgency
                           )
                        => Message ps st st'
@@ -119,7 +118,7 @@ pattern YieldPipelined msg k = TP.YieldPipelined ReflServerAgency msg k
 --
 pattern Collect :: forall ps st' st'' q st m stm a.
                    ()
-                => ( SingI st'
+                => ( StateTokenI st'
                    , StateAgency st' ~ ClientAgency
                    )
                 => Maybe (Server ps Pipelined (Tr st' st'' <| q) st m stm a)
@@ -135,7 +134,7 @@ pattern Collect k' k = TP.Collect ReflClientAgency k' k
 --
 pattern CollectSTM :: forall ps st' st'' q st m stm a.
                       ()
-                   => ( SingI st'
+                   => ( StateTokenI st'
                       , StateAgency st' ~ ClientAgency
                       )
                    => stm (Server ps Pipelined (Tr st' st'' <| q) st m stm a)

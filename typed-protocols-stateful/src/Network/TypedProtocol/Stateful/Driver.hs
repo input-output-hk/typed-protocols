@@ -28,7 +28,7 @@ import           Control.Monad.Class.MonadSTM
 import           Data.Kind (Type)
 import           Data.Type.Equality
 import           Data.Type.Queue
-import           Data.Singletons
+import           Data.Proxy (Proxy (..))
 
 import           Network.TypedProtocol.Codec (DecodeStep (..), SomeMessage (..))
 import           Network.TypedProtocol.Core
@@ -40,8 +40,8 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
           -- | Send a message.
           --
           sendMessage    :: forall (st :: ps) (st' :: ps).
-                            SingI st
-                         => SingI st'
+                            StateTokenI st
+                         => StateTokenI st'
                          => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 WeHaveAgency
@@ -60,7 +60,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
           -- implementation.
           --
           recvMessage    :: forall (st :: ps).
-                            SingI st
+                            StateTokenI st
                          => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
@@ -81,7 +81,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
           -- relay on non-blocking IO.
           --
           tryRecvMessage :: forall (st :: ps).
-                            SingI st
+                            StateTokenI st
                          => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
@@ -97,7 +97,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
           -- message.
           --
           recvMessageSTM :: forall (st :: ps).
-                            SingI st
+                            StateTokenI st
                          => ActiveState st
                          => ReflRelativeAgency (StateAgency st)
                                                 TheyHaveAgency
