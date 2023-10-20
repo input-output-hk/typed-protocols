@@ -361,7 +361,7 @@ prop_codec_splitsM splits
     and <$> sequence
       [ do r <- decode stok >>= runDecoder bytes'
            case r of
-             Right (SomeMessage msg') -> return $ AnyMessage msg' == AnyMessage msg
+             Right (SomeMessage msg') -> return $! AnyMessage msg' == AnyMessage msg
              Left _                   -> return False
 
       | let bytes = encode stok msg
@@ -471,12 +471,12 @@ prop_codecs_compatM codecA codecB
                     (AnyMessageAndAgency stok msg) =
     getAll <$> do r <- decode codecB stok >>= runDecoder [encode codecA stok msg]
                   case r of
-                    Right (SomeMessage msg') -> return $ All $ AnyMessage msg' == AnyMessage msg
-                    Left _                   -> return $ All False
+                    Right (SomeMessage msg') -> return $! All $ AnyMessage msg' == AnyMessage msg
+                    Left _                   -> return $! All False
             <> do r <- decode codecA stok >>= runDecoder [encode codecB stok msg]
                   case r of
-                    Right (SomeMessage msg') -> return $ All $ AnyMessage msg' == AnyMessage msg
-                    Left _                   -> return $ All False
+                    Right (SomeMessage msg') -> return $! All $ AnyMessage msg' == AnyMessage msg
+                    Left _                   -> return $! All False
 
 -- | Like @'prop_codecs_compatM'@ but run in a pure monad @m@, e.g. @Identity@.
 --
