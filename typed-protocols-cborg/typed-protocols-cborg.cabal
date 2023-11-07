@@ -19,7 +19,7 @@ library
   exposed-modules:   Network.TypedProtocol.Codec.CBOR
 
   build-depends:     base            >=4.12  && <4.20,
-                     bytestring      >=0.10  && <0.12,
+                     bytestring      >=0.10  && <0.13,
                      cborg           >=0.2.1 && <0.3,
 
                      io-classes,
