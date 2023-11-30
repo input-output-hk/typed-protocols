@@ -18,5 +18,12 @@ index-state:
 packages: ./typed-protocols
           ./typed-protocols-cborg
           ./typed-protocols-examples
+          ./typed-protocols-doc
+
+source-repository-package
+  type: git
+  location: git@github.com:input-output-hk/serdoc
+  tag: 01bc3ecd634669c51a16803e9b875ee737d9bae5
+  subdir: serdoc-core
 
 test-show-details: direct

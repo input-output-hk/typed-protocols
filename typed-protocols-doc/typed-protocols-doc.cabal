@@ -1,0 +1,62 @@
+cabal-version:      3.0
+name:               typed-protocols-doc
+version:            0.1.0.0
+synopsis:           Derive documentation from typed-protocols source code
+-- description:
+license:            Apache-2.0
+license-file:       LICENSE
+author:             Tobias Dammers
+maintainer:         tobias@well-typed.com
+copyright:          2023 IO Global
+category:           Network
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+    exposed-modules: Network.TypedProtocol.Documentation
+                   , Network.TypedProtocol.Documentation.Types
+                   , Network.TypedProtocol.Documentation.TH
+                   , Network.TypedProtocol.Documentation.TestProtocol
+                   , Network.TypedProtocol.Documentation.TestProtocolTH
+                   , Network.TypedProtocol.Documentation.Html
+                   , Network.TypedProtocol.Documentation.GraphViz
+                   , Network.TypedProtocol.Documentation.Example
+    -- other-modules:
+    -- other-extensions:
+    build-depends: base ^>=4.17.0.0
+
+                 , base64-bytestring >=1.2.1.0 && <1.3
+                 , blaze-html >=0.9.1.2 && <0.10
+                 , bytestring >=0.12.0.2 && <0.13
+                 , containers >=0.6.8 && <0.7
+                 , fgl >=5.7 && <5.9
+                 , graphviz >=2999.20.1 && <2999.21.0
+                 , haddock-library >=1.11.0 && <1.12
+                 , knob >=0.2.2 && <0.3
+                 , mtl >=2.3.1 && <2.4
+                 , template-haskell >=2.18.0.0
+                 , temporary >=1.3 && <1.4
+                 , text >=2.1 && <2.2
+                 , th-abstraction >=0.6.0.0 && <0.7
+                 , time >=1.12 && <1.14
+                 , serdoc-core
+                 , typed-protocols
+    hs-source-dirs:   src
+    default-language: Haskell2010
+
+test-suite typed-protocols-doc-test
+    import:           warnings
+    default-language: Haskell2010
+    -- other-modules:
+    -- other-extensions:
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    build-depends:
+        base ^>=4.17.0.0,
+        typed-protocols-doc
