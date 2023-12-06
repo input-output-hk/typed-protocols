@@ -23,7 +23,7 @@ packages: ./typed-protocols
 source-repository-package
   type: git
   location: git@github.com:input-output-hk/serdoc
-  tag: cc1eeca60fcd84a569774114ba74db5d47dc4f2d
+  tag: 4a333a60af8b62d48857cb69576bec622c10be34
   subdir: serdoc-core
 
 test-show-details: direct

@@ -59,8 +59,6 @@ data TestCodec
 instance Codec TestCodec where
   type MonadEncode TestCodec = Identity
   type MonadDecode TestCodec = Except String
-  type Encoded TestCodec = ()
-  type Context TestCodec = ()
 
 data PongEnum = NormalPong | MadPong
   deriving (Show, Read, Eq, Ord, Enum, Bounded, Typeable)
