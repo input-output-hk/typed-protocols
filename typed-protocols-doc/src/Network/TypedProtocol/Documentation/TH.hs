@@ -31,16 +31,17 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
   let pname = nameBase (datatypeName info)
 
   let extractMessageStateName :: InstanceDec -> Name
-      extractMessageStateName (DataInstD _ _ _ _ [ty] _) =
+      extractMessageStateName (DataInstD _ _ _ _ (ty:_) _) =
         case ty of
+          ForallC _ _ (GadtC _ _ ty') -> go ty'
           GadtC _ _ ty' -> go ty'
-          _ -> error $ show ty
+          _ -> error $ "Not a GADT: " ++ show ty
         where
           go (PromotedT tyName) = tyName
           go (SigT ty' _) = go ty'
           go (AppT _ ty') = go ty'
-          go ty' = error $ show ty'
-      extractMessageStateName i = error $ show i
+          go ty' = error $ "Cannot detect message name from type: " ++ show ty'
+      extractMessageStateName i = error $ "Not a DataD: " ++ show i
 
   pstates <- forM (datatypeCons info) $ \conInfo -> do
     let conName = constructorName conInfo
