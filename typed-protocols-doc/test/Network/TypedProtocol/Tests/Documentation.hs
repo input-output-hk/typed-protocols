@@ -10,7 +10,10 @@ import Test.Tasty.QuickCheck
 import Data.SerDoc.Class
 import Network.TypedProtocol.Documentation
 import Network.TypedProtocol.Documentation.TestProtocol
-import Network.TypedProtocol.Documentation.TH
+import Network.TypedProtocol.Tests.ControlProtocol
+
+{-# ANN module "HLINT: ignore Use camelCase" #-}
+{-# ANN module "HLINT: ignore Move brackets to avoid $" #-}
 
 tests :: TestTree
 tests = testGroup "Documentation"
@@ -19,12 +22,22 @@ tests = testGroup "Documentation"
           ]
 
 testProtocolDescription :: ProtocolDescription (TestCodec ())
-testProtocolDescription = $(describeProtocol ''TestProtocol [''()] ''TestCodec [''()])
+testProtocolDescription = $(describeProtocol ''ControlProtocol [''IO, ''()] ''TestCodec [''()])
 
 p_correctAgencies :: ProtocolDescription (TestCodec ()) -> Property
-p_correctAgencies d = once $
+p_correctAgencies d =
+  counterexample (show stateAgencyMap) .
+  once $
+  (counterexample "EndState" $ lookup "EndState" stateAgencyMap === Just NobodyAgencyID)
+  .&&.
+  (counterexample "InitialState" $ lookup "InitialState" stateAgencyMap === Just ServerAgencyID)
+  .&&.
   (counterexample "IdleState" $ lookup "IdleState" stateAgencyMap === Just ServerAgencyID)
   .&&.
-  (counterexample "AwaitingPongState" $ lookup "AwaitingPongState" stateAgencyMap === Just ClientAgencyID)
+  (counterexample "WaitForConfirmationState" $ lookup "WaitForConfirmationState" stateAgencyMap === Just ClientAgencyID)
+  .&&.
+  (counterexample "WaitForInfoState" $ lookup "WaitForInfoState" stateAgencyMap === Just ClientAgencyID)
+  .&&.
+  (counterexample "WaitForPublicKeyState" $ lookup "WaitForPublicKeyState" stateAgencyMap === Just ClientAgencyID)
   where
     stateAgencyMap = [(state, agency) | (state, _, agency) <- protocolStates d]

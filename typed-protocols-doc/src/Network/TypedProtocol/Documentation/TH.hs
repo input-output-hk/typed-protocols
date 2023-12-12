@@ -29,13 +29,16 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
   info <- reifyDatatype protoTyCon
   protoDescription <- getDescription protoTyCon
   let pname = nameBase (datatypeName info)
+  let protoTy = applyTyArgs (ConT protoTyCon) protoTyArgs
 
-  let extractMessageStateName :: InstanceDec -> Name
-      extractMessageStateName (DataInstD _ _ _ _ (ty:_) _) =
-        case ty of
-          ForallC _ _ (GadtC _ _ ty') -> go ty'
-          GadtC _ _ ty' -> go ty'
-          _ -> error $ "Not a GADT: " ++ show ty
+  let extractMessageStateNames :: InstanceDec -> [Name]
+      extractMessageStateNames (DataInstD _ _ _ _ tys _) =
+        [ case ty of
+            ForallC _ _ (GadtC _ _ ty') -> go ty'
+            GadtC _ _ ty' -> go ty'
+            _ -> error $ "Not a GADT: " ++ show ty
+        | ty <- tys
+        ]
         where
           go (PromotedT tyName) = tyName
           go (SigT ty' _) = go ty'
@@ -51,14 +54,14 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
     let serverAgencies' =
           [ nameBase tyName
           | inst <- serverAgencies
-          , let tyName = extractMessageStateName inst
+          , tyName <- extractMessageStateNames inst
           , nameBase tyName == nameBase conName
           ]
     clientAgencies <- reifyInstances ''ClientHasAgency [ConT conName]
     let clientAgencies' =
           [ nameBase tyName
           | inst <- clientAgencies
-          , let tyName = extractMessageStateName inst
+          , tyName <- extractMessageStateNames inst
           , nameBase tyName == nameBase conName
           ]
 
@@ -66,7 +69,7 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
           ([], []) -> NobodyAgencyID
           (_, []) -> ServerAgencyID
           ([], _) -> ClientAgencyID
-          _ -> error $ show (conName, serverAgencies', clientAgencies')
+          _ -> error $ show (nameBase conName, serverAgencies', clientAgencies')
 
     return (conName, stateDescription, agencyID)
 
