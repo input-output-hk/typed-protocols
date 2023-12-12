@@ -33,7 +33,7 @@ instance Protocol (TestProtocol a) where
   data Message (TestProtocol a) st st' where
     PingMessage :: Message (TestProtocol a) IdleState AwaitingPongState
     PongMessage :: Message (TestProtocol a) AwaitingPongState IdleState
-    MadPongMessage :: Message (TestProtocol a) AwaitingPongState IdleState
+    MadPongMessage :: Message (TestProtocol a) AwaitingPongState AwaitingPongState
 
   data ServerHasAgency st where
     TokIdle :: ServerHasAgency IdleState
@@ -54,11 +54,11 @@ instance Protocol (TestProtocol a) where
   exclusionLemma_NobodyAndServerHaveAgency tok1 _ =
     case tok1 of {}
 
-data TestCodec
+data TestCodec a
 
-instance Codec TestCodec where
-  type MonadEncode TestCodec = Identity
-  type MonadDecode TestCodec = Except String
+instance Codec (TestCodec a) where
+  type MonadEncode (TestCodec a) = Identity
+  type MonadDecode (TestCodec a) = Except String
 
 data PongEnum = NormalPong | MadPong
   deriving (Show, Read, Eq, Ord, Enum, Bounded, Typeable)
@@ -66,18 +66,17 @@ data PongEnum = NormalPong | MadPong
 deriving via (ViaEnum PongEnum)
   instance (Codec codec, HasInfo codec (DefEnumEncoding codec)) => HasInfo codec PongEnum
 
-instance HasInfo TestCodec (Message (TestProtocol a) IdleState AwaitingPongState) where
+instance HasInfo (TestCodec b) (Message (TestProtocol a) IdleState AwaitingPongState) where
   info _ _ = basicField "PingMessage" (FixedSize 0)
 
-instance HasInfo TestCodec Word16 where
+instance HasInfo (TestCodec a) Word16 where
   info _ _ = basicField "Word16" (FixedSize 2)
 
-instance HasInfo TestCodec Word32 where
+instance HasInfo (TestCodec a) Word32 where
   info _ _ = basicField "Word32" (FixedSize 4)
 
-instance HasInfo TestCodec (Message (TestProtocol a) AwaitingPongState IdleState) where
-  info codec _ =
-    sumField "PongMessage"
-      [ ("PongMessage", infoOf "NormalPong" $ info codec (Proxy @PongEnum))
-      , ("MadPongMessage", infoOf "MadPong" $ info codec (Proxy @PongEnum))
-      ]
+instance HasInfo (TestCodec b) (Message (TestProtocol a) AwaitingPongState IdleState) where
+  info codec _ = infoOf "NormalPong" $ info codec (Proxy @PongEnum)
+
+instance HasInfo (TestCodec b) (Message (TestProtocol a) AwaitingPongState AwaitingPongState) where
+  info codec _ = infoOf "MadPong" $ info codec (Proxy @PongEnum)

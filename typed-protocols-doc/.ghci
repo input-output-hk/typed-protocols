@@ -1,0 +1,2 @@
+:set -XTemplateHaskell
+:load Network.TypedProtocol.Documentation.Example

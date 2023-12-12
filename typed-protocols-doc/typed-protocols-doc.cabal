@@ -52,10 +52,13 @@ library
 test-suite typed-protocols-doc-test
     import:           warnings
     default-language: Haskell2010
-    -- other-modules:
-    -- other-extensions:
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Main.hs
+    other-modules: Network.TypedProtocol.Tests.Documentation
+    -- other-extensions:
     build-depends: base >=4.16.0.0 && <5
+                 , tasty >=1.5 && <1.6
+                 , tasty-quickcheck >=0.10.3 && <0.11
                  , typed-protocols-doc
+                 , serdoc-core

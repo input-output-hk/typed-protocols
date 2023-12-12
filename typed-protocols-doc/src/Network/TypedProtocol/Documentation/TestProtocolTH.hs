@@ -25,8 +25,8 @@ import qualified Data.Text.Lazy as LText
 import Text.Blaze.Html.Renderer.Text (renderHtml)
 import qualified Text.Blaze.Html.Renderer.Pretty as Pretty
 
-testProtocolDescription :: ProtocolDescription TestCodec
-testProtocolDescription = $(describeProtocol ''TestProtocol [''()] ''TestCodec [])
+testProtocolDescription :: ProtocolDescription (TestCodec ())
+testProtocolDescription = $(describeProtocol ''TestProtocol [''()] ''TestCodec [''()])
 
 testProtocolHtmlString :: String
 testProtocolHtmlString =
