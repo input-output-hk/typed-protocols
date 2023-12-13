@@ -40,7 +40,7 @@ protocolToDot proto =
     numberedStateNames = zip [0::Int,1..] stateNames
     stateDict =
       Map.fromList $ map flipPair numberedStateNames
-    edges = fromMaybe [] $ forM (protocolMessages proto) $ \msg -> do
+    edges = catMaybes $ flip map (protocolMessages proto) $ \msg -> do
               fromIndex <- Map.lookup (Text.pack $ messageFromState msg) stateDict
               toIndex <- Map.lookup (Text.pack $ messageToState msg) stateDict
               return (fromIndex, toIndex, Text.pack $ messageName msg)
