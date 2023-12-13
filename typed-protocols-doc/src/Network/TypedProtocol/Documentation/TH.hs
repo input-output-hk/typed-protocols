@@ -29,7 +29,6 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
   info <- reifyDatatype protoTyCon
   protoDescription <- getDescription protoTyCon
   let pname = nameBase (datatypeName info)
-  let protoTy = applyTyArgs (ConT protoTyCon) protoTyArgs
 
   let extractMessageStateNames :: InstanceDec -> [Name]
       extractMessageStateNames (DataInstD _ _ _ _ tys _) =
@@ -44,7 +43,7 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
           go (SigT ty' _) = go ty'
           go (AppT _ ty') = go ty'
           go ty' = error $ "Cannot detect message name from type: " ++ show ty'
-      extractMessageStateName i = error $ "Not a DataD: " ++ show i
+      extractMessageStateNames i = error $ "Not a DataInstD: " ++ show i
 
   pstates <- forM (datatypeCons info) $ \conInfo -> do
     let conName = constructorName conInfo
@@ -84,7 +83,7 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
         protoDescription
         ""
         $(listE
-            [ [| ( $(litE . stringL . nameBase $ conName), stateDescription, agencyID) |]
+            [ [| ( $(makeState $ ConT conName), stateDescription, agencyID) |]
             | (conName, stateDescription, agencyID) <- pstates
             ]
          )
@@ -127,6 +126,12 @@ unSigTy t@(VarT {}) = t
 unSigTy t@(PromotedT {}) = t
 unSigTy t = error $ show t
 
+makeState :: Type -> ExpQ
+makeState (ConT name) = conE 'State `appE` (litE . stringL $ nameBase name)
+makeState (PromotedT name) = conE 'State `appE` (litE . stringL $ nameBase name)
+makeState (VarT _) = conE 'AnyState
+makeState ty = error . show $ ty -- conE 'AnyState
+
 describeProtocolMessage :: Name -> [Name] -> Name -> [Name] -> Name -> ExpQ
 describeProtocolMessage protoTyCon protoTyArgs codecTyCon codecTyArgs msgName = do
   msgInfo <- reifyConstructor msgName
@@ -155,8 +160,8 @@ describeProtocolMessage protoTyCon protoTyArgs codecTyCon codecTyArgs msgName = 
         { messageName = $(litE . stringL . nameBase $ msgName)
         , messageDescription = msgDescription
         , messagePayload = $(listE (map (litE . stringL . prettyTy) payloads))
-        , messageFromState = $(litE (stringL . prettyTy $ unearthType fromState))
-        , messageToState = $(litE (stringL . prettyTy $ unearthType toState))
+        , messageFromState = $(makeState . unearthType $ fromState)
+        , messageToState = $(makeState . unearthType $ toState)
         , messageInfo =
             infoOf $(litE . stringL . nameBase $ msgName) $
             info 

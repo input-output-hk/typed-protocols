@@ -2,6 +2,7 @@
 
 module Network.TypedProtocol.Documentation.Types
 ( AgencyID (..)
+, StateRef (..)
 , ProtocolDescription (..)
 , MessageDescription (..)
 , Description (..)
@@ -19,6 +20,11 @@ data AgencyID
   | NobodyAgencyID
   deriving (Show, Read, Ord, Eq, Enum, Bounded, Lift)
 
+data StateRef
+  = AnyState
+  | State !String
+  deriving (Show, Read, Ord, Eq)
+
 -- | Term-level representation of a typed protocol.
 data ProtocolDescription codec =
   ProtocolDescription
@@ -28,7 +34,7 @@ data ProtocolDescription codec =
     , protocolIdentifier :: String
       -- ^ Machine-readable identifier, may be used for things like protocol
       -- version negotiation.
-    , protocolStates :: [(String, [Description], AgencyID)]
+    , protocolStates :: [(StateRef, [Description], AgencyID)]
       -- ^ List of the protocol's possible states, each entry being a state ID,
       -- a human-readable description, and an indication of agency (client or
       -- server).
@@ -44,10 +50,10 @@ data MessageDescription codec =
     , messagePayload :: [String]
       -- ^ List of payload values for this message (free-form descriptions or
       -- type names)
-    , messageFromState :: String
+    , messageFromState :: StateRef
       -- ^ References a 'protocolState' in the parent 'ProtocolDescription' by
       -- name.
-    , messageToState :: String
+    , messageToState :: StateRef
       -- ^ References a 'protocolState' in the parent 'ProtocolDescription' by
       -- name.
     , messageInfo :: FieldInfo codec

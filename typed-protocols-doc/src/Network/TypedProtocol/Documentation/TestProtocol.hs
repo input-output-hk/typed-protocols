@@ -82,7 +82,7 @@ deriving via (ViaEnum PingEnum)
   instance (Codec codec, HasInfo codec (DefEnumEncoding codec)) => HasInfo codec PingEnum
 
 instance HasInfo (TestCodec b) () where
-  info codec _ = basicField "()" (FixedSize 0)
+  info _ _ = basicField "()" (FixedSize 0)
 
 instance HasInfo (TestCodec b) Text where
   info codec _ =
@@ -92,7 +92,7 @@ instance HasInfo (TestCodec b) Text where
       ]
 
 instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) [a] where
-  info codec (p :: Proxy [a]) =
+  info codec (_ :: Proxy [a]) =
     compoundField "List"
       [ ( "length", info codec (Proxy @Word32))
       , ( "values"
@@ -102,7 +102,7 @@ instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) [a] where
 
 
 instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) (Maybe a) where
-  info codec (p :: Proxy (Maybe a)) =
+  info codec (_ :: Proxy (Maybe a)) =
     compoundField "Maybe"
       [ ("isJust", info codec (Proxy @Word32))
       , ( "value"

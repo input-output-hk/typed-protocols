@@ -117,17 +117,19 @@ stateID protoName stateName = protoName ++ "_state_" ++ stateName
 stateTOC :: String -> String -> TOC (String, String)
 stateTOC protoName stateName = TOC (stateName, stateID protoName stateName) []
 
-renderState :: String -> [MessageDescription codec] -> (String, [Description], AgencyID) -> Html
-renderState protoName msgs (stateName, descriptions, agency) =
+renderState :: String -> [MessageDescription codec] -> (StateRef, [Description], AgencyID) -> Html
+renderState _ _ (AnyState, _, _) =
+  return ()
+renderState protoName msgs (State stateName, descriptions, agency) =
   H.div ! HA.class_ "state" $ do
     H.h3 ! HA.id (H.stringValue (stateID protoName stateName)) $ H.string stateName
     renderDescriptions descriptions
     H.p $ do
       "Agency: "
-      H.strong $ case agency of
-        ClientAgencyID -> "client"
-        ServerAgencyID -> "server"
-        NobodyAgencyID -> "nobody"
+      case agency of
+        ClientAgencyID -> H.strong ! HA.class_ "client-agency" $ "client"
+        ServerAgencyID -> H.strong ! HA.class_ "server-agency" $ "server"
+        NobodyAgencyID -> H.strong ! HA.class_ "nobody-agency" $ "nobody"
     unless (null messagesFromHere) $ do
       H.h4 "Messages from here:"
       H.ul $ do
@@ -136,7 +138,7 @@ renderState protoName msgs (stateName, descriptions, agency) =
             H.strong $
               H.a ! HA.href (H.stringValue ("#" ++ messageID protoName (messageName msg))) $ H.string (messageName msg)
             " (to "
-            H.a ! HA.href (H.stringValue ("#" ++ stateID protoName (messageToState msg))) $ H.string (messageToState msg)
+            formatStateRef protoName (messageToState msg)
             ")"
     unless (null messagesToHere) $ do
       H.h4 "Messages to here:"
@@ -146,11 +148,21 @@ renderState protoName msgs (stateName, descriptions, agency) =
             H.strong $
               H.a ! HA.href (H.stringValue ("#" ++ messageID protoName (messageName msg))) $ H.string (messageName msg)
             " (from "
-            H.a ! HA.href (H.stringValue ("#" ++ stateID protoName (messageFromState msg))) $ H.string (messageFromState msg)
+            formatStateRef protoName (messageFromState msg)
             ")"
   where
-    messagesFromHere = filter ((== stateName) . messageFromState) msgs
-    messagesToHere = filter ((== stateName) . messageToState) msgs
+    messagesFromHere = filter ((matchState stateName) . messageFromState) msgs
+    messagesToHere = filter ((matchState stateName) . messageToState) msgs
+
+    matchState :: String -> StateRef -> Bool
+    matchState _ AnyState = True
+    matchState a (State b) = a == b
+
+formatStateRef :: String -> StateRef -> Html
+formatStateRef _ AnyState =
+  H.span "any state"
+formatStateRef protoName (State name) =
+  H.a ! HA.href (H.stringValue ("#" ++ stateID protoName name)) $ H.string name
 
 messageID :: String -> String -> String
 messageID protoName msgName = protoName ++ "_message_" ++ msgName
@@ -178,9 +190,9 @@ renderMessage protoName msg =
     renderDescriptions (messageDescription msg)
     H.h4 $ "State Transition"
     H.p $ do
-      H.a ! HA.href (H.stringValue ("#" ++ stateID protoName (messageFromState msg))) $ H.string (messageFromState msg)
+      formatStateRef protoName (messageFromState msg)
       " -> "
-      H.a ! HA.href (H.stringValue ("#" ++ stateID protoName (messageToState msg))) $ H.string (messageToState msg)
+      formatStateRef protoName (messageToState msg)
     unless (null $ messagePayload msg) $ do
       H.h4 "Payload"
       H.ul $ do
@@ -194,7 +206,7 @@ protocolTOC proto =
   in
     TOC (protoName, protoName)
       [ TOC ("States", protoName ++ "_states")
-        [ stateTOC protoName stateName | (stateName, _, _) <- protocolStates proto ]
+        [ stateTOC protoName stateName | (State stateName, _, _) <- protocolStates proto ]
       , TOC ("Messages", protoName ++ "_messages")
         [ messageTOC protoName msg | msg <- protocolMessages proto ]
       ]
@@ -396,6 +408,12 @@ wrapDocument body = do
         ".state-diagram {"
         "  padding: 2rem;"
         "  width: 60%;"
+        "}"
+        ".client-agency {"
+        "  color: brown;"
+        "}"
+        ".server-agency {"
+        "  color: blue;"
         "}"
     H.body body
 
