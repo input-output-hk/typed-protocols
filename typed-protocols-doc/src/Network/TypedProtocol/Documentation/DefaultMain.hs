@@ -6,16 +6,31 @@ where
 import qualified Text.Blaze.Html.Renderer.Pretty as Pretty
 import Data.SerDoc.Class hiding (info)
 import Data.Word
-import Network.TypedProtocol.Documentation.Html
+import qualified Network.TypedProtocol.Documentation.Html as HTML
+import qualified Network.TypedProtocol.Documentation.Text as TextRender
 import Network.TypedProtocol.Documentation.Types
 import Options.Applicative
 import Control.Monad
+import System.FilePath
 
 data MainOptions =
   MainOptions
     { moOutputFile :: Maybe FilePath
+    , moOutputFormat :: OutputFormat
     , moListProtocols :: Bool
     }
+
+data OutputFormat
+  = OutputAuto
+  | OutputText
+  | OutputHtml
+  deriving (Show, Read, Eq, Ord, Enum, Bounded)
+
+parseOutputFormat :: String -> Maybe OutputFormat
+parseOutputFormat "auto" = return OutputAuto
+parseOutputFormat "text" = return OutputText
+parseOutputFormat "html" = return OutputHtml
+parseOutputFormat _ = Nothing
 
 pMainOptions :: Parser MainOptions
 pMainOptions =
@@ -25,6 +40,11 @@ pMainOptions =
           <> value Nothing
           <> metavar "FILE"
           <> help "Output file (default: stdout)"
+          )
+    <*> option (maybeReader parseOutputFormat)
+          ( short 'f'
+          <> value OutputAuto
+          <> metavar "FORMAT"
           )
     <*> switch
           (  long "list-protocols"
@@ -45,4 +65,15 @@ defaultMain descriptions = do
       putStrLn (protocolName d)
   else do
     let write = maybe putStrLn writeFile $ moOutputFile mainOptions
-    write (Pretty.renderHtml . wrapDocument . renderProtocolDescriptions $ descriptions)
+        render = getRenderer (moOutputFormat mainOptions) (moOutputFile mainOptions)
+    write (Pretty.renderHtml . HTML.wrapDocument . HTML.renderProtocolDescriptions $ descriptions)
+
+getRenderer OutputAuto path =
+  case getExtension path of
+    "html" -> getRenderer OutputHtml path
+    "htm" -> getRenderer OutputHtml path
+    _ -> getRenderer OutputText path
+getRenderer OutputHtml _ =
+  Pretty.renderHtml . HTML.wrapDocument . HTML.renderProtocolDescriptions
+getRenderer OutputText _ =
+  TextRender.renderProtocolDescriptions

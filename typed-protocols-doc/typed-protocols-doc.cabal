@@ -24,6 +24,7 @@ library
                    , Network.TypedProtocol.Documentation.TestProtocol
                    , Network.TypedProtocol.Documentation.TestProtocolTH
                    , Network.TypedProtocol.Documentation.Html
+                   , Network.TypedProtocol.Documentation.Text
                    , Network.TypedProtocol.Documentation.GraphViz
                    , Network.TypedProtocol.Documentation.Example
                    , Network.TypedProtocol.Documentation.DefaultMain
@@ -36,6 +37,7 @@ library
                  , bytestring >=0.11 && <0.13
                  , containers >=0.6.8 && <0.7
                  , fgl >=5.7 && <5.9
+                 , filepath >=1.4.2.2 && <1.6
                  , graphviz >=2999.20.1 && <2999.21.0
                  , haddock-library >=1.11.0 && <1.12
                  , knob >=0.2.2 && <0.3

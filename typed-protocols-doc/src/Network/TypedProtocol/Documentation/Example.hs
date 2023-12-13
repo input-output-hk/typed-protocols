@@ -10,6 +10,4 @@ where
 
 import Network.TypedProtocol.Documentation.TestProtocolTH
 
--- $> :load Network.TypedProtocol.Documentation.TestProtocolTH
-
--- $> testProtocolHtmlFile "protocol.html"
+-- $> :load Network.TypedProtocol.Documentation.Example
