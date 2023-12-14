@@ -13,6 +13,10 @@ import Network.TypedProtocol.Documentation.Types
 import Options.Applicative
 import Control.Monad
 import System.FilePath
+import qualified Data.Aeson as JSON
+import Data.Text.Encoding
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as Text
 
 data MainOptions =
   MainOptions
@@ -25,12 +29,14 @@ data OutputFormat
   = OutputAuto
   | OutputText
   | OutputHtml
+  | OutputJSON
   deriving (Show, Read, Eq, Ord, Enum, Bounded)
 
 parseOutputFormat :: String -> Maybe OutputFormat
 parseOutputFormat "auto" = return OutputAuto
 parseOutputFormat "text" = return OutputText
 parseOutputFormat "html" = return OutputHtml
+parseOutputFormat "json" = return OutputJSON
 parseOutputFormat _ = Nothing
 
 pMainOptions :: Parser MainOptions
@@ -46,6 +52,7 @@ pMainOptions =
           ( short 'f'
           <> value OutputAuto
           <> metavar "FORMAT"
+          <> help "Output format; one of: html, text, json, auto"
           )
     <*> switch
           (  long "list-protocols"
@@ -81,8 +88,11 @@ getRenderer OutputAuto path =
   case takeExtension <$> path of
     Just "html" -> getRenderer OutputHtml path
     Just "htm" -> getRenderer OutputHtml path
+    Just "json" -> getRenderer OutputJSON path
     _ -> getRenderer OutputText path
 getRenderer OutputHtml _ =
   Pretty.renderHtml . HTML.wrapDocument . HTML.renderProtocolDescriptions
 getRenderer OutputText _ =
   LText.unpack . TextRender.renderProtocolDescriptions
+getRenderer OutputJSON _ =
+  Text.unpack . decodeUtf8 . LBS.toStrict . JSON.encode

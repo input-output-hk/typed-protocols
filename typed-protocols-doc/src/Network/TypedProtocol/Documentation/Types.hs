@@ -1,4 +1,6 @@
 {-# LANGUAGE DeriveLift #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Network.TypedProtocol.Documentation.Types
 ( AgencyID (..)
@@ -11,6 +13,7 @@ where
 
 import Data.SerDoc.Info
 import Language.Haskell.TH.Syntax
+import Data.Aeson
 
 -- | Represents agency at the term level. Used to indicate which side has
 -- agency in a particular protocol state.
@@ -20,10 +23,19 @@ data AgencyID
   | NobodyAgencyID
   deriving (Show, Read, Ord, Eq, Enum, Bounded, Lift)
 
+instance ToJSON AgencyID where
+  toJSON ClientAgencyID = "client"
+  toJSON ServerAgencyID = "server"
+  toJSON NobodyAgencyID = "nobody"
+
 data StateRef
   = AnyState
   | State !String
   deriving (Show, Read, Ord, Eq)
+
+instance ToJSON StateRef where
+  toJSON AnyState = Null
+  toJSON (State str) = toJSON str
 
 -- | Term-level representation of a typed protocol.
 data ProtocolDescription codec =
@@ -41,6 +53,22 @@ data ProtocolDescription codec =
     , protocolMessages :: [MessageDescription codec]
     }
     deriving (Show)
+
+instance ToJSON (ProtocolDescription codec) where
+  toJSON p = object
+    [ "name" .= protocolName p
+    , "description" .= map descriptionParagraphs (protocolDescription p)
+    , "identifier" .= protocolIdentifier p
+    , "states" .=
+        [ object
+            [ "id" .= stateRef
+            , "description" .= map descriptionParagraphs desc
+            , "agency" .= agency
+            ]
+        | (stateRef, desc, agency) <- protocolStates p
+        ]
+    , "messages" .= protocolMessages p
+    ]
 
 -- | Term-level representation of a typed protocol message.
 data MessageDescription codec =
@@ -60,3 +88,11 @@ data MessageDescription codec =
     }
     deriving (Show)
 
+instance ToJSON (MessageDescription codec) where
+  toJSON m = object
+    [ "name" .= messageName m
+    , "description" .= map descriptionParagraphs (messageDescription m)
+    , "payload" .= messagePayload m
+    , "from-state" .= messageFromState m
+    , "to-state" .= messageToState m
+    ]
