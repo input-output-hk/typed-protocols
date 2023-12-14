@@ -17,6 +17,9 @@ import qualified Data.Aeson as JSON
 import Data.Text.Encoding
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text as Text
+import System.Exit
+import System.IO
+import System.IO.Unsafe
 
 data MainOptions =
   MainOptions
@@ -86,13 +89,20 @@ getRenderer :: ( Codec codec
             -> String
 getRenderer OutputAuto path =
   case takeExtension <$> path of
-    Just "html" -> getRenderer OutputHtml path
-    Just "htm" -> getRenderer OutputHtml path
-    Just "json" -> getRenderer OutputJSON path
-    _ -> getRenderer OutputText path
+    Just ".html" -> getRenderer OutputHtml path
+    Just ".htm" -> getRenderer OutputHtml path
+    Just ".json" -> getRenderer OutputJSON path
+    Just ".txt" -> getRenderer OutputText path
+    Nothing -> abort "Cannot detect output file format"
+    Just ext -> abort $ "Cannot detect output file format from extension " ++ show ext
 getRenderer OutputHtml _ =
   Pretty.renderHtml . HTML.wrapDocument . HTML.renderProtocolDescriptions
 getRenderer OutputText _ =
   LText.unpack . TextRender.renderProtocolDescriptions
 getRenderer OutputJSON _ =
   Text.unpack . decodeUtf8 . LBS.toStrict . JSON.encode
+
+abort :: String -> a
+abort msg = unsafePerformIO $ do
+  hPutStrLn stderr msg
+  exitFailure 
