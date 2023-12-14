@@ -15,7 +15,7 @@ import Data.Word
 import qualified Documentation.Haddock.Parser as Haddock
 import qualified Documentation.Haddock.Types as Haddock
 import Text.Printf
-import Control.Monad.Writer
+import Control.Monad.RWS
 import Data.List (intersperse)
 
 import Network.TypedProtocol.Documentation.Types
@@ -23,31 +23,40 @@ import Network.TypedProtocol.Documentation.Types
 import Data.SerDoc.Class
 import Data.SerDoc.Info
 
-type Build = Writer LText.Builder ()
+type Build = RWS Int LText.Builder Bool ()
+
+runBuild :: Build -> LText.Text
+runBuild a = LText.toLazyText b
+  where
+    ((), _, b) = runRWS a 0 False
+
+indent :: Build
+indent = do
+  atStart <- get
+  when atStart $ do
+    put False
+    lvl <- ask
+    replicateM_ lvl (tell " ")
+
+withIndent :: Int -> Build -> Build
+withIndent i = local (+ i)
+
+write :: LText.Builder -> Build
+write b = indent >> tell b
 
 string :: String -> Build
-string = tell . LText.fromString
+string = write . LText.fromString
 
 newline :: Build
-newline = string "\n"
+newline = do
+  string "\n"
+  put True
 
 p :: Build -> Build
 p b = b >> newline
 
 stringLine :: String -> Build
 stringLine = p . string
-
-h1 :: Build -> Build
-h1 b =
-  b >> newline >> tell (LText.fromLazyText $ LText.replicate l "=") >> newline
-  where
-    l = LText.length . LText.toLazyText . execWriter $ b
-
-h2 :: Build -> Build
-h2 b =
-  b >> newline >> tell (LText.fromLazyText $ LText.replicate l "-") >> newline
-  where
-    l = LText.length . LText.toLazyText . execWriter $ b
 
 h :: Int -> Build -> Build
 h n b = do
@@ -58,8 +67,8 @@ h n b = do
 
 ul :: [Build] -> Build
 ul items = forM_ items $ \item -> do
-  tell "- "
-  item
+  string "- "
+  withIndent 2 item
   newline
 
 ol :: [(Int, Build)] -> Build
@@ -68,8 +77,8 @@ ol = mapM_ (uncurry renderItem)
     renderItem :: Int -> Build -> Build
     renderItem n item = do
       string . show $ n
-      tell ". "
-      item
+      string ". "
+      withIndent 2 item
       newline
 
 link :: String -> Build -> Build
@@ -124,8 +133,8 @@ renderHaddock (Haddock.DocExamples examples) =
       mapM_ stringLine results
 renderHaddock (Haddock.DocHeader (Haddock.Header level a)) = do
   let renderH = case level of
-                  1 -> h1
-                  2 -> h2
+                  1 -> h 1
+                  2 -> h 2
                   n -> h n
   renderH $ renderHaddock a
 renderHaddock (Haddock.DocTable (Haddock.Table headerRows bodyRows)) = do
@@ -139,30 +148,13 @@ renderHaddock (Haddock.DocTable (Haddock.Table headerRows bodyRows)) = do
     renderCell (Haddock.TableCell _ _ content) =
       renderHaddock content
 
-  -- H.table $ do
-  --   H.thead $ do
-  --     forM_ headerRows $ \row -> do
-  --       H.tr $ do
-  --         forM_ (Haddock.tableRowCells row) $ \(Haddock.TableCell colspan rowspan body) -> do
-  --           H.th ! HA.colspan (H.toValue colspan)
-  --                ! HA.rowspan (H.toValue rowspan)
-  --                $ renderHaddock body
-  --   H.tbody $ do
-  --     forM_ bodyRows $ \row -> do
-  --       H.tr $ do
-  --         forM_ (Haddock.tableRowCells row) $ \(Haddock.TableCell colspan rowspan body) -> do
-  --           H.td ! HA.colspan (H.toValue colspan)
-  --                ! HA.rowspan (H.toValue rowspan)
-  --                $ renderHaddock body
-
 data TOC a = TOC a [TOC a]
   deriving (Show, Eq, Ord)
 
 renderTOC :: TOC (String, String) -> Build
 renderTOC (TOC (label, _href) children) = do
-  p $ do
-    string label
-    forM_ children renderTOC
+  stringLine label
+  withIndent 2 $ forM_ children renderTOC
 
 stateID :: String -> String -> String
 stateID protoName stateName = protoName ++ "_state_" ++ stateName
@@ -264,16 +256,15 @@ renderProtocol proto = do
   let protoName = protocolName proto
       msgs = protocolMessages proto
   p $ do
-    h1 $ string protoName
-    string "Version ID: "
+    h 1 $ string protoName
     string (protocolIdentifier proto)
     newline
     renderDescriptions (protocolDescription proto)
     p $ do
-      h2 $ string "States"
+      h 2 $ string "States"
       mconcat <$> mapM (renderState msgs) (protocolStates proto)
     p $ do
-      h2 $ string "Messages"
+      h 2 $ string "Messages"
       mconcat <$> mapM renderMessage msgs
 
 fieldSpecToHTML :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
@@ -356,13 +347,14 @@ renderSubfield :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
 renderSubfield sfi = do
   string (subfieldName sfi)
   renderFieldType (subfieldInfo sfi)
-  string "  (size: "
+  string "(size: "
   string (formatFieldSize (fieldSize (subfieldInfo sfi)))
   string ") "
   renderSubfields (subfieldInfo sfi)
 
 renderProtocolDescriptions :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
                            => [ProtocolDescription codec] -> LText.Text
-renderProtocolDescriptions protos =
-  LText.toLazyText $ execWriter (mapM_ renderProtocol protos)
-
+renderProtocolDescriptions protos = runBuild $ do
+    h 1 $ stringLine "Table Of Contents"
+    p $ renderTOC (TOC ("Protocols","") (map protocolTOC protos))
+    mapM_ renderProtocol protos
