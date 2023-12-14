@@ -3,6 +3,7 @@
 module Network.TypedProtocol.Documentation.DefaultMain
 where
 
+import qualified Data.Text.Lazy as LText
 import qualified Text.Blaze.Html.Renderer.Pretty as Pretty
 import Data.SerDoc.Class hiding (info)
 import Data.Word
@@ -66,14 +67,22 @@ defaultMain descriptions = do
   else do
     let write = maybe putStrLn writeFile $ moOutputFile mainOptions
         render = getRenderer (moOutputFormat mainOptions) (moOutputFile mainOptions)
-    write (Pretty.renderHtml . HTML.wrapDocument . HTML.renderProtocolDescriptions $ descriptions)
+    write . render $ descriptions
 
+getRenderer :: ( Codec codec
+               , HasInfo codec (DefEnumEncoding codec)
+               , HasInfo codec Word32
+               )
+            => OutputFormat
+            -> Maybe FilePath
+            -> [ProtocolDescription codec]
+            -> String
 getRenderer OutputAuto path =
-  case getExtension path of
-    "html" -> getRenderer OutputHtml path
-    "htm" -> getRenderer OutputHtml path
+  case takeExtension <$> path of
+    Just "html" -> getRenderer OutputHtml path
+    Just "htm" -> getRenderer OutputHtml path
     _ -> getRenderer OutputText path
 getRenderer OutputHtml _ =
   Pretty.renderHtml . HTML.wrapDocument . HTML.renderProtocolDescriptions
 getRenderer OutputText _ =
-  TextRender.renderProtocolDescriptions
+  LText.unpack . TextRender.renderProtocolDescriptions

@@ -1,10 +1,7 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE FlexibleContexts #-}
 
@@ -12,137 +9,208 @@ module Network.TypedProtocol.Documentation.Text
 where
 
 import Control.Monad
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Base64 as Base64
-import qualified Data.Knob as Knob
-import Data.Maybe
 import qualified Data.Text.Lazy as LText
 import qualified Data.Text.Lazy.Builder as LText
 import Data.Word
 import qualified Documentation.Haddock.Parser as Haddock
 import qualified Documentation.Haddock.Types as Haddock
-import System.IO (IOMode (..))
-import System.IO.Unsafe (unsafePerformIO)
 import Text.Printf
+import Control.Monad.Writer
+import Data.List (intersperse)
 
-import Network.TypedProtocol.Documentation.GraphViz
 import Network.TypedProtocol.Documentation.Types
 
 import Data.SerDoc.Class
 import Data.SerDoc.Info
 
-renderDescriptions :: [Description] -> LText.Text
-renderDescriptions = LText.toLazyText $ mconcat $ map $ \(Description h) ->
-    let (docs :: [Haddock.DocH () String]) =
-          map (Haddock.toRegular . Haddock._doc . Haddock.parseParas Nothing) h
-    in mconcat $ map renderHaddock docs
+type Build = Writer LText.Builder ()
 
-renderHaddock :: Haddock.DocH mod String -> LText.Builder
-renderHaddock Haddock.DocEmpty = ""
-renderHaddock (Haddock.DocAppend a b) = renderHaddock a <> renderHaddock b
-renderHaddock (Haddock.DocString str) = LText.fromString str
-renderHaddock (Haddock.DocParagraph a) = renderHaddock a <> "\n"
-renderHaddock (Haddock.DocIdentifier i) = LText.fromString i
-renderHaddock (Haddock.DocIdentifierUnchecked _) = "**unchecked**"
-renderHaddock (Haddock.DocModule (Haddock.ModLink label _)) = LText.fromString label
-renderHaddock (Haddock.DocWarning a) = renderHaddock a
+string :: String -> Build
+string = tell . LText.fromString
+
+newline :: Build
+newline = string "\n"
+
+p :: Build -> Build
+p b = b >> newline
+
+stringLine :: String -> Build
+stringLine = p . string
+
+h1 :: Build -> Build
+h1 b =
+  b >> newline >> tell (LText.fromLazyText $ LText.replicate l "=") >> newline
+  where
+    l = LText.length . LText.toLazyText . execWriter $ b
+
+h2 :: Build -> Build
+h2 b =
+  b >> newline >> tell (LText.fromLazyText $ LText.replicate l "-") >> newline
+  where
+    l = LText.length . LText.toLazyText . execWriter $ b
+
+h :: Int -> Build -> Build
+h n b = do
+  replicateM_ n $ string "#"
+  string " "
+  b
+  newline
+
+ul :: [Build] -> Build
+ul items = forM_ items $ \item -> do
+  tell "- "
+  item
+  newline
+
+ol :: [(Int, Build)] -> Build
+ol = mapM_ (uncurry renderItem)
+  where
+    renderItem :: Int -> Build -> Build
+    renderItem n item = do
+      string . show $ n
+      tell ". "
+      item
+      newline
+
+link :: String -> Build -> Build
+link url label = do
+  string "["
+  label
+  string "]("
+  string url
+  string ")"
+
+renderDescriptions :: [Description] -> Build
+renderDescriptions = mapM_ $ \(Description desc) -> do
+    let (docs :: [Haddock.DocH () String]) =
+          map (Haddock.toRegular . Haddock._doc . Haddock.parseParas Nothing) desc
+    mapM_ (p . renderHaddock) docs
+
+renderHaddock :: Haddock.DocH mod String -> Build
+renderHaddock Haddock.DocEmpty = return ()
+renderHaddock (Haddock.DocAppend a b) = renderHaddock a >> renderHaddock b
+renderHaddock (Haddock.DocString str) = string str
+renderHaddock (Haddock.DocParagraph a) = p (renderHaddock a)
+renderHaddock (Haddock.DocIdentifier i) = string i
+renderHaddock (Haddock.DocIdentifierUnchecked _) = string "**unchecked**"
+renderHaddock (Haddock.DocModule (Haddock.ModLink label _)) = string label
+renderHaddock (Haddock.DocWarning a) = p $ renderHaddock a
 renderHaddock (Haddock.DocEmphasis a) = renderHaddock a
 renderHaddock (Haddock.DocMonospaced a) = renderHaddock a
 renderHaddock (Haddock.DocBold a) = renderHaddock a
-renderHaddock (Haddock.DocUnorderedList items) = mconcat [ "- " <> renderHaddock item <> "\n" | item <- items ]
-renderHaddock (Haddock.DocOrderedList items) = mconcat [ "# " <> renderHaddock item <> "\n" | item <- items ]
+renderHaddock (Haddock.DocUnorderedList items) = ul $ map renderHaddock items
+renderHaddock (Haddock.DocOrderedList items) = ol $ map (\(n, item) -> (n, renderHaddock item)) items
 renderHaddock (Haddock.DocDefList items) =
-  mconcat
-    [ renderHaddock title <> ": " <> renderHaddock body <> "\n"
+  ul
+    [ renderHaddock title >> string ": " >> renderHaddock body
     | (title, body) <- items
     ]
 renderHaddock (Haddock.DocCodeBlock a) = renderHaddock a
 renderHaddock (Haddock.DocHyperlink (Haddock.Hyperlink url a)) =
-  renderHaddock a <> "(" <> LText.fromString url <> ")"
-renderHaddock (Haddock.DocPic (Haddock.Picture url title)) =
-  "[" <> renderHaddock a <> "](" <> LText.fromString url <> ")"
-renderHaddock (Haddock.DocMathInline str) = LText.fromString str
-renderHaddock (Haddock.DocMathDisplay str) = LText.fromString str
-renderHaddock (Haddock.DocAName str) = LText.fromString str
-renderHaddock (Haddock.DocProperty str) = LText.fromString str
+  link url (maybe (string "") renderHaddock a)
+renderHaddock (Haddock.DocPic (Haddock.Picture url title)) = do
+  string "<image:"
+  maybe (string url) string title
+  string ">"
+renderHaddock (Haddock.DocMathInline str) = string str
+renderHaddock (Haddock.DocMathDisplay str) = p $ string str
+renderHaddock (Haddock.DocAName str) = string str
+renderHaddock (Haddock.DocProperty str) = string str
 renderHaddock (Haddock.DocExamples examples) =
-  mconcat
-    [ "> " <> LText.fromString expr <> "\n" <>
-      mconcat [ LText.fromString ln <> "\n" | ln <- results ]
-    | Haddock.Example expr results <- examples
-    ]
+  forM_ examples $ \(Haddock.Example expr results) -> do
+    p $ do
+      string "$> "
+      stringLine expr
+      mapM_ stringLine results
 renderHaddock (Haddock.DocHeader (Haddock.Header level a)) = do
-  let h = LText.replicate level "#" <> " "
-  h $ renderHaddock a
+  let renderH = case level of
+                  1 -> h1
+                  2 -> h2
+                  n -> h n
+  renderH $ renderHaddock a
 renderHaddock (Haddock.DocTable (Haddock.Table headerRows bodyRows)) = do
-  mconcat $
-    [ mconcat
-        [ renderHaddock body
-        | Haddock.TableCell _colspan _rowspan body
-        <- Haddock.tableRowCells row
-        ]
-    | row <- headerRows
-    ]
-    ++
-    [ "-----" ]
-    ++
-    [ mconcat
-        [ renderHaddock body
-        | Haddock.TableCell _colspan _rowspan body
-        <- Haddock.tableRowCells row
-        ]
-    | row <- bodyRows
-    ]
+  mapM_ row headerRows
+  stringLine "-----"
+  mapM_ row bodyRows
+  where
+    row (Haddock.TableRow cells) = do
+      sequence_ . intersperse (string " | ") . map renderCell $ cells
+      newline
+    renderCell (Haddock.TableCell _ _ content) =
+      renderHaddock content
+
+  -- H.table $ do
+  --   H.thead $ do
+  --     forM_ headerRows $ \row -> do
+  --       H.tr $ do
+  --         forM_ (Haddock.tableRowCells row) $ \(Haddock.TableCell colspan rowspan body) -> do
+  --           H.th ! HA.colspan (H.toValue colspan)
+  --                ! HA.rowspan (H.toValue rowspan)
+  --                $ renderHaddock body
+  --   H.tbody $ do
+  --     forM_ bodyRows $ \row -> do
+  --       H.tr $ do
+  --         forM_ (Haddock.tableRowCells row) $ \(Haddock.TableCell colspan rowspan body) -> do
+  --           H.td ! HA.colspan (H.toValue colspan)
+  --                ! HA.rowspan (H.toValue rowspan)
+  --                $ renderHaddock body
 
 data TOC a = TOC a [TOC a]
   deriving (Show, Eq, Ord)
 
-renderState :: String -> [MessageDescription codec] -> (StateRef, [Description], AgencyID) -> LText.Builder
-renderState _ _ (AnyState, _, _) =
+renderTOC :: TOC (String, String) -> Build
+renderTOC (TOC (label, _href) children) = do
+  p $ do
+    string label
+    forM_ children renderTOC
+
+stateID :: String -> String -> String
+stateID protoName stateName = protoName ++ "_state_" ++ stateName
+
+stateTOC :: String -> String -> TOC (String, String)
+stateTOC protoName stateName = TOC (stateName, stateID protoName stateName) []
+
+renderMessageRef :: String -> MessageDescription codec -> Build
+renderMessageRef toFrom msg = do
+  string (messageName msg)
+  string " ("
+  string toFrom
+  string " "
+  formatStateRef (messageToState msg)
+  string ")"
+
+renderState :: [MessageDescription codec] -> (StateRef, [Description], AgencyID) -> Build
+renderState _ (AnyState, _, _) =
   return ()
-renderState protoName msgs (State stateName, descriptions, agency) =
-  mconcat
-    [ "# " <> LText.fromString stateName <> "\n"
-    , renderDescriptions descriptions
-    H.p $ do
-      "Agency: "
+renderState msgs (State stateName, descriptions, agency) =
+  p $ do
+    h 3 $ string stateName
+    renderDescriptions descriptions
+    p $ do
+      string "Agency: "
       case agency of
-        ClientAgencyID -> H.strong ! HA.class_ "client-agency" $ "client"
-        ServerAgencyID -> H.strong ! HA.class_ "server-agency" $ "server"
-        NobodyAgencyID -> H.strong ! HA.class_ "nobody-agency" $ "nobody"
+        ClientAgencyID -> string "client"
+        ServerAgencyID -> string "server"
+        NobodyAgencyID -> string "nobody"
     unless (null messagesFromHere) $ do
-      H.h4 "Messages from here:"
-      H.ul $ do
-        forM_ messagesFromHere $ \msg -> do
-          H.li $ do
-            H.strong $
-              H.a ! HA.href (H.stringValue ("#" ++ messageID protoName (messageName msg))) $ H.string (messageName msg)
-            " (to "
-            formatStateRef protoName (messageToState msg)
-            ")"
+      h 4 $ string "Messages from here:"
+      ul $ map (renderMessageRef "to") messagesFromHere
     unless (null messagesToHere) $ do
-      H.h4 "Messages to here:"
-      H.ul $ do
-        forM_ messagesToHere $ \msg -> do
-          H.li $ do
-            H.strong $
-              H.a ! HA.href (H.stringValue ("#" ++ messageID protoName (messageName msg))) $ H.string (messageName msg)
-            " (from "
-            formatStateRef protoName (messageFromState msg)
-            ")"
+      h 4 $ string "Messages to here:"
+      ul $ map (renderMessageRef "from") messagesToHere
   where
-    messagesFromHere = filter ((matchState stateName) . messageFromState) msgs
-    messagesToHere = filter ((matchState stateName) . messageToState) msgs
+    messagesFromHere = filter (matchState stateName . messageFromState) msgs
+    messagesToHere = filter (matchState stateName . messageToState) msgs
 
     matchState :: String -> StateRef -> Bool
     matchState _ AnyState = True
     matchState a (State b) = a == b
 
-formatStateRef :: String -> StateRef -> Text
-formatStateRef _ AnyState =
-  H.span "any state"
-formatStateRef protoName (State name) =
-  H.a ! HA.href (H.stringValue ("#" ++ stateID protoName name)) $ H.string name
+formatStateRef :: StateRef -> Build
+formatStateRef AnyState =
+  string "any state"
+formatStateRef (State name) =
+  string name
 
 messageID :: String -> String -> String
 messageID protoName msgName = protoName ++ "_message_" ++ msgName
@@ -163,21 +231,20 @@ formatFieldSize (BinopSize FSMax a b) = "MAX(" ++ formatFieldSize a ++ ", " ++ f
 formatFieldSize (BinopSize FSMin a b) = "MIN(" ++ formatFieldSize a ++ ", " ++ formatFieldSize b ++ ")"
 
 renderMessage :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
-              => String -> MessageDescription codec -> Text
-renderMessage protoName msg =
-  H.div ! HA.class_ "message" $ do
-    H.h3 ! HA.id (H.stringValue (messageID protoName (messageName msg))) $ H.string (messageName msg)
+              => MessageDescription codec -> Build
+renderMessage msg =
+  p $ do
+    h 3 $ string (messageName msg)
     renderDescriptions (messageDescription msg)
-    H.h4 $ "State Transition"
-    H.p $ do
-      formatStateRef protoName (messageFromState msg)
-      " -> "
-      formatStateRef protoName (messageToState msg)
+    h 4 $ string "State Transition"
+    p $ do
+      formatStateRef (messageFromState msg)
+      string " -> "
+      formatStateRef (messageToState msg)
     unless (null $ messagePayload msg) $ do
-      H.h4 "Payload"
-      H.ul $ do
-        forM_ (messagePayload msg) $ H.li . H.string
-    H.h4 "Serialization Format"
+      h 4 $ string "Payload"
+      ul $ map string (messagePayload msg)
+    h 4 $ string "Serialization Format"
     fieldSpecToHTML (messageInfo msg)
   
 protocolTOC :: ProtocolDescription codec -> TOC (String, String)
@@ -191,222 +258,111 @@ protocolTOC proto =
         [ messageTOC protoName msg | msg <- protocolMessages proto ]
       ]
 
-protocolToSvgMem :: ProtocolDescription codec -> ByteString
-protocolToSvgMem proto = unsafePerformIO $ do
-  k <- Knob.newKnob ""
-  Knob.withFileHandle k "unknown" WriteMode $ \h ->
-    hProtocolToSVG proto h
-  Knob.getContents k
-
-renderDiagramSvg :: ProtocolDescription codec -> Text
-renderDiagramSvg proto = do
-  let protoSvg = protocolToSvgMem proto
-      uri = "data:image/svg+xml;base64," <> Base64.encode protoSvg
-  H.img ! HA.src (H.unsafeByteStringValue uri)
-        ! HA.class_ "state-diagram"
-
 renderProtocol :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
-               => ProtocolDescription codec -> Text
+               => ProtocolDescription codec -> Build
 renderProtocol proto = do
   let protoName = protocolName proto
       msgs = protocolMessages proto
-  H.section ! HA.class_ "protocol" $ do
-    H.h1 ! HA.id (H.stringValue protoName) $ H.string protoName
-    "Version ID: "
-    H.code $ H.string (protocolIdentifier proto)
+  p $ do
+    h1 $ string protoName
+    string "Version ID: "
+    string (protocolIdentifier proto)
+    newline
     renderDescriptions (protocolDescription proto)
-    H.section $ do
-      H.h2 ! HA.id (H.stringValue $ protoName ++ "_state_diagram") $ "State Diagram"
-      renderDiagramSvg proto
-    H.section $ do
-      H.h2 ! HA.id (H.stringValue $ protoName ++ "_states") $ "States"
-      mconcat <$> mapM (renderState protoName msgs) (protocolStates proto)
-    H.section $ do
-      H.h2 ! HA.id (H.stringValue $ protoName ++ "_messages") $ "Messages"
-      mconcat <$> mapM (renderMessage protoName) msgs
+    p $ do
+      h2 $ string "States"
+      mconcat <$> mapM (renderState msgs) (protocolStates proto)
+    p $ do
+      h2 $ string "Messages"
+      mconcat <$> mapM renderMessage msgs
 
 fieldSpecToHTML :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
-                => FieldInfo codec -> Text
+                => FieldInfo codec -> Build
 fieldSpecToHTML fi = do
-  forM_ (fieldSpecAnnotations fi) (H.p . H.string)
-  fromMaybe "" $ subfieldsToHTML (compoundField "" [("", fi)])
+  forM_ (fieldSpecAnnotations fi) (p . string)
+  renderSubfields (compoundField "" [("", fi)])
 
 fieldSpecAnnotations :: FieldInfo codec -> [String]
 fieldSpecAnnotations (AnnField ann fi) =
   ann : fieldSpecAnnotations fi
 fieldSpecAnnotations _ = []
 
-subfieldsToHTML :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
-                => FieldInfo codec -> Maybe Text
-subfieldsToHTML (AnnField _ fi) =
-  subfieldsToHTML fi
-subfieldsToHTML (AliasField afi) =
-  subfieldsToHTML (aliasFieldTarget afi)
-subfieldsToHTML (CompoundField cfi) = Just $ do
-  H.table $ do
-    mapM_ subfieldToTextTR (compoundFieldSubfields cfi)
-subfieldsToHTML _ = Nothing
+renderSubfields :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
+                => FieldInfo codec -> Build
+renderSubfields (AnnField _ fi) =
+  renderSubfields fi
+renderSubfields (AliasField afi) =
+  renderSubfields (aliasFieldTarget afi)
+renderSubfields (CompoundField cfi) = do
+  ul $ map renderSubfield (compoundFieldSubfields cfi)
+renderSubfields _ = return ()
 
-fieldTypeToText :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
-                => FieldInfo codec -> Text
-fieldTypeToText (AnnField _ fi) =
-  fieldTypeToText fi
-fieldTypeToText (AliasField fi) = do
-  H.strong $ H.string (aliasFieldName fi)
-  H.br
-  H.em "This type is an alias for: "
-  fieldTypeToText (aliasFieldTarget fi)
-fieldTypeToText (ListField fi) = do
-  H.strong $ do
-    "["
-    H.string (shortFieldType (listElemInfo fi))
-    "]"
-  H.br
-  H.em $ "#items: "
-  H.string $ formatFieldSize $ listSize fi
-  H.br
-  H.em $ "item type: "
-  fieldTypeToText (listElemInfo fi)
-  maybe "" (H.br <>) $
-    subfieldsToHTML (listElemInfo fi)
-fieldTypeToText (ChoiceField fi) = do
-  H.em "Choice"
-  let choiceLabel = case choiceCondition fi of
-        IndexField ref -> H.string ref
-        IndexFlag ref mask -> H.string ref <> " & " <> H.string (printf "0x%04x" mask)
-  H.table $ do
-    H.tr $ do
-      H.th choiceLabel
-      H.th "size"
-      H.th "type"
-    sequence_ $
-          [ H.tr $ do
-              H.td ! HA.class_ "choice-value" $ H.string (show n)
-              H.td ! HA.class_ "field-size" $ do
-                H.string $ formatFieldSize (fieldSize optInfo)
-              H.td $ do
-                fieldTypeToText optInfo
-                fromMaybe "" $ subfieldsToHTML optInfo
-          | (n :: Int, optInfo) <- zip [0,1..] (choiceFieldAlternatives fi)
-          ]
-fieldTypeToText (EnumField fi) = do
-  H.strong $ H.string (enumFieldType fi)
-  H.em " (enum)"
-  H.table $ do
-    H.tr $ do
-      H.th "value"
-      H.th "name"
-    sequence_ $
-        [ H.tr $ do
-            H.td ! HA.class_ "enum-value" $ H.string (show val)
-            H.td $ H.string name
-        | (val, name) <- enumFieldValues fi
-        ]
-fieldTypeToText (SumField fi) = do
-  H.strong $ H.string (sumFieldType fi)
-  H.em " (union)"
+renderFieldType :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
+                => FieldInfo codec -> Build
+renderFieldType (AnnField _ fi) =
+  renderFieldType fi
+renderFieldType (AliasField fi) = do
+  string (aliasFieldName fi)
+  newline
+
+  string "This type is an alias for: "
+  renderFieldType (aliasFieldTarget fi)
+renderFieldType (ListField fi) = do
+  string "["
+  string (shortFieldType (listElemInfo fi))
+  string "] "
+  newline
+
+  string "items: "
+  string $ formatFieldSize $ listSize fi
+  newline
+
+  string "item type: "
+  renderFieldType (listElemInfo fi)
+  renderSubfields (listElemInfo fi)
+renderFieldType (ChoiceField fi) = do
+  string "Choice "
+  case choiceCondition fi of
+    IndexField ref -> string ref
+    IndexFlag ref mask -> string ref >> string " & " >> string (printf "0x%04x" mask)
+  newline
+  ul [ string (show n) >> string " = " >> string (formatFieldSize (fieldSize optInfo)) >>
+       string ": " >> renderSubfields optInfo
+     | (n :: Int, optInfo) <- zip [0,1..] (choiceFieldAlternatives fi)
+     ]
+renderFieldType (EnumField fi) = do
+  string (enumFieldType fi)
+  string " (enum)"
+  newline
+  ul [ string (show val) >> string " = " >> string name
+     | (val, name) <- enumFieldValues fi
+     ]
+renderFieldType (SumField fi) = do
+  string (sumFieldType fi)
+  string " (union)"
+  newline
   case sumFieldAlternatives fi of
     [(_name, sfi)] ->
-      H.div $ fieldTypeToText sfi
+      p $ renderFieldType sfi
     sfis ->
-      H.table $ do
-        H.tr $ do
-          H.th "name"
-          H.th "value"
-        sequence_ $
-            [ H.tr $ do
-                H.td $ H.string name
-                H.td ! HA.class_ "sum-value" $ fieldTypeToText sfi
-            | (name, sfi) <- sfis
-            ]
-fieldTypeToText fi =
-  H.strong . H.string . fieldType $ fi
+      ul [ string name >> string ": " >> renderFieldType sfi
+         | (name, sfi) <- sfis
+         ]
+renderFieldType fi =
+  string . fieldType $ fi
 
-subfieldToTextTR :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
-                 => SubfieldInfo codec -> Text
-subfieldToTextTR sfi =
-  case subfieldsToHTML (subfieldInfo sfi) of
-    Nothing -> do
-      H.tr $ do
-        H.th ! HA.colspan "2" $ H.string (subfieldName sfi)
-      H.tr $ do
-        H.td ! HA.class_ "field-size" $ H.string $ formatFieldSize (fieldSize (subfieldInfo sfi))
-        H.td $ fieldTypeToText (subfieldInfo sfi)
-    Just sfiText -> do
-      H.tr $ do
-        H.th ! HA.colspan "2" $ H.string (subfieldName sfi)
-      H.tr $ do
-        H.td ! HA.rowspan "2" ! HA.class_ "field-size" $ do
-          H.string $ formatFieldSize (fieldSize (subfieldInfo sfi))
-        H.td ! HA.colspan "2" $ fieldTypeToText (subfieldInfo sfi)
-      H.tr $ do
-        H.td ! HA.colspan "2" $ sfiText
-
-wrapDocument :: Text -> Text
-wrapDocument body = do
-  H.docType
-  H.html $ do
-    H.head $ do
-      H.style $ do
-        "html { font-family: sans-serif; }"
-        "body { max-width: 60rem; margin-left: auto; margin-right: auto; padding: 1rem; }"
-        "h1 { font-size: 3rem; }"
-        "h2 { font-size: 2rem; }"
-        "h3 { font-size: 1.5rem; }"
-        "h4 { font-size: 1.25rem; }"
-        "h5 { font-size: 1.1rem; }"
-        "h6 { font-size: 1rem; }"
-        "div.state, div.message {"
-        " background-color: #EEE;"
-        " padding: 0.125rem 1rem; "
-        " margin: 1rem 0 1rem 0;"
-        "}"
-        "table { "
-        "border-collapse: collapse;"
-        "margin-top: 0.25rem;"
-        "margin-bottom: 0.25rem;"
-        "}"
-        "table td, table th {"
-        "  border: solid 1px black;"
-        "  text-align: left;"
-        "  vertical-align: top;"
-        "  padding: 0.25rem;"
-        "  background-color: white; "
-        "}"
-        "table th {"
-        "  background-color: #DDD"
-        "}"
-        ".choice-value,"
-        ".enum-value,"
-        ".field-size {"
-        "  text-align: right;"
-        "  width: 4rem;"
-        "}"
-        ".toc>.toc {"
-        "  padding-left: 2rem;"
-        "}"
-        ".state-diagram {"
-        "  padding: 2rem;"
-        "  width: 60%;"
-        "}"
-        ".client-agency {"
-        "  color: brown;"
-        "}"
-        ".server-agency {"
-        "  color: blue;"
-        "}"
-    H.body body
+renderSubfield :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
+                 => SubfieldInfo codec -> Build
+renderSubfield sfi = do
+  string (subfieldName sfi)
+  renderFieldType (subfieldInfo sfi)
+  string "  (size: "
+  string (formatFieldSize (fieldSize (subfieldInfo sfi)))
+  string ") "
+  renderSubfields (subfieldInfo sfi)
 
 renderProtocolDescriptions :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
-                           => [ProtocolDescription codec] -> Text
+                           => [ProtocolDescription codec] -> LText.Text
 renderProtocolDescriptions protos =
-  mconcat $
-    tocText : protoTexts
-  where
-    tocText = H.div ! HA.class_ "toc-master" $ do
-                H.h1 "Table Of Contents"
-                renderTOC $
-                  TOC ("Protocols", "") $
-                  map protocolTOC protos
-    protoTexts = map renderProtocol protos
+  LText.toLazyText $ execWriter (mapM_ renderProtocol protos)
 

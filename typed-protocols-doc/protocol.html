@@ -1,0 +1,525 @@
+<!DOCTYPE HTML>
+
+<html>
+    <head>
+        <style>
+            html { font-family: sans-serif; }
+            body { max-width: 60rem; margin-left: auto; margin-right: auto; padding: 1rem; }
+            h1 { font-size: 3rem; }
+            h2 { font-size: 2rem; }
+            h3 { font-size: 1.5rem; }
+            h4 { font-size: 1.25rem; }
+            h5 { font-size: 1.1rem; }
+            h6 { font-size: 1rem; }
+            div.state, div.message {
+             background-color: #EEE;
+             padding: 0.125rem 1rem; 
+             margin: 1rem 0 1rem 0;
+            }
+            table { 
+            border-collapse: collapse;
+            margin-top: 0.25rem;
+            margin-bottom: 0.25rem;
+            }
+            table td, table th {
+              border: solid 1px black;
+              text-align: left;
+              vertical-align: top;
+              padding: 0.25rem;
+              background-color: white; 
+            }
+            table th {
+              background-color: #DDD
+            }
+            .choice-value,
+            .enum-value,
+            .field-size {
+              text-align: right;
+              width: 4rem;
+            }
+            .toc>.toc {
+              padding-left: 2rem;
+            }
+            .state-diagram {
+              padding: 2rem;
+              width: 60%;
+            }
+            .client-agency {
+              color: brown;
+            }
+            .server-agency {
+              color: blue;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="toc-master">
+            <h1>
+                Table Of Contents
+            </h1>
+            <section class="toc">
+                <a href="#">
+                    Protocols
+                </a>
+                <section class="toc">
+                    <a href="#TestProtocol">
+                        TestProtocol
+                    </a>
+                    <section class="toc">
+                        <a href="#TestProtocol_states">
+                            States
+                        </a>
+                        <section class="toc">
+                            <a href="#TestProtocol_state_IdleState">
+                                IdleState
+                            </a>
+                        </section>
+                        <section class="toc">
+                            <a href="#TestProtocol_state_AwaitingPongState">
+                                AwaitingPongState
+                            </a>
+                        </section>
+                        <section class="toc">
+                            <a href="#TestProtocol_state_EndState">
+                                EndState
+                            </a>
+                        </section>
+                    </section>
+                    <section class="toc">
+                        <a href="#TestProtocol_messages">
+                            Messages
+                        </a>
+                        <section class="toc">
+                            <a href="#TestProtocol_message_PingMessage">
+                                PingMessage
+                            </a>
+                        </section>
+                        <section class="toc">
+                            <a href="#TestProtocol_message_PongMessage">
+                                PongMessage
+                            </a>
+                        </section>
+                        <section class="toc">
+                            <a href="#TestProtocol_message_MadPongMessage">
+                                MadPongMessage
+                            </a>
+                        </section>
+                        <section class="toc">
+                            <a href="#TestProtocol_message_EndMessage">
+                                EndMessage
+                            </a>
+                        </section>
+                    </section>
+                </section>
+            </section>
+        </div>
+        <section class="protocol">
+            <h1 id="TestProtocol">
+                TestProtocol
+            </h1>
+            Version ID: 
+            <code>
+                
+            </code>
+            <section>
+                <h2 id="TestProtocol_state_diagram">
+                    State Diagram
+                </h2>
+                <img src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIKICJodHRwOi8vd3d3LnczLm9yZy9HcmFwaGljcy9TVkcvMS4xL0RURC9zdmcxMS5kdGQiPgo8IS0tIEdlbmVyYXRlZCBieSBncmFwaHZpeiB2ZXJzaW9uIDIuNDMuMCAoMCkKIC0tPgo8IS0tIFRpdGxlOiAlMyBQYWdlczogMSAtLT4KPHN2ZyB3aWR0aD0iMjY0cHQiIGhlaWdodD0iMTI1cHQiCiB2aWV3Qm94PSIwLjAwIDAuMDAgMjY0LjA0IDEyNS4wMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayI+CjxnIGlkPSJncmFwaDAiIGNsYXNzPSJncmFwaCIgdHJhbnNmb3JtPSJzY2FsZSgxIDEpIHJvdGF0ZSgwKSB0cmFuc2xhdGUoNCAxMjEpIj4KPHRpdGxlPiUzPC90aXRsZT4KPHBvbHlnb24gZmlsbD0id2hpdGUiIHN0cm9rZT0idHJhbnNwYXJlbnQiIHBvaW50cz0iLTQsNCAtNCwtMTIxIDI2MC4wNCwtMTIxIDI2MC4wNCw0IC00LDQiLz4KPCEtLSAwIC0tPgo8ZyBpZD0ibm9kZTEiIGNsYXNzPSJub2RlIj4KPHRpdGxlPjA8L3RpdGxlPgo8ZWxsaXBzZSBmaWxsPSJub25lIiBzdHJva2U9ImJsdWUiIGN4PSI5Mi4yOSIgY3k9Ii05OSIgcng9IjQ4Ljk5IiByeT0iMTgiLz4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iOTIuMjkiIHk9Ii05NS4zIiBmb250LWZhbWlseT0iTm90byBTYW5zIiBmb250LXNpemU9IjE0LjAwIj5JZGxlU3RhdGU8L3RleHQ+CjwvZz4KPCEtLSAxIC0tPgo8ZyBpZD0ibm9kZTIiIGNsYXNzPSJub2RlIj4KPHRpdGxlPjE8L3RpdGxlPgo8ZWxsaXBzZSBmaWxsPSJub25lIiBzdHJva2U9ImJyb3duIiBjeD0iOTIuMjkiIGN5PSItMTgiIHJ4PSI5Mi4wOCIgcnk9IjE4Ii8+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjkyLjI5IiB5PSItMTQuMyIgZm9udC1mYW1pbHk9Ik5vdG8gU2FucyIgZm9udC1zaXplPSIxNC4wMCI+QXdhaXRpbmdQb25nU3RhdGU8L3RleHQ+CjwvZz4KPCEtLSAwJiM0NTsmZ3Q7MSAtLT4KPGcgaWQ9ImVkZ2UxIiBjbGFzcz0iZWRnZSI+Cjx0aXRsZT4wJiM0NTsmZ3Q7MTwvdGl0bGU+CjxwYXRoIGZpbGw9Im5vbmUiIHN0cm9rZT0iYmxhY2siIGQ9Ik01Mi41OSwtODguNTRDMzkuMzcsLTgzLjI5IDI2LjA1LC03NS4yNSAxOC4yOSwtNjMgMTEuNDcsLTUyLjIzIDE3LjQxLC00My43NiAyOC4zNSwtMzcuMjQiLz4KPHBvbHlnb24gZmlsbD0iYmxhY2siIHN0cm9rZT0iYmxhY2siIHBvaW50cz0iMzAuMTksLTQwLjIzIDM3LjU3LC0zMi42MyAyNy4wNiwtMzMuOTcgMzAuMTksLTQwLjIzIi8+Cjx0ZXh0IHRleHQtYW5jaG9yPSJtaWRkbGUiIHg9IjQ0LjI5IiB5PSItNTYuNiIgZm9udC1mYW1pbHk9Ik5vdG8gU2FucyIgZm9udC1zaXplPSI4LjAwIj5QaW5nTWVzc2FnZTwvdGV4dD4KPC9nPgo8IS0tIDEmIzQ1OyZndDswIC0tPgo8ZyBpZD0iZWRnZTIiIGNsYXNzPSJlZGdlIj4KPHRpdGxlPjEmIzQ1OyZndDswPC90aXRsZT4KPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSJibGFjayIgZD0iTTkyLjI5LC0zNi4xMUM5Mi4yOSwtNDYuMjUgOTIuMjksLTU5LjMyIDkyLjI5LC03MC44NSIvPgo8cG9seWdvbiBmaWxsPSJibGFjayIgc3Ryb2tlPSJibGFjayIgcG9pbnRzPSI4OC43OSwtNzAuODYgOTIuMjksLTgwLjg2IDk1Ljc5LC03MC44NiA4OC43OSwtNzAuODYiLz4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMTI3Ljc5IiB5PSItNTYuNiIgZm9udC1mYW1pbHk9Ik5vdG8gU2FucyIgZm9udC1zaXplPSI4LjAwIj5NYWRQb25nTWVzc2FnZTwvdGV4dD4KPC9nPgo8IS0tIDEmIzQ1OyZndDswIC0tPgo8ZyBpZD0iZWRnZTMiIGNsYXNzPSJlZGdlIj4KPHRpdGxlPjEmIzQ1OyZndDswPC90aXRsZT4KPHBhdGggZmlsbD0ibm9uZSIgc3Ryb2tlPSJibGFjayIgZD0iTTE0NS41MiwtMzIuODZDMTYxLjM5LC0zOS44NSAxNzIuNjEsLTQ5LjcxIDE2NC4yOSwtNjMgMTU4LjY1LC03Mi4wMiAxNDkuOTQsLTc4Ljc3IDE0MC41MSwtODMuODEiLz4KPHBvbHlnb24gZmlsbD0iYmxhY2siIHN0cm9rZT0iYmxhY2siIHBvaW50cz0iMTM4Ljg4LC04MC43MSAxMzEuMzIsLTg4LjEzIDE0MS44NiwtODcuMDQgMTM4Ljg4LC04MC43MSIvPgo8dGV4dCB0ZXh0LWFuY2hvcj0ibWlkZGxlIiB4PSIxOTMuMjkiIHk9Ii01Ni42IiBmb250LWZhbWlseT0iTm90byBTYW5zIiBmb250LXNpemU9IjguMDAiPlBvbmdNZXNzYWdlPC90ZXh0Pgo8L2c+CjwhLS0gMiAtLT4KPGcgaWQ9Im5vZGUzIiBjbGFzcz0ibm9kZSI+Cjx0aXRsZT4yPC90aXRsZT4KPGVsbGlwc2UgZmlsbD0ibm9uZSIgc3Ryb2tlPSJibGFjayIgY3g9IjIwNy4yOSIgY3k9Ii05OSIgcng9IjQ4Ljk5IiByeT0iMTgiLz4KPHRleHQgdGV4dC1hbmNob3I9Im1pZGRsZSIgeD0iMjA3LjI5IiB5PSItOTUuMyIgZm9udC1mYW1pbHk9Ik5vdG8gU2FucyIgZm9udC1zaXplPSIxNC4wMCI+RW5kU3RhdGU8L3RleHQ+CjwvZz4KPC9nPgo8L3N2Zz4K" class="state-diagram">
+            </section>
+            <section>
+                <h2 id="TestProtocol_states">
+                    States
+                </h2>
+                <div class="state">
+                    <h3 id="TestProtocol_state_IdleState">
+                        IdleState
+                    </h3>
+                    <p>
+                        Agency: 
+                        <strong class="server-agency">
+                            server
+                        </strong>
+                    </p>
+                    <h4>
+                        Messages from here:
+                    </h4>
+                    <ul>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_PingMessage">
+                                    PingMessage
+                                </a>
+                            </strong>
+                             (to 
+                            <a href="#TestProtocol_state_AwaitingPongState">
+                                AwaitingPongState
+                            </a>
+                            )
+                        </li>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_EndMessage">
+                                    EndMessage
+                                </a>
+                            </strong>
+                             (to 
+                            <a href="#TestProtocol_state_EndState">
+                                EndState
+                            </a>
+                            )
+                        </li>
+                    </ul>
+                    <h4>
+                        Messages to here:
+                    </h4>
+                    <ul>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_PongMessage">
+                                    PongMessage
+                                </a>
+                            </strong>
+                             (from 
+                            <a href="#TestProtocol_state_AwaitingPongState">
+                                AwaitingPongState
+                            </a>
+                            )
+                        </li>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_MadPongMessage">
+                                    MadPongMessage
+                                </a>
+                            </strong>
+                             (from 
+                            <a href="#TestProtocol_state_AwaitingPongState">
+                                AwaitingPongState
+                            </a>
+                            )
+                        </li>
+                    </ul>
+                </div>
+                <div class="state">
+                    <h3 id="TestProtocol_state_AwaitingPongState">
+                        AwaitingPongState
+                    </h3>
+                    <p>
+                        Agency: 
+                        <strong class="client-agency">
+                            client
+                        </strong>
+                    </p>
+                    <h4>
+                        Messages from here:
+                    </h4>
+                    <ul>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_PongMessage">
+                                    PongMessage
+                                </a>
+                            </strong>
+                             (to 
+                            <a href="#TestProtocol_state_IdleState">
+                                IdleState
+                            </a>
+                            )
+                        </li>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_MadPongMessage">
+                                    MadPongMessage
+                                </a>
+                            </strong>
+                             (to 
+                            <a href="#TestProtocol_state_IdleState">
+                                IdleState
+                            </a>
+                            )
+                        </li>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_EndMessage">
+                                    EndMessage
+                                </a>
+                            </strong>
+                             (to 
+                            <a href="#TestProtocol_state_EndState">
+                                EndState
+                            </a>
+                            )
+                        </li>
+                    </ul>
+                    <h4>
+                        Messages to here:
+                    </h4>
+                    <ul>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_PingMessage">
+                                    PingMessage
+                                </a>
+                            </strong>
+                             (from 
+                            <a href="#TestProtocol_state_IdleState">
+                                IdleState
+                            </a>
+                            )
+                        </li>
+                    </ul>
+                </div>
+                <div class="state">
+                    <h3 id="TestProtocol_state_EndState">
+                        EndState
+                    </h3>
+                    <p>
+                        Agency: 
+                        <strong class="nobody-agency">
+                            nobody
+                        </strong>
+                    </p>
+                    <h4>
+                        Messages from here:
+                    </h4>
+                    <ul>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_EndMessage">
+                                    EndMessage
+                                </a>
+                            </strong>
+                             (to 
+                            <a href="#TestProtocol_state_EndState">
+                                EndState
+                            </a>
+                            )
+                        </li>
+                    </ul>
+                    <h4>
+                        Messages to here:
+                    </h4>
+                    <ul>
+                        <li>
+                            <strong>
+                                <a href="#TestProtocol_message_EndMessage">
+                                    EndMessage
+                                </a>
+                            </strong>
+                             (from 
+                            <span>
+                                any state
+                            </span>
+                            )
+                        </li>
+                    </ul>
+                </div>
+            </section>
+            <section>
+                <h2 id="TestProtocol_messages">
+                    Messages
+                </h2>
+                <div class="message">
+                    <h3 id="TestProtocol_message_PingMessage">
+                        PingMessage
+                    </h3>
+                    <h4>
+                        State Transition
+                    </h4>
+                    <p>
+                        <a href="#TestProtocol_state_IdleState">
+                            IdleState
+                        </a>
+                         -&gt; 
+                        <a href="#TestProtocol_state_AwaitingPongState">
+                            AwaitingPongState
+                        </a>
+                    </p>
+                    <h4>
+                        Serialization Format
+                    </h4>
+                    <table>
+                        <tr>
+                            <th colspan="2">
+                                
+                            </th>
+                        </tr>
+                        <tr>
+                            <td class="field-size">
+                                2
+                            </td>
+                            <td>
+                                <strong>
+                                    PingEnum
+                                </strong>
+                                <em>
+                                     (enum)
+                                </em>
+                                <table>
+                                    <tr>
+                                        <th>
+                                            value
+                                        </th>
+                                        <th>
+                                            name
+                                        </th>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="message">
+                    <h3 id="TestProtocol_message_PongMessage">
+                        PongMessage
+                    </h3>
+                    <h4>
+                        State Transition
+                    </h4>
+                    <p>
+                        <a href="#TestProtocol_state_AwaitingPongState">
+                            AwaitingPongState
+                        </a>
+                         -&gt; 
+                        <a href="#TestProtocol_state_IdleState">
+                            IdleState
+                        </a>
+                    </p>
+                    <h4>
+                        Serialization Format
+                    </h4>
+                    <table>
+                        <tr>
+                            <th colspan="2">
+                                
+                            </th>
+                        </tr>
+                        <tr>
+                            <td class="field-size">
+                                2
+                            </td>
+                            <td>
+                                <strong>
+                                    PongEnum
+                                </strong>
+                                <em>
+                                     (enum)
+                                </em>
+                                <table>
+                                    <tr>
+                                        <th>
+                                            value
+                                        </th>
+                                        <th>
+                                            name
+                                        </th>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="message">
+                    <h3 id="TestProtocol_message_MadPongMessage">
+                        MadPongMessage
+                    </h3>
+                    <h4>
+                        State Transition
+                    </h4>
+                    <p>
+                        <a href="#TestProtocol_state_AwaitingPongState">
+                            AwaitingPongState
+                        </a>
+                         -&gt; 
+                        <a href="#TestProtocol_state_IdleState">
+                            IdleState
+                        </a>
+                    </p>
+                    <h4>
+                        Serialization Format
+                    </h4>
+                    <table>
+                        <tr>
+                            <th colspan="2">
+                                
+                            </th>
+                        </tr>
+                        <tr>
+                            <td class="field-size">
+                                2
+                            </td>
+                            <td>
+                                <strong>
+                                    PongEnum
+                                </strong>
+                                <em>
+                                     (enum)
+                                </em>
+                                <table>
+                                    <tr>
+                                        <th>
+                                            value
+                                        </th>
+                                        <th>
+                                            name
+                                        </th>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="message">
+                    <h3 id="TestProtocol_message_EndMessage">
+                        EndMessage
+                    </h3>
+                    <h4>
+                        State Transition
+                    </h4>
+                    <p>
+                        <span>
+                            any state
+                        </span>
+                         -&gt; 
+                        <a href="#TestProtocol_state_EndState">
+                            EndState
+                        </a>
+                    </p>
+                    <h4>
+                        Serialization Format
+                    </h4>
+                    <table>
+                        <tr>
+                            <th colspan="2">
+                                
+                            </th>
+                        </tr>
+                        <tr>
+                            <td class="field-size">
+                                2
+                            </td>
+                            <td>
+                                <strong>
+                                    PingEnum
+                                </strong>
+                                <em>
+                                     (enum)
+                                </em>
+                                <table>
+                                    <tr>
+                                        <th>
+                                            value
+                                        </th>
+                                        <th>
+                                            name
+                                        </th>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </section>
+        </section>
+    </body>
+</html>
