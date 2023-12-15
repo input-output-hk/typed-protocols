@@ -10,6 +10,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Network.TypedProtocol.Documentation.TestProtocol
 where
@@ -22,7 +23,16 @@ import Data.Proxy
 import Data.Word
 import Data.Typeable
 import Data.SerDoc.Class
+import Data.SerDoc.TH
 import Data.Text (Text)
+
+data PongInfo =
+  PongInfo
+    { pongTimestamp :: Word64
+    , pongPeerID :: Word64
+    , pongMessage :: Text
+    }
+    deriving (Show, Eq)
 
 data TestProtocol a where
   -- | Idle state: server waits for ping.
@@ -38,7 +48,7 @@ instance Protocol (TestProtocol a) where
   data Message (TestProtocol a) st st' where
     PingMessage :: Message (TestProtocol a) IdleState AwaitingPongState
     PongMessage :: Message (TestProtocol a) AwaitingPongState IdleState
-    MadPongMessage :: Message (TestProtocol a) AwaitingPongState IdleState
+    ComplexPongMessage :: Message (TestProtocol a) AwaitingPongState IdleState
     EndMessage :: Message (TestProtocol a) st EndState
 
   data ServerHasAgency st where
@@ -69,7 +79,7 @@ instance Codec (TestCodec a) where
   type MonadEncode (TestCodec a) = Identity
   type MonadDecode (TestCodec a) = Except String
 
-data PongEnum = NormalPong | MadPong
+data PongEnum = NormalPong | ComplexPong
   deriving (Show, Read, Eq, Ord, Enum, Bounded, Typeable)
 
 data PingEnum = PingRequest | EndPing
@@ -128,8 +138,17 @@ instance HasInfo (TestCodec a) Word32 where
 instance HasInfo (TestCodec a) Word64 where
   info _ _ = basicField "Word64" (FixedSize 8)
 
-instance HasInfo (TestCodec b) (Message (TestProtocol a) AwaitingPongState IdleState) where
-  info codec _ = infoOf "NormalPong" $ info codec (Proxy @PongEnum)
+$(deriveSerDoc ''TestCodec [] ''PongInfo)
 
-instance HasInfo (TestCodec b) (Message (TestProtocol a) AwaitingPongState AwaitingPongState) where
-  info codec _ = infoOf "MadPong" $ info codec (Proxy @PongEnum)
+instance HasInfo (TestCodec b) (Message (TestProtocol a) AwaitingPongState IdleState) where
+  info codec _ =
+    compoundField "Pong"
+      [ ("pongType", info codec (Proxy @PongEnum))
+      , ("pongData"
+        , choiceField
+            (IndexField "pongType")
+            [ info codec (Proxy @())
+            , info codec (Proxy @PongInfo)
+            ]
+        )
+      ]

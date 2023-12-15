@@ -38,6 +38,11 @@ indent = do
     lvl <- ask
     replicateM_ lvl (tell " ")
 
+assertLineStart :: Build
+assertLineStart = do
+  atStart <- get
+  unless atStart newline
+
 withIndent :: Int -> Build -> Build
 withIndent i = local (+ i)
 
@@ -52,34 +57,54 @@ newline = do
   string "\n"
   put True
 
+buildBare :: Build -> LText.Text
+buildBare =
+  LText.unwords . LText.words . runBuild
+
 p :: Build -> Build
 p b = b >> newline
 
 stringLine :: String -> Build
 stringLine = p . string
 
-h :: Int -> Build -> Build
-h n b = do
+h :: Int -> String -> Build
+h 1 s = do
+  assertLineStart
+  string s
+  newline
+  stringLine $ replicate (length s) '='
+h 2 s = do
+  assertLineStart
+  string s
+  newline
+  stringLine $ replicate (length s) '-'
+  newline
+h n s = do
+  assertLineStart
   replicateM_ n $ string "#"
   string " "
-  b
+  string s
   newline
 
 ul :: [Build] -> Build
-ul items = forM_ items $ \item -> do
-  string "- "
-  withIndent 2 item
-  newline
+ul items = do
+  forM_ items $ \item -> do
+    assertLineStart
+    string "- "
+    withIndent 2 item
+  assertLineStart
 
 ol :: [(Int, Build)] -> Build
-ol = mapM_ (uncurry renderItem)
+ol items = do
+  mapM_ (uncurry renderItem) items
+  assertLineStart
   where
     renderItem :: Int -> Build -> Build
     renderItem n item = do
+      assertLineStart
       string . show $ n
       string ". "
       withIndent 2 item
-      newline
 
 link :: String -> Build -> Build
 link url label = do
@@ -136,15 +161,16 @@ renderHaddock (Haddock.DocHeader (Haddock.Header level a)) = do
                   1 -> h 1
                   2 -> h 2
                   n -> h n
-  renderH $ renderHaddock a
+  renderH . LText.unpack . buildBare $ renderHaddock a
 renderHaddock (Haddock.DocTable (Haddock.Table headerRows bodyRows)) = do
   mapM_ row headerRows
   stringLine "-----"
   mapM_ row bodyRows
   where
     row (Haddock.TableRow cells) = do
+      assertLineStart
       sequence_ . intersperse (string " | ") . map renderCell $ cells
-      newline
+      assertLineStart
     renderCell (Haddock.TableCell _ _ content) =
       renderHaddock content
 
@@ -176,7 +202,8 @@ renderState _ (AnyState, _, _) =
   return ()
 renderState msgs (State stateName, descriptions, agency) =
   p $ do
-    h 3 $ string stateName
+    h 3 stateName
+    newline
     renderDescriptions descriptions
     p $ do
       string "Agency: "
@@ -185,10 +212,10 @@ renderState msgs (State stateName, descriptions, agency) =
         ServerAgencyID -> string "server"
         NobodyAgencyID -> string "nobody"
     unless (null messagesFromHere) $ do
-      h 4 $ string "Messages from here:"
+      h 4 "Messages from here:"
       ul $ map (renderMessageRef "to") messagesFromHere
     unless (null messagesToHere) $ do
-      h 4 $ string "Messages to here:"
+      h 4 "Messages to here:"
       ul $ map (renderMessageRef "from") messagesToHere
   where
     messagesFromHere = filter (matchState stateName . messageFromState) msgs
@@ -226,18 +253,20 @@ renderMessage :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
               => MessageDescription codec -> Build
 renderMessage msg =
   p $ do
-    h 3 $ string (messageName msg)
+    h 3 $ messageName msg
+    newline
     renderDescriptions (messageDescription msg)
-    h 4 $ string "State Transition"
+    h 4 "State Transition"
     p $ do
       formatStateRef (messageFromState msg)
       string " -> "
       formatStateRef (messageToState msg)
     unless (null $ messagePayload msg) $ do
-      h 4 $ string "Payload"
+      h 4 "Payload"
       ul $ map string (messagePayload msg)
-    h 4 $ string "Serialization Format"
-    fieldSpecToHTML (messageInfo msg)
+    h 4 "Serialization Format"
+    renderFieldSpec (messageInfo msg)
+    newline
   
 protocolTOC :: ProtocolDescription codec -> TOC (String, String)
 protocolTOC proto =
@@ -256,20 +285,20 @@ renderProtocol proto = do
   let protoName = protocolName proto
       msgs = protocolMessages proto
   p $ do
-    h 1 $ string protoName
+    h 1 protoName
     string (protocolIdentifier proto)
-    newline
+    assertLineStart
     renderDescriptions (protocolDescription proto)
     p $ do
-      h 2 $ string "States"
+      h 2 "States"
       mconcat <$> mapM (renderState msgs) (protocolStates proto)
     p $ do
-      h 2 $ string "Messages"
+      h 2 "Messages"
       mconcat <$> mapM renderMessage msgs
 
-fieldSpecToHTML :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
+renderFieldSpec :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
                 => FieldInfo codec -> Build
-fieldSpecToHTML fi = do
+renderFieldSpec fi = do
   forM_ (fieldSpecAnnotations fi) (p . string)
   renderSubfields (compoundField "" [("", fi)])
 
@@ -294,7 +323,7 @@ renderFieldType (AnnField _ fi) =
   renderFieldType fi
 renderFieldType (AliasField fi) = do
   string (aliasFieldName fi)
-  newline
+  assertLineStart
 
   string "This type is an alias for: "
   renderFieldType (aliasFieldTarget fi)
@@ -302,36 +331,40 @@ renderFieldType (ListField fi) = do
   string "["
   string (shortFieldType (listElemInfo fi))
   string "] "
-  newline
+  assertLineStart
 
   string "items: "
   string $ formatFieldSize $ listSize fi
-  newline
+  assertLineStart
 
   string "item type: "
   renderFieldType (listElemInfo fi)
   renderSubfields (listElemInfo fi)
 renderFieldType (ChoiceField fi) = do
-  string "Choice "
+  string "Choice ("
   case choiceCondition fi of
     IndexField ref -> string ref
     IndexFlag ref mask -> string ref >> string " & " >> string (printf "0x%04x" mask)
-  newline
-  ul [ string (show n) >> string " = " >> string (formatFieldSize (fieldSize optInfo)) >>
-       string ": " >> renderSubfields optInfo
+  string ")"
+  assertLineStart
+  ul [ string (show n) >>
+       string ": " >> renderSubfields optInfo >>
+       assertLineStart >>
+       string "size: " >> string (formatFieldSize (fieldSize optInfo)) >>
+       assertLineStart
      | (n :: Int, optInfo) <- zip [0,1..] (choiceFieldAlternatives fi)
      ]
 renderFieldType (EnumField fi) = do
   string (enumFieldType fi)
   string " (enum)"
-  newline
+  assertLineStart
   ul [ string (show val) >> string " = " >> string name
      | (val, name) <- enumFieldValues fi
      ]
 renderFieldType (SumField fi) = do
   string (sumFieldType fi)
   string " (union)"
-  newline
+  assertLineStart
   case sumFieldAlternatives fi of
     [(_name, sfi)] ->
       p $ renderFieldType sfi
@@ -346,15 +379,17 @@ renderSubfield :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
                  => SubfieldInfo codec -> Build
 renderSubfield sfi = do
   string (subfieldName sfi)
+  assertLineStart
   renderFieldType (subfieldInfo sfi)
-  string "(size: "
+  assertLineStart
+  string "size: "
   string (formatFieldSize (fieldSize (subfieldInfo sfi)))
-  string ") "
+  string " "
   renderSubfields (subfieldInfo sfi)
 
 renderProtocolDescriptions :: (HasInfo codec Word32, HasInfo codec (DefEnumEncoding codec))
                            => [ProtocolDescription codec] -> LText.Text
 renderProtocolDescriptions protos = runBuild $ do
-    h 1 $ stringLine "Table Of Contents"
+    h 1 "Table Of Contents"
     p $ renderTOC (TOC ("Protocols","") (map protocolTOC protos))
     mapM_ renderProtocol protos
