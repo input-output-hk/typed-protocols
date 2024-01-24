@@ -31,48 +31,48 @@ p_correctAgencies :: ProtocolDescription (TestCodec ()) -> Property
 p_correctAgencies d =
   counterexample (show stateAgencyMap) .
   once $
-  counterexample "EndState" (lookup "EndState" stateAgencyMap === Just NobodyAgencyID)
+  counterexample "EndState" (lookup (State "EndState") stateAgencyMap === Just NobodyAgencyID)
   .&&.
-  counterexample "InitialState" (lookup "InitialState" stateAgencyMap === Just ServerAgencyID)
+  counterexample "InitialState" (lookup (State "InitialState") stateAgencyMap === Just ServerAgencyID)
   .&&.
-  counterexample "IdleState" (lookup "IdleState" stateAgencyMap === Just ServerAgencyID)
+  counterexample "IdleState" (lookup (State "IdleState") stateAgencyMap === Just ServerAgencyID)
   .&&.
-  counterexample "WaitForConfirmationState" (lookup "WaitForConfirmationState" stateAgencyMap === Just ClientAgencyID)
+  counterexample "WaitForConfirmationState" (lookup (State "WaitForConfirmationState") stateAgencyMap === Just ClientAgencyID)
   .&&.
-  counterexample "WaitForInfoState" (lookup "WaitForInfoState" stateAgencyMap === Just ClientAgencyID)
+  counterexample "WaitForInfoState" (lookup (State "WaitForInfoState") stateAgencyMap === Just ClientAgencyID)
   .&&.
-  counterexample "WaitForPublicKeyState" (lookup "WaitForPublicKeyState" stateAgencyMap === Just ClientAgencyID)
+  counterexample "WaitForPublicKeyState" (lookup (State "WaitForPublicKeyState") stateAgencyMap === Just ClientAgencyID)
   where
     stateAgencyMap = [(state, agency) | (state, _, agency) <- protocolStates d]
 
 p_correctStateTransitions :: ProtocolDescription (TestCodec ()) -> Property
 p_correctStateTransitions d =
   once $
-    checkMessage "VersionMessage" "InitialState" "IdleState"
+    checkMessage "VersionMessage" (State "InitialState") (State "IdleState")
     .&&.
-    checkMessage "GenStagedKeyMessage" "IdleState" "WaitForPublicKeyState"
+    checkMessage "GenStagedKeyMessage" (State "IdleState") (State "WaitForPublicKeyState")
     .&&.
-    checkMessage "QueryStagedKeyMessage" "IdleState" "WaitForPublicKeyState"
+    checkMessage "QueryStagedKeyMessage" (State "IdleState") (State "WaitForPublicKeyState")
     .&&.
-    checkMessage "DropStagedKeyMessage" "IdleState" "WaitForPublicKeyState"
+    checkMessage "DropStagedKeyMessage" (State "IdleState") (State "WaitForPublicKeyState")
     .&&.
-    checkMessage "PublicKeyMessage" "WaitForPublicKeyState" "IdleState"
+    checkMessage "PublicKeyMessage" (State "WaitForPublicKeyState") (State "IdleState")
     .&&.
-    checkMessage "InstallKeyMessage" "IdleState" "WaitForConfirmationState"
+    checkMessage "InstallKeyMessage" (State "IdleState") (State "WaitForConfirmationState")
     .&&.
-    checkMessage "InstallResultMessage" "WaitForConfirmationState" "IdleState"
+    checkMessage "InstallResultMessage" (State "WaitForConfirmationState") (State "IdleState")
     .&&.
-    checkMessage "RequestInfoMessage" "IdleState" "WaitForInfoState"
+    checkMessage "RequestInfoMessage" (State "IdleState") (State "WaitForInfoState")
     .&&.
-    checkMessage "InfoMessage" "WaitForInfoState" "IdleState"
+    checkMessage "InfoMessage" (State "WaitForInfoState") (State "IdleState")
     .&&.
-    checkMessage "AbortMessage" "InitialState" "EndState"
+    checkMessage "AbortMessage" (State "InitialState") (State "EndState")
     .&&.
-    checkMessage "EndMessage" "IdleState" "EndState"
+    checkMessage "EndMessage" (State "IdleState") (State "EndState")
     .&&.
-    checkMessage "ProtocolErrorMessage" "st" "EndState"
+    checkMessage "ProtocolErrorMessage" AnyState (State "EndState")
   where
-    checkMessage :: String -> String -> String -> Property
+    checkMessage :: String -> StateRef -> StateRef -> Property
     checkMessage msgName fromState toState =
       counterexample msgName $ do
         msg <- findMessage msgName

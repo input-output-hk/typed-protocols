@@ -18,22 +18,17 @@
 module Network.TypedProtocol.Tests.ControlProtocol where
 
 import Network.TypedProtocol.Documentation
-import Network.TypedProtocol.Documentation.TestProtocol (TestCodec (..))
+import Network.TypedProtocol.Documentation.TestProtocol (TestCodec)
 
 import Data.ByteString ( ByteString )
-import qualified Data.ByteString as BS
 import Data.Kind
-import Data.Proxy ( Proxy (..) )
 import Data.SerDoc.Class
 import Data.SerDoc.Info
 import Data.SerDoc.TH
 import Data.Text ( Text )
-import qualified Data.Text as Text
 import Data.Typeable
 import Data.Word
-import GHC.Generics ( Generic )
 import Network.TypedProtocol.Core
-import Data.Text.Encoding
 
 data AgentInfo c =
   AgentInfo
@@ -75,10 +70,10 @@ newtype VersionIdentifier = VersionIdentifier { versionIdentifierData :: ByteStr
   deriving (Show, Eq, Ord)
 
 instance HasInfo (TestCodec ()) VersionIdentifier where
-  info codec _ = basicField "Bytes" (FixedSize 32)
+  info _ _ = basicField "Bytes" (FixedSize 32)
 
 instance HasInfo (TestCodec ()) (FakeKey k) where
-  info codec _ = basicField "Bytes" (FixedSize 128)
+  info _ _ = basicField "Bytes" (FixedSize 128)
 
 data BootstrapInfo =
   BootstrapInfo
