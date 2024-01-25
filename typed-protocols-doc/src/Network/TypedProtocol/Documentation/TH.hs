@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
@@ -10,7 +11,10 @@ where
 import Network.TypedProtocol.Documentation.Types
 
 import Control.Monad
-import Data.Maybe
+#if MIN_VERSION_template_haskell(2,17,0)
+-- This import is only needed when 'getDoc' is available.
+import Data.Maybe (maybeToList)
+#endif
 import Data.Proxy
 import Language.Haskell.TH
 import Language.Haskell.TH.Datatype
@@ -91,8 +95,9 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
    |]
 
 unearthType :: Type -> Type
+#if MIN_VERSION_template_haskell(2,17,0)
 unearthType (AppT (AppT MulArrowT _) t) = unearthType t
--- unearthType (AppT a _) = unearthType a
+#endif
 unearthType (SigT a _) = unearthType a
 unearthType t = t
 
@@ -116,7 +121,12 @@ prettyTy = snd . go
 
 getDescription :: Name -> Q [Description]
 getDescription name = do
+#if MIN_VERSION_template_haskell(2,17,0)
   haddock <- maybeToList <$> getDoc (DeclDoc name)
+#else
+  -- 'getDoc' does not exist before template-haskell-2.17.0
+  let haddock = []
+#endif
   annotations <- reifyAnnotations (AnnLookupName name)
   return $ (Description . (:[]) <$> haddock) ++ annotations
 
@@ -140,9 +150,15 @@ describeProtocolMessage protoTyCon protoTyArgs codecTyCon codecTyArgs msgName = 
 
 
   let payloads = constructorFields msgInfo
+#if MIN_VERSION_template_haskell(2,17,0)
       tyVarName :: TyVarBndr a -> Name
       tyVarName (PlainTV n _) = n
       tyVarName (KindedTV n _ _) = n
+#else
+      tyVarName :: TyVarBndr -> Name
+      tyVarName (PlainTV n) = n
+      tyVarName (KindedTV n _) = n
+#endif
 
       findType :: Name -> Cxt -> Type
       findType n (AppT (AppT EqualityT (VarT vn)) t : _)
