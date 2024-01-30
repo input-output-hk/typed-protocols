@@ -7,14 +7,22 @@ license:            Apache-2.0
 license-file:       LICENSE
 author:             Tobias Dammers
 maintainer:         tobias@well-typed.com
-copyright:          2023 IO Global
+copyright:          2023 Input Output Global Inc (IOG), 2023-2024 Intersect
 category:           Network
 build-type:         Simple
--- extra-doc-files:    CHANGELOG.md
+extra-doc-files:    CHANGELOG.md
+                    NOTICE
 -- extra-source-files:
 
 common warnings
     ghc-options: -Wall
+                 -Wno-unticked-promoted-constructors
+                 -Wcompat
+                 -Wincomplete-uni-patterns
+                 -Wincomplete-record-updates
+                 -Wpartial-fields
+                 -Widentities
+                 -Wredundant-constraints
 
 library
     import:           warnings
