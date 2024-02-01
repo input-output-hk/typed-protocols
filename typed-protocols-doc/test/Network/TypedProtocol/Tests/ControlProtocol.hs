@@ -18,7 +18,7 @@
 module Network.TypedProtocol.Tests.ControlProtocol where
 
 import Network.TypedProtocol.Documentation
-import Network.TypedProtocol.Documentation.TestProtocol (TestCodec)
+import Network.TypedProtocol.Tests.TestProtocol (TestCodec)
 
 import Data.ByteString ( ByteString )
 import Data.Kind

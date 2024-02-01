@@ -11,7 +11,7 @@ import Data.SerDoc.Class
 import Data.Maybe
 
 import Network.TypedProtocol.Documentation
-import Network.TypedProtocol.Documentation.TestProtocol
+import Network.TypedProtocol.Tests.TestProtocol
 import Network.TypedProtocol.Tests.ControlProtocol
 
 {-# ANN module "HLINT: ignore Use camelCase" #-}

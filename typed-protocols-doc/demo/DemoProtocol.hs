@@ -12,7 +12,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Network.TypedProtocol.Documentation.TestProtocol
+module DemoProtocol
 where
 
 import Network.TypedProtocol.Core
@@ -34,22 +34,22 @@ data PongInfo =
     }
     deriving (Show, Eq)
 
-data TestProtocol a where
+data DemoProtocol a where
   -- | Idle state: server waits for ping.
-  IdleState :: TestProtocol a
+  IdleState :: DemoProtocol a
 
   -- | Awaiting pong state: server has received ping, client waits for pong.
-  AwaitingPongState :: TestProtocol a
+  AwaitingPongState :: DemoProtocol a
 
   -- | End state: either side has terminated the session
-  EndState :: TestProtocol a
+  EndState :: DemoProtocol a
 
-instance Protocol (TestProtocol a) where
-  data Message (TestProtocol a) st st' where
-    PingMessage :: Message (TestProtocol a) IdleState AwaitingPongState
-    PongMessage :: Message (TestProtocol a) AwaitingPongState IdleState
-    ComplexPongMessage :: Message (TestProtocol a) AwaitingPongState IdleState
-    EndMessage :: Message (TestProtocol a) st EndState
+instance Protocol (DemoProtocol a) where
+  data Message (DemoProtocol a) st st' where
+    PingMessage :: Message (DemoProtocol a) IdleState AwaitingPongState
+    PongMessage :: Message (DemoProtocol a) AwaitingPongState IdleState
+    ComplexPongMessage :: Message (DemoProtocol a) AwaitingPongState IdleState
+    EndMessage :: Message (DemoProtocol a) st EndState
 
   data ServerHasAgency st where
     TokIdle :: ServerHasAgency IdleState
@@ -73,11 +73,11 @@ instance Protocol (TestProtocol a) where
     case tok1 of
       TokEnd -> case tok2 of {}
 
-data TestCodec a
+data DemoCodec a
 
-instance Codec (TestCodec a) where
-  type MonadEncode (TestCodec a) = Identity
-  type MonadDecode (TestCodec a) = Except String
+instance Codec (DemoCodec a) where
+  type MonadEncode (DemoCodec a) = Identity
+  type MonadDecode (DemoCodec a) = Except String
 
 data PongEnum = NormalPong | ComplexPong
   deriving (Show, Read, Eq, Ord, Enum, Bounded, Typeable)
@@ -91,17 +91,17 @@ deriving via (ViaEnum PongEnum)
 deriving via (ViaEnum PingEnum)
   instance (Codec codec, HasInfo codec (DefEnumEncoding codec)) => HasInfo codec PingEnum
 
-instance HasInfo (TestCodec b) () where
+instance HasInfo (DemoCodec b) () where
   info _ _ = basicField "()" (FixedSize 0)
 
-instance HasInfo (TestCodec b) Text where
+instance HasInfo (DemoCodec b) Text where
   info codec _ =
     compoundField "Text"
       [ ("length", info codec (Proxy @Word32))
       , ("data", basicField "UTF8 dat" (FixedSize 0))
       ]
 
-instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) [a] where
+instance HasInfo (DemoCodec b) a => HasInfo (DemoCodec b) [a] where
   info codec (_ :: Proxy [a]) =
     compoundField "List"
       [ ( "length", info codec (Proxy @Word32))
@@ -111,7 +111,7 @@ instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) [a] where
       ]
 
 
-instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) (Maybe a) where
+instance HasInfo (DemoCodec b) a => HasInfo (DemoCodec b) (Maybe a) where
   info codec (_ :: Proxy (Maybe a)) =
     compoundField "Maybe"
       [ ("isJust", info codec (Proxy @Word32))
@@ -123,24 +123,24 @@ instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) (Maybe a) where
         )
       ]
 
-instance HasInfo (TestCodec b) (Message (TestProtocol a) IdleState AwaitingPongState) where
+instance HasInfo (DemoCodec b) (Message (DemoProtocol a) IdleState AwaitingPongState) where
   info codec _ = infoOf "PingRequest" $ info codec (Proxy @PingEnum)
 
-instance HasInfo (TestCodec b) (Message (TestProtocol a) st EndState) where
+instance HasInfo (DemoCodec b) (Message (DemoProtocol a) st EndState) where
   info codec _ = infoOf "EndPing" $ info codec (Proxy @PingEnum)
 
-instance HasInfo (TestCodec a) Word16 where
+instance HasInfo (DemoCodec a) Word16 where
   info _ _ = basicField "Word16" (FixedSize 2)
 
-instance HasInfo (TestCodec a) Word32 where
+instance HasInfo (DemoCodec a) Word32 where
   info _ _ = basicField "Word32" (FixedSize 4)
 
-instance HasInfo (TestCodec a) Word64 where
+instance HasInfo (DemoCodec a) Word64 where
   info _ _ = basicField "Word64" (FixedSize 8)
 
-$(deriveSerDoc ''TestCodec [] ''PongInfo)
+$(deriveSerDoc ''DemoCodec [] ''PongInfo)
 
-instance HasInfo (TestCodec b) (Message (TestProtocol a) AwaitingPongState IdleState) where
+instance HasInfo (DemoCodec b) (Message (DemoProtocol a) AwaitingPongState IdleState) where
   info codec _ =
     compoundField "Pong"
       [ ("pongType", info codec (Proxy @PongEnum))

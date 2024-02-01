@@ -29,12 +29,9 @@ library
     exposed-modules: Network.TypedProtocol.Documentation
                    , Network.TypedProtocol.Documentation.Types
                    , Network.TypedProtocol.Documentation.TH
-                   , Network.TypedProtocol.Documentation.TestProtocol
-                   , Network.TypedProtocol.Documentation.TestProtocolTH
                    , Network.TypedProtocol.Documentation.Html
                    , Network.TypedProtocol.Documentation.Text
                    , Network.TypedProtocol.Documentation.GraphViz
-                   , Network.TypedProtocol.Documentation.Example
                    , Network.TypedProtocol.Documentation.DefaultMain
     -- other-modules:
     -- other-extensions:
@@ -68,11 +65,14 @@ executable typed-protocols-doc-demo
     type:             exitcode-stdio-1.0
     hs-source-dirs:   demo
     main-is:          Main.hs
-    -- other-modules:
+    other-modules:    DemoProtocol
     -- other-extensions:
     build-depends: base >=4.14.0.0 && <5
+                 , typed-protocols
                  , typed-protocols-doc
                  , serdoc-core
+                 , mtl
+                 , text
     
 
 test-suite typed-protocols-doc-test
@@ -83,8 +83,11 @@ test-suite typed-protocols-doc-test
     main-is:          Main.hs
     other-modules: Network.TypedProtocol.Tests.Documentation
                  , Network.TypedProtocol.Tests.ControlProtocol
+                 , Network.TypedProtocol.Tests.TestProtocol
+                 , Network.TypedProtocol.Tests.TestProtocolTH
     -- other-extensions:
     build-depends: base >=4.14.0.0 && <5
+                 , blaze-html >=0.9.1.2 && <0.10
                  , tasty >=1.5 && <1.6
                  , tasty-quickcheck >=0.10.3 && <0.11
                  , typed-protocols
@@ -92,3 +95,4 @@ test-suite typed-protocols-doc-test
                  , serdoc-core
                  , text >=1.1 && <2.2
                  , bytestring >=0.11 && <0.13
+                 , mtl

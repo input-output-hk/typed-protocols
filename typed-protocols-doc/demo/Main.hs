@@ -11,10 +11,10 @@ module Main
 where
 
 import Network.TypedProtocol.Documentation
-import Network.TypedProtocol.Documentation.TestProtocol
+import DemoProtocol
 import Data.SerDoc.Class
 
 main :: IO ()
 main = defaultMain
-  [ $(describeProtocol ''TestProtocol [''()] ''TestCodec [''()])
+  [ $(describeProtocol ''DemoProtocol [''()] ''DemoCodec [''()])
   ]

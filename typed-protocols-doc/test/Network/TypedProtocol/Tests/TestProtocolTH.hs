@@ -11,13 +11,13 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
-module Network.TypedProtocol.Documentation.TestProtocolTH
+module Network.TypedProtocol.Tests.TestProtocolTH
 where
 
 import Network.TypedProtocol.Documentation.Html
 import Network.TypedProtocol.Documentation.Types
 import Network.TypedProtocol.Documentation.TH
-import Network.TypedProtocol.Documentation.TestProtocol
+import Network.TypedProtocol.Tests.TestProtocol
 
 import Data.SerDoc.Class
 import Data.Text (Text)
