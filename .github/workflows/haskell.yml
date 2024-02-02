@@ -74,8 +74,8 @@ jobs:
     - name: typed-protocols-examples [test]
       run: cabal run typed-protocols-examples:test
 
-    - name: typed-protocols-docs [test]
-      run: cabal run typed-protocols-docs:test
+    - name: typed-protocols-doc [test]
+      run: cabal test typed-protocols-doc
 
   stylish-haskell:
     runs-on: ubuntu-22.04
