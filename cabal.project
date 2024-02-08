@@ -11,7 +11,7 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 index-state:
-    hackage.haskell.org 2023-11-08T09:44:54Z
+    hackage.haskell.org 2024-02-06T12:00:00Z
   , cardano-haskell-packages 2023-05-16T03:39:10Z
 
 
@@ -19,11 +19,5 @@ packages: ./typed-protocols
           ./typed-protocols-cborg
           ./typed-protocols-examples
           ./typed-protocols-doc
-
-source-repository-package
-  type: git
-  location: https://github.com/input-output-hk/serdoc
-  tag: c1e6d6ae22d58a402ac359b26be7b922921d2a73
-  subdir: serdoc-core
 
 test-show-details: direct
