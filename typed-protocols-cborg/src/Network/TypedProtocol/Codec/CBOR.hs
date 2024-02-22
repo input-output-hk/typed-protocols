@@ -11,7 +11,7 @@ module Network.TypedProtocol.Codec.CBOR
   ) where
 
 import           Control.Monad.Class.MonadST (MonadST (..))
-import           Control.Monad.ST
+import           Control.Monad.Primitive
 
 import qualified Codec.CBOR.Decoding as CBOR (Decoder)
 import qualified Codec.CBOR.Encoding as CBOR (Encoding)
@@ -56,7 +56,7 @@ mkCodecCborStrictBS
 mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
     Codec {
       encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
-      decode = \stok     -> convertCborDecoder (cborMsgDecode stok)
+      decode = \stok     -> convertCborDecoderBS (cborMsgDecode stok)
     }
   where
     convertCborEncoder :: (a -> CBOR.Encoding) -> a -> BS.ByteString
@@ -64,27 +64,20 @@ mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
         CBOR.toStrictByteString
       . cborEncode
 
-    convertCborDecoder
-      :: (forall s. CBOR.Decoder s a)
-      -> m (DecodeStep BS.ByteString DeserialiseFailure m a)
-    convertCborDecoder cborDecode =
-        withLiftST (convertCborDecoderBS cborDecode)
-
 convertCborDecoderBS
-  :: forall s m a. Functor m
-  => (CBOR.Decoder s a)
-  -> (forall b. ST s b -> m b)
+  :: forall m a. MonadST m
+  => CBOR.Decoder (PrimState m) a
   -> m (DecodeStep BS.ByteString DeserialiseFailure m a)
-convertCborDecoderBS cborDecode liftST =
-    go <$> liftST (CBOR.deserialiseIncremental cborDecode)
+convertCborDecoderBS cborDecode =
+    go <$> stToIO (CBOR.deserialiseIncremental cborDecode)
   where
-    go :: CBOR.IDecode s a
+    go :: CBOR.IDecode (PrimState m) a
        -> DecodeStep BS.ByteString DeserialiseFailure m a
     go (CBOR.Done  trailing _ x)
       | BS.null trailing       = DecodeDone x Nothing
       | otherwise              = DecodeDone x (Just trailing)
     go (CBOR.Fail _ _ failure) = DecodeFail failure
-    go (CBOR.Partial k)        = DecodePartial (fmap go . liftST . k)
+    go (CBOR.Partial k)        = DecodePartial (fmap go . stToIO . k)
 
 
 -- | Construct a 'Codec' for a CBOR based serialisation format, using lazy
@@ -110,7 +103,7 @@ mkCodecCborLazyBS
 mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
     Codec {
       encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
-      decode = \stok     -> convertCborDecoder (cborMsgDecode stok)
+      decode = \stok     -> convertCborDecoderLBS (cborMsgDecode stok)
     }
   where
     convertCborEncoder :: (a -> CBOR.Encoding) -> a -> LBS.ByteString
@@ -119,23 +112,16 @@ mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
       . CBOR.toBuilder
       . cborEncode
 
-    convertCborDecoder
-      :: (forall s. CBOR.Decoder s a)
-      -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m a)
-    convertCborDecoder cborDecode =
-        withLiftST (convertCborDecoderLBS cborDecode)
-
 convertCborDecoderLBS
-  :: forall s m a. Monad m
-  => (CBOR.Decoder s a)
-  -> (forall b. ST s b -> m b)
+  :: forall m a. MonadST m
+  => CBOR.Decoder (PrimState m) a
   -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m a)
-convertCborDecoderLBS cborDecode liftST =
-    go [] =<< liftST (CBOR.deserialiseIncremental cborDecode)
+convertCborDecoderLBS cborDecode =
+    go [] =<< stToIO (CBOR.deserialiseIncremental cborDecode)
   where
     -- Have to mediate between a CBOR decoder that consumes strict bytestrings
     -- and our choice here that consumes lazy bytestrings.
-    go :: [BS.ByteString] -> CBOR.IDecode s a
+    go :: [BS.ByteString] -> CBOR.IDecode (PrimState m) a
        -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m a)
     go [] (CBOR.Done  trailing _ x)
       | BS.null trailing    = return (DecodeDone x Nothing)
@@ -147,9 +133,9 @@ convertCborDecoderLBS cborDecode liftST =
 
     -- We keep a bunch of chunks and supply the CBOR decoder with them
     -- until we run out, when we go get another bunch.
-    go (c:cs) (CBOR.Partial  k) = go cs =<< liftST (k (Just c))
+    go (c:cs) (CBOR.Partial  k) = go cs =<< stToIO (k (Just c))
     go []     (CBOR.Partial  k) = return $ DecodePartial $ \mbs -> case mbs of
-                                    Nothing -> go [] =<< liftST (k Nothing)
+                                    Nothing -> go [] =<< stToIO (k Nothing)
                                     Just bs -> go cs (CBOR.Partial k)
                                       where cs = LBS.toChunks bs
 
