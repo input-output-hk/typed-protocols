@@ -22,8 +22,10 @@ library
                      bytestring      >=0.10  && <0.13,
                      cborg           >=0.2.1 && <0.3,
 
+                     io-sim,
                      io-classes,
-                     typed-protocols
+                     typed-protocols,
+                     primitive
 
   hs-source-dirs:    src
   default-language:  Haskell2010
