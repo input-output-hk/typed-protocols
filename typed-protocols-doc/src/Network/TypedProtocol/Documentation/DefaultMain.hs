@@ -65,10 +65,9 @@ pMainOptions =
           )
 
 
-defaultMain :: ( Codec codec
-               , HasInfo codec (DefEnumEncoding codec)
+defaultMain :: ( HasInfo codec (DefEnumEncoding codec)
                , HasInfo codec Word32
-               ) => [ProtocolDescription codec] -> IO ()
+               ) =>[ProtocolDescription codec] -> IO ()
 defaultMain descriptions = do
   mainOptions <- execParser $ info (pMainOptions <**> helper) fullDesc
   if moListProtocols mainOptions then do
@@ -79,11 +78,10 @@ defaultMain descriptions = do
         render = getRenderer (moOutputFormat mainOptions) (moOutputFile mainOptions)
     write . render $ descriptions
 
-getRenderer :: ( Codec codec
-               , HasInfo codec (DefEnumEncoding codec)
+getRenderer :: ( HasInfo codec (DefEnumEncoding codec)
                , HasInfo codec Word32
                )
-            => OutputFormat
+            =>OutputFormat
             -> Maybe FilePath
             -> [ProtocolDescription codec]
             -> String
@@ -105,4 +103,4 @@ getRenderer OutputJSON _ =
 abort :: String -> a
 abort msg = unsafePerformIO $ do
   hPutStrLn stderr msg
-  exitFailure 
+  exitFailure
