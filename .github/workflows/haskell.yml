@@ -25,6 +25,25 @@ jobs:
     - name: Set cache version
       run: echo "CACHE_VERSION=pu4Aevoo" >> $GITHUB_ENV
 
+    - name: Install LLVM (macOS)
+      if: runner.os == 'macOS' && matrix.ghc == '8.10'
+      run: |
+        brew install llvm@13
+        echo "LLVM_CONFIG=$(brew --prefix llvm@13)/bin/llvm-config" >> $GITHUB_ENV
+        echo "$(brew --prefix llvm@13)/bin" >> $GITHUB_PATH
+
+    - name: Verify LLVM installation
+      if: runner.os == 'macOS' && matrix.ghc == '8.10'
+      run: |
+        llvm-config --version
+        opt --version
+
+    - name: Print environment variables
+      if: runner.os == 'macOS' && matrix.ghc == '8.10'
+      run: |
+        echo "PATH = $PATH"
+        echo "LLVM_CONFIG = $LLVM_CONFIG"
+
     - name: "Setup Haskell"
       uses: haskell-actions/setup@v2
       id: setup-haskell
