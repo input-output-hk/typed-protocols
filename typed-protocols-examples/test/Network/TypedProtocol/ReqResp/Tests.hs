@@ -112,7 +112,7 @@ directPipelined (ReqRespClientPipelined client0) server0 =
   where
     go :: forall n.
           Queue n c
-       -> ReqRespIdle   req resp c n m a
+       -> ReqRespIdle   req resp n c m a
        -> ReqRespServer req resp     m b
        -> m (a, b)
     go EmptyQ (SendMsgDonePipelined clientResult) ReqRespServer{recvMsgDone} =

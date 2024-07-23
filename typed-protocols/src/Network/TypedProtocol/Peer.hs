@@ -32,7 +32,6 @@ import           Unsafe.Coerce (unsafeCoerce)
 
 import           Network.TypedProtocol.Core as Core
 
-
 -- | A description of a peer that engages in a protocol.
 --
 -- The protocol describes what messages peers /may/ send or /must/ accept.
@@ -95,13 +94,12 @@ import           Network.TypedProtocol.Core as Core
 type Peer :: forall ps
           -> PeerRole
           -> IsPipelined
-          -> Outstanding
           -> ps
           -> (Type -> Type)
           -- ^ monad's kind
           -> Type
           -> Type
-data Peer ps pr pl n st m a where
+data Peer ps pr pl st m a where
 
   -- | Perform a local monadic effect and then continue.
   --
@@ -112,10 +110,10 @@ data Peer ps pr pl n st m a where
   -- >   return $ ... -- another Peer value
   --
   Effect
-    :: forall ps pr pl n st m a.
-       m (Peer ps pr pl n st m a)
+    :: forall ps pr pl st m a.
+       m (Peer ps pr pl st m a)
     -- ^ monadic continuation
-    ->    Peer ps pr pl n st m a
+    ->    Peer ps pr pl st m a
 
   -- | Send a message to the other peer and then continue. This takes the
   -- message and the continuation. It also requires evidence that we have
@@ -130,14 +128,15 @@ data Peer ps pr pl n st m a where
        ( StateTokenI st
        , StateTokenI st'
        , ActiveState st
+       , Outstanding pl ~ Z
        )
     => WeHaveAgencyProof pr st
     -- ^ agency proof
     -> Message ps st st'
     -- ^ protocol message
-    -> Peer ps pr pl Z st' m a
+    -> Peer ps pr pl st' m a
     -- ^ continuation
-    -> Peer ps pr pl Z st  m a
+    -> Peer ps pr pl st  m a
 
   -- | Waits to receive a message from the other peer and then continues.
   -- This takes the continuation that is supplied with the received message. It
@@ -160,13 +159,14 @@ data Peer ps pr pl n st m a where
     :: forall ps pr pl (st :: ps) m a.
        ( StateTokenI st
        , ActiveState st
+       , Outstanding pl ~ Z
        )
     => TheyHaveAgencyProof pr st
     -- ^ agency proof
     -> (forall (st' :: ps). Message ps st st'
-        -> Peer ps pr pl Z st' m a)
+        -> Peer ps pr pl st' m a)
     -- ^ continuation
-    -> Peer     ps pr pl Z st  m a
+    -> Peer     ps pr pl st  m a
 
   -- | Terminate with a result. A state token must be provided from the
   -- 'NobodyHasAgency' states, to show that this is a state in which we can
@@ -182,12 +182,13 @@ data Peer ps pr pl n st m a where
     :: forall ps pr pl (st :: ps) m a.
        ( StateTokenI st
        , StateAgency st ~ NobodyAgency
+       , Outstanding pl ~ Z
        )
     => NobodyHasAgencyProof pr st
     -- ^ (no) agency proof
     -> a
     -- ^ returned value
-    -> Peer ps pr pl Z st m a
+    -> Peer ps pr pl st m a
 
   --
   -- Pipelining primitives
@@ -208,9 +209,9 @@ data Peer ps pr pl n st m a where
     -> Message ps st st'
     -- ^ protocol message
     -> Receiver ps pr st' st'' m c
-    -> Peer ps pr (Pipelined c) (S n) st'' m a
+    -> Peer ps pr (Pipelined (S n) c) st'' m a
     -- ^ continuation
-    -> Peer ps pr (Pipelined c)  n    st   m a
+    -> Peer ps pr (Pipelined    n  c)   st   m a
 
   -- | Partially collect promised transition.
   --
@@ -219,13 +220,13 @@ data Peer ps pr pl n st m a where
        ( StateTokenI st
        , ActiveState st
        )
-    => Maybe (Peer ps pr (Pipelined c) (S n) st m a)
+    => Maybe (Peer ps pr (Pipelined (S n) c) st m a)
     -- ^ continuation, executed if no message has arrived so far
-    -> (c ->  Peer ps pr (Pipelined c)    n  st m a)
+    -> (c ->  Peer ps pr (Pipelined    n  c)  st m a)
     -- ^ continuation
-    -> Peer        ps pr (Pipelined c) (S n) st m a
+    -> Peer        ps pr (Pipelined (S n) c) st m a
 
-deriving instance Functor m => Functor (Peer ps pr pl n st m)
+deriving instance Functor m => Functor (Peer ps pr pl st m)
 
 
 -- | Receiver 
@@ -256,17 +257,6 @@ data Receiver ps pr st stdone m c where
                  -> Receiver ps pr st stdone m c
 
 deriving instance Functor m => Functor (Receiver ps pr st stdone m)
-
--- | Type level count of the number of outstanding pipelined yields for which
--- we have not yet collected a receiver result. Used in 'PeerSender' to ensure
--- 'SenderCollect' is only used when there are outstanding results to collect,
--- and to ensure 'SenderYield', 'SenderAwait' and 'SenderDone' are only used
--- when there are none.
---
-type Outstanding = N
-
--- | A type level inductive natural number.
-data N = Z | S N
 
 -- | A value level inductive natural number, indexed by the corresponding type
 -- level natural number 'N'.

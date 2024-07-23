@@ -81,8 +81,8 @@ import           Network.TypedProtocol.Peer
 connect
    :: forall ps (pr :: PeerRole) (initSt :: ps) m a b.
       (Monad m, SingI pr)
-   => Peer ps             pr  NonPipelined Z initSt m a
-   -> Peer ps (FlipAgency pr) NonPipelined Z initSt m b
+   => Peer ps             pr  NonPipelined initSt m a
+   -> Peer ps (FlipAgency pr) NonPipelined initSt m b
    -> m (a, b, TerminalStates ps)
 connect = go
   where
@@ -90,8 +90,8 @@ connect = go
     singPeerRole = sing
 
     go :: forall (st :: ps).
-          Peer ps             pr  NonPipelined Z st m a
-       -> Peer ps (FlipAgency pr) NonPipelined Z st m b
+          Peer ps             pr  NonPipelined st m a
+       -> Peer ps (FlipAgency pr) NonPipelined st m b
        -> m (a, b, TerminalStates ps)
     go (Done ReflNobodyAgency a)  (Done ReflNobodyAgency b) =
         return (a, b, terminals)
@@ -177,15 +177,15 @@ forgetPipelined
   -- pipelining.  For the 'CollectSTM' primitive, the stm action must not
   -- block otherwise even if the choice is to pipeline more (a 'True' value),
   -- we'll actually collect a result.
-  -> Peer ps pr (Pipelined c) Z st m a
-  -> Peer ps pr  NonPipelined  Z st m a
+  -> Peer ps pr (Pipelined Z c) st m a
+  -> Peer ps pr  NonPipelined   st m a
 forgetPipelined = goSender EmptyQ
   where
     goSender :: forall st' n.
                 Queue n c
              -> [Bool]
-             -> Peer ps pr ('Pipelined c) n st' m a
-             -> Peer ps pr 'NonPipelined  Z st' m a
+             -> Peer ps pr ('Pipelined n c) st' m a
+             -> Peer ps pr 'NonPipelined    st' m a
 
     goSender EmptyQ _cs (Done           refl     k) = Done refl k
     goSender q       cs (Effect                  k) = Effect (goSender q cs <$> k)
@@ -199,9 +199,9 @@ forgetPipelined = goSender EmptyQ
     goReceiver :: forall stCurrent stNext n.
                   Queue n c
                -> [Bool]
-               -> Peer     ps pr ('Pipelined c) (S n) stNext m a
+               -> Peer     ps pr ('Pipelined (S n) c) stNext m a
                -> Receiver ps pr  stCurrent stNext m c
-               -> Peer     ps pr 'NonPipelined Z stCurrent m a
+               -> Peer     ps pr 'NonPipelined stCurrent m a
 
     goReceiver q cs s (ReceiverDone     x) = goSender (enqueue x q) cs s
     goReceiver q cs s (ReceiverEffect   k) = Effect   (goReceiver q cs s <$> k)
@@ -220,8 +220,8 @@ forgetPipelined = goSender EmptyQ
 promoteToPipelined
   :: forall ps (pr :: PeerRole) st c m a.
      Functor m
-  => Peer ps pr 'NonPipelined  Z st m a
-  -> Peer ps pr ('Pipelined c) Z st m a
+  => Peer ps pr 'NonPipelined    st m a
+  -> Peer ps pr ('Pipelined Z c) st m a
 promoteToPipelined (Effect k)         = Effect
                                       $ promoteToPipelined <$> k
 promoteToPipelined (Yield refl msg k) = Yield refl msg
@@ -247,8 +247,8 @@ connectPipelined
        (Monad m, SingI pr)
     => [Bool]
     -> [Bool]
-    -> Peer ps             pr  ('Pipelined c)  Z st m a
-    -> Peer ps (FlipAgency pr) ('Pipelined c') Z st m b
+    -> Peer ps             pr  ('Pipelined Z c)  st m a
+    -> Peer ps (FlipAgency pr) ('Pipelined Z c') st m b
     -> m (a, b, TerminalStates ps)
 connectPipelined csA csB a b =
     connect (forgetPipelined csA a)

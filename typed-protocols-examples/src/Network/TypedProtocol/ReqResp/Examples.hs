@@ -72,7 +72,7 @@ reqRespClientMapPipelined :: forall req resp m.
 reqRespClientMapPipelined reqs0 =
     ReqRespClientPipelined (go [] Zero reqs0)
   where
-    go :: [resp] -> Nat o -> [req] -> ReqRespIdle req resp resp o m [resp]
+    go :: [resp] -> Nat o -> [req] -> ReqRespIdle req resp o resp m [resp]
     go resps Zero reqs =
       case reqs of
         []        -> SendMsgDonePipelined (reverse resps)
@@ -86,7 +86,7 @@ reqRespClientMapPipelined reqs0 =
         (\resp -> return $ go (resp:resps) o reqs)
 
     sendReq :: [resp] -> Nat o -> req -> [req]
-            -> ReqRespIdle req resp resp o m [resp]
+            -> ReqRespIdle req resp o resp m [resp]
     sendReq resps o req reqs' =
       SendMsgReqPipelined req
         (\resp -> return resp)
