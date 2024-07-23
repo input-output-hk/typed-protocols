@@ -41,6 +41,8 @@ module Network.TypedProtocol.Core
   , NobodyHasAgencyProof
   , FlipAgency
   , IsPipelined (..)
+  , Outstanding
+  , N (..)
   , Trans (..)
   , SingTrans (..)
   , ActiveAgency
@@ -494,13 +496,27 @@ data SingTrans tr where
               SingTrans (Tr st st')
 
 
+-- | A type level inductive natural number.
+data N = Z | S N
+
 -- | Promoted data type which indicates if 'Peer' is used in
 -- pipelined mode or not.
 --
 data IsPipelined where
     -- | Pipelined peer which is using `c :: Type` for collecting responses
     -- from a pipelined messages.
-    Pipelined    :: Type -> IsPipelined
+    Pipelined    :: N -> Type -> IsPipelined
 
     -- | Non-pipelined peer.
     NonPipelined :: IsPipelined
+
+-- | Type level count of the number of outstanding pipelined yields for which
+-- we have not yet collected a receiver result. Used in 'PeerSender' to ensure
+-- 'SenderCollect' is only used when there are outstanding results to collect,
+-- and to ensure 'SenderYield', 'SenderAwait' and 'SenderDone' are only used
+-- when there are none.
+--
+type        Outstanding :: IsPipelined -> N
+type family Outstanding pl where
+  Outstanding 'NonPipelined    = Z
+  Outstanding ('Pipelined n _) = n

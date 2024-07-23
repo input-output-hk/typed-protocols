@@ -37,7 +37,7 @@ data ReqRespClient req resp m a where
 reqRespClientPeer
   :: Monad m
   => ReqRespClient req resp m a
-  -> Client (ReqResp req resp) NonPipelined Z StIdle m a
+  -> Client (ReqResp req resp) NonPipelined StIdle m a
 
 reqRespClientPeer (SendMsgDone result) =
     -- We do an actual transition using 'yield', to go from the 'StIdle' to
@@ -68,7 +68,7 @@ reqRespClientPeer (SendMsgReq req next) =
 
 requestOnce :: forall req resp m.
                Monad m
-            => (forall x. Server (ReqResp req resp) NonPipelined Z StIdle m x)
+            => (forall x. Server (ReqResp req resp) NonPipelined StIdle m x)
             -> (req -> m resp)
 requestOnce server req = (\(resp, _, _) -> resp)
                      <$> reqRespClientPeer client `connect` server
@@ -88,28 +88,28 @@ data ReqRespClientPipelined req resp c m a where
   -- | A 'PingPongSender', but starting with zero outstanding pipelined
   -- responses, and for any internal collect type @c@.
   ReqRespClientPipelined ::
-      ReqRespIdle            req resp c Z m a
-   -> ReqRespClientPipelined req resp c   m a
+      ReqRespIdle            req resp Z c m a
+   -> ReqRespClientPipelined req resp   c m a
 
 
-data ReqRespIdle req resp c n m a where
+data ReqRespIdle req resp n c m a where
   -- | Send a `Req` message but alike in `ReqRespClient` do not await for the
   -- resopnse, instead supply a monadic action which will run on a received
   -- `Pong` message.
   SendMsgReqPipelined
     :: req
     -> (resp -> m c)                     -- receive action
-    -> ReqRespIdle req resp c (S n) m a  -- continuation
-    -> ReqRespIdle req resp c    n  m a
+    -> ReqRespIdle req resp (S n) c m a  -- continuation
+    -> ReqRespIdle req resp    n  c m a
 
   CollectPipelined
-    :: Maybe   (ReqRespIdle req resp c (S n) m a)
-    -> (c -> m (ReqRespIdle req resp c    n  m a))
-    ->          ReqRespIdle req resp c (S n) m a
+    :: Maybe   (ReqRespIdle req resp (S n) c m a)
+    -> (c -> m (ReqRespIdle req resp    n  c m a))
+    ->          ReqRespIdle req resp (S n) c m a
 
   -- | Termination of the req-resp protocol.
   SendMsgDonePipelined
-    :: a -> ReqRespIdle req resp c Z m a
+    :: a -> ReqRespIdle req resp Z c m a
 
 
 -- | Interpret a pipelined client as a 'Peer' on the client side of
@@ -117,8 +117,8 @@ data ReqRespIdle req resp c n m a where
 --
 reqRespClientPeerPipelined
   :: Functor m
-  => ReqRespClientPipelined req resp       c           m a
-  -> Client (ReqResp req resp) (Pipelined c) Z StIdle m a
+  => ReqRespClientPipelined req resp         c         m a
+  -> Client (ReqResp req resp) (Pipelined  Z c) StIdle m a
 reqRespClientPeerPipelined (ReqRespClientPipelined peer) =
     reqRespClientPeerIdle peer
 
@@ -126,14 +126,14 @@ reqRespClientPeerPipelined (ReqRespClientPipelined peer) =
 reqRespClientPeerIdle
   :: forall req resp n c m a.
      Functor m
-  => ReqRespIdle   req resp                c  n         m a
-  -> Client (ReqResp req resp) (Pipelined c) n StIdle  m a
+  => ReqRespIdle   req resp               n c          m a
+  -> Client (ReqResp req resp) (Pipelined n c) StIdle  m a
 
 reqRespClientPeerIdle = go
   where
     go :: forall n'.
-          ReqRespIdle   req resp                c  n'        m a
-       -> Client (ReqResp req resp) (Pipelined c) n' StIdle m a
+          ReqRespIdle   req resp               n' c         m a
+       -> Client (ReqResp req resp) (Pipelined n' c) StIdle m a
 
     go (SendMsgReqPipelined req receive next) =
       -- Pipelined yield: send `MsgReq`, immediately follow with the next step.

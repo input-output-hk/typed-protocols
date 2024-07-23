@@ -54,7 +54,7 @@ data PingPongClient m a where
 pingPongClientPeer
   :: Functor m
   => PingPongClient m a
-  -> Client PingPong NonPipelined Z StIdle m a
+  -> Client PingPong NonPipelined StIdle m a
 
 pingPongClientPeer (SendMsgDone result) =
     -- We do an actual transition using 'yield', to go from the 'StIdle' to
@@ -94,7 +94,7 @@ data PingPongClientPipelined c m a where
    -> PingPongClientPipelined   c m a
 
 
-data PingPongClientIdle (n :: Outstanding) c m a where
+data PingPongClientIdle (n :: N) c m a where
   -- | Send a `Ping` message but alike in `PingPongClient` do not await for the
   -- response, instead supply a monadic action which will run on a received
   -- `Pong` message.
@@ -139,20 +139,20 @@ data PingPongClientIdle (n :: Outstanding) c m a where
 pingPongClientPeerPipelined
   :: Functor m
   => PingPongClientPipelined c m a
-  -> Client PingPong (Pipelined c) Z StIdle m a
+  -> Client PingPong (Pipelined Z c) StIdle m a
 pingPongClientPeerPipelined (PingPongClientPipelined peer) =
     pingPongClientPeerIdle peer
 
 
 pingPongClientPeerIdle
-  :: forall (n :: Outstanding) c m a. Functor m
-  => PingPongClientIdle             n        c m a
-  -> Client PingPong (Pipelined c) n StIdle   m a
+  :: forall (n :: N) c m a. Functor m
+  => PingPongClientIdle         n c         m a
+  -> Client PingPong (Pipelined n c) StIdle m a
 pingPongClientPeerIdle = go
   where
-    go :: forall (n' :: Outstanding).
-          PingPongClientIdle             n'        c m a
-       -> Client PingPong (Pipelined c) n' StIdle   m a
+    go :: forall (n' :: N).
+          PingPongClientIdle         n' c         m a
+       -> Client PingPong (Pipelined n' c) StIdle m a
 
     go (SendMsgPingPipelined receive next) =
       -- Pipelined yield: send `MsgPing`, immediately follow with the next step.
