@@ -109,7 +109,7 @@ type PingPong2 = Wedge PingPong.PingPong PingPong.StIdle
                        PingPong.PingPong PingPong.StIdle
 
 
-pingPong2Client :: Client.Client PingPong2 NonPipelined Client.Z StIdle m ()
+pingPong2Client :: Client.Client PingPong2 NonPipelined StIdle m ()
 pingPong2Client =
     Client.Yield (MsgStart AtFst)
   $ Client.Yield (MsgFst PingPong.MsgPing)
@@ -122,7 +122,7 @@ pingPong2Client =
   $ Client.Done ()
 
 
-pingPong2Client' :: forall m. Client.Client PingPong2 (Pipelined ()) Client.Z StIdle m ()
+pingPong2Client' :: forall m. Client.Client PingPong2 (Pipelined Client.Z ()) StIdle m ()
 pingPong2Client' =
     --
     -- Pipeline first protocol

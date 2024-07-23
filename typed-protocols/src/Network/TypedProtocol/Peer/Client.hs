@@ -33,27 +33,25 @@ module Network.TypedProtocol.Peer.Client
 import           Data.Kind (Type)
 
 import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer (Peer, N (..),
-                    Nat (..), Outstanding)
+import           Network.TypedProtocol.Peer (Peer, Nat (..))
 import qualified Network.TypedProtocol.Peer as TP
 
 
 type Client :: forall ps
             -> IsPipelined
-            -> Outstanding
             -> ps
             -> (Type -> Type)
             -> Type
             -> Type
-type Client ps pl q st m a = Peer ps AsClient pl q st m a
+type Client ps pl st m a = Peer ps AsClient pl st m a
 
 
 -- | Client role pattern for 'TP.Effect'.
 --
-pattern Effect :: forall ps pl n st m a.
-                  m (Client ps pl n st m a)
+pattern Effect :: forall ps pl st m a.
+                  m (Client ps pl st m a)
                -- ^ monadic continuation
-               -> Client ps pl n st m a
+               -> Client ps pl st m a
 pattern Effect mclient = TP.Effect mclient
 
 
@@ -65,12 +63,13 @@ pattern Yield :: forall ps pl st m a.
                  ( StateTokenI st
                  , StateTokenI st'
                  , StateAgency st ~ ClientAgency
+                 , Outstanding pl ~ Z
                  )
               => Message ps st st'
               -- ^ protocol message
-              -> Client ps pl Z st' m a
+              -> Client ps pl st' m a
               -- ^ continuation
-              -> Client ps pl Z st  m a
+              -> Client ps pl st  m a
 pattern Yield msg k = TP.Yield ReflClientAgency msg k
 
 
@@ -80,11 +79,12 @@ pattern Await :: forall ps pl st m a.
                  ()
               => ( StateTokenI st
                  , StateAgency st ~ ServerAgency
+                 , Outstanding pl ~ Z
                  )
               => (forall st'. Message ps st st'
-                  -> Client ps pl Z st' m a)
+                  -> Client ps pl st' m a)
               -- ^ continuation
-              -> Client     ps pl Z st  m a
+              -> Client     ps pl st  m a
 pattern Await k = TP.Await ReflServerAgency k
 
 
@@ -94,10 +94,11 @@ pattern Done :: forall ps pl st m a.
                 ()
              => ( StateTokenI st
                 , StateAgency st ~ NobodyAgency
+                , Outstanding pl ~ Z
                 )
              => a
              -- ^ protocol return value
-             -> Client ps pl Z st m a
+             -> Client ps pl st m a
 pattern Done a = TP.Done ReflNobodyAgency a
 
 
@@ -113,9 +114,9 @@ pattern YieldPipelined :: forall ps st n c m a.
                        => Message ps st st'
                        -- ^ pipelined message
                        -> Receiver ps st' st'' m c
-                       -> Client ps (Pipelined c) (S n) st'' m a
+                       -> Client ps (Pipelined (S n) c) st'' m a
                        -- ^ continuation
-                       -> Client ps (Pipelined c)    n  st   m a
+                       -> Client ps (Pipelined    n  c)  st   m a
 pattern YieldPipelined msg receiver k = TP.YieldPipelined ReflClientAgency msg receiver k
 
 
@@ -126,11 +127,11 @@ pattern Collect :: forall ps st n c m a.
                 => ( StateTokenI st
                    , ActiveState st
                    )
-                => Maybe (Client ps (Pipelined c) (S n) st m a)
+                => Maybe (Client ps (Pipelined (S n) c) st m a)
                 -- ^ continuation, executed if no message has arrived so far
-                -> (c ->  Client ps (Pipelined c)    n  st m a)
+                -> (c ->  Client ps (Pipelined    n  c)  st m a)
                 -- ^ continuation
-                -> Client        ps (Pipelined c) (S n) st m a
+                -> Client        ps (Pipelined (S n) c) st m a
 pattern Collect k' k = TP.Collect k' k
 
 {-# COMPLETE Effect, Yield, Await, Done, YieldPipelined, Collect #-}

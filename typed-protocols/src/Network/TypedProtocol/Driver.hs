@@ -159,7 +159,7 @@ runPipelinedPeerWithDriver
   :: forall ps (st :: ps) pr dstate c m a.
      MonadAsync m
   => Driver ps pr dstate m
-  -> Peer ps pr ('Pipelined c) Z st m a
+  -> Peer ps pr ('Pipelined Z c) st m a
   -> m (a, dstate)
 runPipelinedPeerWithDriver driver@Driver{initialDState} peer = do
     receiveQueue <- atomically newTQueue
@@ -238,7 +238,7 @@ runPipelinedPeerSender
   => TQueue m (ReceiveHandler dstate ps pr m c)
   -> TQueue m (c, dstate)
   -> Driver ps pr dstate m
-  -> Peer ps pr ('Pipelined c) Z st m a
+  -> Peer ps pr ('Pipelined Z c) st m a
   -> dstate
   -> m (a, dstate)
 runPipelinedPeerSender receiveQueue collectQueue
@@ -251,7 +251,7 @@ runPipelinedPeerSender receiveQueue collectQueue
     go :: forall st' n.
           Nat n
        -> MaybeDState dstate n
-       -> Peer ps pr ('Pipelined c) n st' m a
+       -> Peer ps pr ('Pipelined n c) st' m a
        -> m (a, dstate)
     go n    dstate             (Effect k) = k >>= go n dstate
     go Zero (HasDState dstate) (Done _ x) = return (x, dstate)

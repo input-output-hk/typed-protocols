@@ -131,7 +131,7 @@ runPeer
   => Tracer m (TraceSendRecv ps)
   -> Codec ps failure m bytes
   -> Channel m bytes
-  -> Peer ps pr 'NonPipelined Z st m a
+  -> Peer ps pr 'NonPipelined st m a
   -> m (a, Maybe bytes)
 runPeer tracer codec channel peer =
     runPeerWithDriver driver peer
@@ -152,7 +152,7 @@ runPipelinedPeer
   => Tracer m (TraceSendRecv ps)
   -> Codec ps failure m bytes
   -> Channel m bytes
-  -> Peer ps pr ('Pipelined c) Z st m a
+  -> Peer ps pr ('Pipelined Z c) st m a
   -> m (a, Maybe bytes)
 runPipelinedPeer tracer codec channel peer =
     runPipelinedPeerWithDriver driver peer
@@ -196,8 +196,8 @@ runConnectedPeers :: (MonadAsync m, MonadCatch m,
                   => m (Channel m bytes, Channel m bytes)
                   -> Tracer m (Role, TraceSendRecv ps)
                   -> Codec ps failure m bytes
-                  -> Peer ps             pr  'NonPipelined Z st m a
-                  -> Peer ps (FlipAgency pr) 'NonPipelined Z st m b
+                  -> Peer ps             pr  'NonPipelined st m a
+                  -> Peer ps (FlipAgency pr) 'NonPipelined st m b
                   -> m (a, b)
 runConnectedPeers createChannels tracer codec client server =
     createChannels >>= \(clientChannel, serverChannel) ->
@@ -214,8 +214,8 @@ runConnectedPeersPipelined :: (MonadAsync m, MonadCatch m,
                            => m (Channel m bytes, Channel m bytes)
                            -> Tracer m (PeerRole, TraceSendRecv ps)
                            -> Codec ps failure m bytes
-                           -> Peer ps             pr  ('Pipelined c) Z st m a
-                           -> Peer ps (FlipAgency pr) 'NonPipelined  Z st m b
+                           -> Peer ps             pr  ('Pipelined Z c) st m a
+                           -> Peer ps (FlipAgency pr) 'NonPipelined    st m b
                            -> m (a, b)
 runConnectedPeersPipelined createChannels tracer codec client server =
     createChannels >>= \(clientChannel, serverChannel) ->
@@ -240,8 +240,8 @@ runConnectedPeersAsymmetric
     -> Tracer m (Role, TraceSendRecv ps)
     -> Codec ps failure m bytes
     -> Codec ps failure m bytes
-    -> Peer ps             pr  ('Pipelined c) Z st m a
-    -> Peer ps (FlipAgency pr) 'NonPipelined  Z st m b
+    -> Peer ps             pr  ('Pipelined Z c) st m a
+    -> Peer ps (FlipAgency pr) 'NonPipelined    st m b
     -> m (a, b)
 runConnectedPeersAsymmetric createChannels tracer codec codec' client server =
     createChannels >>= \(clientChannel, serverChannel) ->
