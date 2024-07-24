@@ -16,6 +16,8 @@ index-state:
 
 packages: ./typed-protocols
           ./typed-protocols-cborg
+          ./typed-protocols-stateful
+          ./typed-protocols-stateful-cborg
           ./typed-protocols-examples
           ./typed-protocols-doc
 

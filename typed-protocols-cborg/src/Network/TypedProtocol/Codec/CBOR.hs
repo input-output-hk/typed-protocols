@@ -10,6 +10,8 @@ module Network.TypedProtocol.Codec.CBOR
   , DeserialiseFailure
   , mkCodecCborLazyBS
   , mkCodecCborStrictBS
+  , convertCborDecoderBS
+  , convertCborDecoderLBS
   ) where
 
 import           Control.Monad.Class.MonadST (MonadST (..))
