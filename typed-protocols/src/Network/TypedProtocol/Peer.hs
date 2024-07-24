@@ -3,13 +3,11 @@
 {-# LANGUAGE DerivingVia              #-}
 {-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE PatternSynonyms          #-}
 {-# LANGUAGE PolyKinds                #-}
 {-# LANGUAGE RankNTypes               #-}
 {-# LANGUAGE StandaloneDeriving       #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeOperators            #-}
-{-# LANGUAGE ViewPatterns             #-}
 
 -- | Protocol EDSL.
 --
@@ -28,7 +26,6 @@ module Network.TypedProtocol.Peer
   ) where
 
 import           Data.Kind (Type)
-import           Unsafe.Coerce (unsafeCoerce)
 
 import           Network.TypedProtocol.Core as Core
 
@@ -257,37 +254,3 @@ data Receiver ps pr st stdone m c where
                  -> Receiver ps pr st stdone m c
 
 deriving instance Functor m => Functor (Receiver ps pr st stdone m)
-
--- | A value level inductive natural number, indexed by the corresponding type
--- level natural number 'N'.
---
--- This is often needed when writing pipelined peers to be able to count the
--- number of outstanding pipelined yields, and show to the type checker that
--- 'SenderCollect' and 'SenderDone' are being used correctly.
---
-newtype Nat (n :: N) = UnsafeInt Int
-  deriving Show via Int
-
-data IsNat (n :: N) where
-  IsZero ::          IsNat Z
-  IsSucc :: Nat n -> IsNat (S n)
-
-toIsNat :: Nat n -> IsNat n
-toIsNat (UnsafeInt 0) = unsafeCoerce IsZero
-toIsNat (UnsafeInt n) = unsafeCoerce (IsSucc (UnsafeInt (pred n)))
-
-pattern Zero :: () => Z ~ n => Nat n
-pattern Zero <- (toIsNat -> IsZero) where
-  Zero = UnsafeInt 0
-
-pattern Succ :: () => (m ~ S n) => Nat n -> Nat m
-pattern Succ n <- (toIsNat -> IsSucc n) where
-  Succ (UnsafeInt n) = UnsafeInt (succ n)
-
-{-# COMPLETE Zero, Succ #-}
-
-natToInt :: Nat n -> Int
-natToInt (UnsafeInt n) = n
-
-unsafeIntToNat :: Int -> Nat n
-unsafeIntToNat = UnsafeInt
