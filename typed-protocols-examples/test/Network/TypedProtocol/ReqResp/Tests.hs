@@ -103,15 +103,15 @@ direct (SendMsgReq req kResp) ReqRespServer{recvMsgReq} = do
     direct client' server'
 
 
-directPipelined :: forall req resp c m a b. Monad m
-                => ReqRespClientPipelined req resp c m a
-                -> ReqRespServer          req resp   m b
+directPipelined :: Monad m
+                => ReqRespClientPipelined req resp m a
+                -> ReqRespServer          req resp m b
                 -> m (a, b)
 directPipelined (ReqRespClientPipelined client0) server0 =
     go EmptyQ client0 server0
   where
-    go :: forall n.
-          Queue n c
+    go :: Monad m
+       => Queue n c
        -> ReqRespIdle   req resp n c m a
        -> ReqRespServer req resp     m b
        -> m (a, b)

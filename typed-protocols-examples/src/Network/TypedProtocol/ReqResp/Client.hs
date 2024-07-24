@@ -84,12 +84,12 @@ requestOnce server req = (\(resp, _, _) -> resp)
 -- | A request-response client designed for running the 'ReqResp' protocol in
 -- a pipelined way.
 --
-data ReqRespClientPipelined req resp c m a where
+data ReqRespClientPipelined req resp m a where
   -- | A 'PingPongSender', but starting with zero outstanding pipelined
   -- responses, and for any internal collect type @c@.
   ReqRespClientPipelined ::
       ReqRespIdle            req resp Z c m a
-   -> ReqRespClientPipelined req resp   c m a
+   -> ReqRespClientPipelined req resp     m a
 
 
 data ReqRespIdle req resp n c m a where
@@ -117,10 +117,10 @@ data ReqRespIdle req resp n c m a where
 --
 reqRespClientPeerPipelined
   :: Functor m
-  => ReqRespClientPipelined req resp         c         m a
-  -> Client (ReqResp req resp) (Pipelined  Z c) StIdle m a
+  => ReqRespClientPipelined req resp           m a
+  -> ClientPipelined (ReqResp req resp) StIdle m a
 reqRespClientPeerPipelined (ReqRespClientPipelined peer) =
-    reqRespClientPeerIdle peer
+    ClientPipelined $ reqRespClientPeerIdle peer
 
 
 reqRespClientPeerIdle
