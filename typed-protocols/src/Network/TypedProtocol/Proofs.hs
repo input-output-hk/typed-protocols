@@ -245,16 +245,14 @@ promoteToPipelined (Done refl k)      = Done refl k
 --
 connectPipelined
   :: forall ps (pr :: PeerRole)
-               (st :: ps) c c' m a b.
+               (st :: ps) c m a b.
        (Monad m, SingI pr)
     => [Bool]
-    -> [Bool]
-    -> Peer ps             pr  ('Pipelined Z c)  st m a
-    -> Peer ps (FlipAgency pr) ('Pipelined Z c') st m b
+    -> Peer ps             pr  ('Pipelined Z c) st m a
+    -> Peer ps (FlipAgency pr) NonPipelined     st m b
     -> m (a, b, TerminalStates ps)
-connectPipelined csA csB a b =
-    connect (forgetPipelined csA a)
-            (forgetPipelined csB b)
+connectPipelined csA a b =
+    connect (forgetPipelined csA a) b
 
 -- | A reference specification for interleaving of requests and responses
 -- with pipelining, where the environment can choose whether a response is
