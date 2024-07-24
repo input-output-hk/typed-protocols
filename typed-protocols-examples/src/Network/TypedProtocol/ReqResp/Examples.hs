@@ -68,7 +68,7 @@ reqRespClientMap = go []
 reqRespClientMapPipelined :: forall req resp m.
                              Monad m
                           => [req]
-                          -> ReqRespClientPipelined req resp resp m [resp]
+                          -> ReqRespClientPipelined req resp m [resp]
 reqRespClientMapPipelined reqs0 =
     ReqRespClientPipelined (go [] Zero reqs0)
   where

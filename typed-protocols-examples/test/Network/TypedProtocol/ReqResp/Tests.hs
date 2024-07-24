@@ -103,15 +103,15 @@ direct (SendMsgReq req kResp) ReqRespServer{recvMsgReq} = do
     direct client' server'
 
 
-directPipelined :: forall req resp c m a b. Monad m
-                => ReqRespClientPipelined req resp c m a
-                -> ReqRespServer          req resp   m b
+directPipelined :: Monad m
+                => ReqRespClientPipelined req resp m a
+                -> ReqRespServer          req resp m b
                 -> m (a, b)
 directPipelined (ReqRespClientPipelined client0) server0 =
     go EmptyQ client0 server0
   where
-    go :: forall n.
-          Queue n c
+    go :: Monad m
+       => Queue n c
        -> ReqRespIdle   req resp n c m a
        -> ReqRespServer req resp     m b
        -> m (a, b)
@@ -165,10 +165,10 @@ prop_connect f xs =
 prop_connectPipelined :: [Bool] -> (Int -> Int -> (Int, Int)) -> [Int] -> Bool
 prop_connectPipelined cs f xs =
     case runIdentity
-           (connectPipelined cs []
+           (connectPipelined cs
              (reqRespClientPeerPipelined (reqRespClientMapPipelined xs))
-             (promoteToPipelined $ reqRespServerPeer
-               (reqRespServerMapAccumL (\a -> pure . f a) 0)))
+             (reqRespServerPeer          (reqRespServerMapAccumL
+                                            (\a -> pure . f a) 0)))
 
       of (c, s, TerminalStates SingDone SingDone) ->
            (s, c) == mapAccumL f 0 xs

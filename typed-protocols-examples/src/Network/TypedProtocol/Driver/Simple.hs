@@ -147,12 +147,12 @@ runPeer tracer codec channel peer =
 -- 'MonadSTM' constraint.
 --
 runPipelinedPeer
-  :: forall ps (st :: ps) pr failure bytes c m a.
+  :: forall ps (st :: ps) pr failure bytes m a.
      (MonadAsync m, MonadThrow m, Exception failure)
   => Tracer m (TraceSendRecv ps)
   -> Codec ps failure m bytes
   -> Channel m bytes
-  -> Peer ps pr ('Pipelined Z c) st m a
+  -> PeerPipelined ps pr st m a
   -> m (a, Maybe bytes)
 runPipelinedPeer tracer codec channel peer =
     runPipelinedPeerWithDriver driver peer
@@ -214,8 +214,8 @@ runConnectedPeersPipelined :: (MonadAsync m, MonadCatch m,
                            => m (Channel m bytes, Channel m bytes)
                            -> Tracer m (PeerRole, TraceSendRecv ps)
                            -> Codec ps failure m bytes
-                           -> Peer ps             pr  ('Pipelined Z c) st m a
-                           -> Peer ps (FlipAgency pr) 'NonPipelined    st m b
+                           -> PeerPipelined ps             pr                st m a
+                           -> Peer          ps (FlipAgency pr) 'NonPipelined st m b
                            -> m (a, b)
 runConnectedPeersPipelined createChannels tracer codec client server =
     createChannels >>= \(clientChannel, serverChannel) ->
@@ -240,8 +240,8 @@ runConnectedPeersAsymmetric
     -> Tracer m (Role, TraceSendRecv ps)
     -> Codec ps failure m bytes
     -> Codec ps failure m bytes
-    -> Peer ps             pr  ('Pipelined Z c) st m a
-    -> Peer ps (FlipAgency pr) 'NonPipelined    st m b
+    -> PeerPipelined ps             pr                st m a
+    -> Peer          ps (FlipAgency pr) 'NonPipelined st m b
     -> m (a, b)
 runConnectedPeersAsymmetric createChannels tracer codec codec' client server =
     createChannels >>= \(clientChannel, serverChannel) ->

@@ -13,6 +13,8 @@
 --
 module Network.TypedProtocol.Peer.Client
   ( Client
+  , ClientPipelined
+  , TP.PeerPipelined(ClientPipelined, runClientPipelined)
   , pattern Effect
   , pattern Yield
   , pattern Await
@@ -45,6 +47,20 @@ type Client :: forall ps
             -> Type
 type Client ps pl st m a = Peer ps AsClient pl st m a
 
+
+-- | A description of a peer that engages in a protocol in a pipelined fashion.
+--
+type ClientPipelined  ps st m a = TP.PeerPipelined ps AsClient st m a
+
+pattern ClientPipelined :: forall ps st m a.
+                           ()
+                        => forall c.
+                           ()
+                        => Client ps (Pipelined Z c) st m a
+                        -> ClientPipelined ps st m a
+pattern ClientPipelined { runClientPipelined } = TP.PeerPipelined runClientPipelined
+
+{-# COMPLETE ClientPipelined #-}
 
 -- | Client role pattern for 'TP.Effect'.
 --

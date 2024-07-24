@@ -211,9 +211,9 @@ connect_pipelined :: PingPongClientPipelined Int Identity [Either Int Int]
                   -> (Int, [Either Int Int])
 connect_pipelined client cs =
   case runIdentity
-         (connectPipelined cs []
+         (connectPipelined cs
             (pingPongClientPeerPipelined client)
-            (promoteToPipelined $ pingPongServerPeer pingPongServerCount))
+            (pingPongServerPeer pingPongServerCount))
     of (reqResps, n, TerminalStates SingDone SingDone) ->
          (n, reqResps)
 

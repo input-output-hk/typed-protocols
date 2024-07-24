@@ -156,12 +156,12 @@ runPeerWithDriver Driver{sendMessage, recvMessage, initialDState} =
 -- 'MonadAsync' constraint.
 --
 runPipelinedPeerWithDriver
-  :: forall ps (st :: ps) pr dstate c m a.
+  :: forall ps (st :: ps) pr dstate m a.
      MonadAsync m
   => Driver ps pr dstate m
-  -> Peer ps pr ('Pipelined Z c) st m a
+  -> PeerPipelined ps pr st m a
   -> m (a, dstate)
-runPipelinedPeerWithDriver driver@Driver{initialDState} peer = do
+runPipelinedPeerWithDriver driver@Driver{initialDState} (PeerPipelined peer) = do
     receiveQueue <- atomically newTQueue
     collectQueue <- atomically newTQueue
     a <- runPipelinedPeerReceiverQueue receiveQueue collectQueue driver
