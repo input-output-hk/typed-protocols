@@ -33,7 +33,7 @@ module Network.TypedProtocol.Peer.Server
 import           Data.Kind (Type)
 
 import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer (Peer, Nat (..))
+import           Network.TypedProtocol.Peer (Peer)
 import qualified Network.TypedProtocol.Peer as TP
 
 

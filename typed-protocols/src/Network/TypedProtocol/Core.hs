@@ -1,22 +1,23 @@
-{-# LANGUAGE BangPatterns             #-}
 {-# LANGUAGE ConstraintKinds          #-}
 {-# LANGUAGE DataKinds                #-}
+{-# LANGUAGE DerivingVia              #-}
 {-# LANGUAGE EmptyCase                #-}
 {-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE GADTs                    #-}
 {-# LANGUAGE MultiParamTypeClasses    #-}
+{-# LANGUAGE PatternSynonyms          #-}
 {-# LANGUAGE PolyKinds                #-}
 {-# LANGUAGE QuantifiedConstraints    #-}
 {-# LANGUAGE RankNTypes               #-}
 {-# LANGUAGE ScopedTypeVariables      #-}
 {-# LANGUAGE StandaloneDeriving       #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeFamilies             #-}
 {-# LANGUAGE TypeFamilyDependencies   #-}
 {-# LANGUAGE TypeOperators            #-}
 -- need for 'Show' instance of 'ProtocolState'
 {-# LANGUAGE UndecidableInstances     #-}
+{-# LANGUAGE ViewPatterns             #-}
 
 -- | This module defines the core of the typed protocol framework.
 --
@@ -43,6 +44,9 @@ module Network.TypedProtocol.Core
   , IsPipelined (..)
   , Outstanding
   , N (..)
+  , Nat (Succ, Zero)
+  , natToInt
+  , unsafeIntToNat
   , Trans (..)
   , SingTrans (..)
   , ActiveAgency
@@ -53,6 +57,7 @@ module Network.TypedProtocol.Core
   ) where
 
 import           Data.Kind (Constraint, Type)
+import           Unsafe.Coerce (unsafeCoerce)
 
 import           Data.Singletons
 
@@ -520,3 +525,37 @@ type        Outstanding :: IsPipelined -> N
 type family Outstanding pl where
   Outstanding 'NonPipelined    = Z
   Outstanding ('Pipelined n _) = n
+
+-- | A value level inductive natural number, indexed by the corresponding type
+-- level natural number 'N'.
+--
+-- This is often needed when writing pipelined peers to be able to count the
+-- number of outstanding pipelined yields, and show to the type checker that
+-- 'SenderCollect' and 'SenderDone' are being used correctly.
+--
+newtype Nat (n :: N) = UnsafeInt Int
+  deriving Show via Int
+
+data IsNat (n :: N) where
+  IsZero ::          IsNat Z
+  IsSucc :: Nat n -> IsNat (S n)
+
+toIsNat :: Nat n -> IsNat n
+toIsNat (UnsafeInt 0) = unsafeCoerce IsZero
+toIsNat (UnsafeInt n) = unsafeCoerce (IsSucc (UnsafeInt (pred n)))
+
+pattern Zero :: () => Z ~ n => Nat n
+pattern Zero <- (toIsNat -> IsZero) where
+  Zero = UnsafeInt 0
+
+pattern Succ :: () => (m ~ S n) => Nat n -> Nat m
+pattern Succ n <- (toIsNat -> IsSucc n) where
+  Succ (UnsafeInt n) = UnsafeInt (succ n)
+
+{-# COMPLETE Zero, Succ #-}
+
+natToInt :: Nat n -> Int
+natToInt (UnsafeInt n) = n
+
+unsafeIntToNat :: Int -> Nat n
+unsafeIntToNat = UnsafeInt
