@@ -165,9 +165,9 @@ prop_connect f xs =
 prop_connectPipelined :: [Bool] -> (Int -> Int -> (Int, Int)) -> [Int] -> Bool
 prop_connectPipelined cs f xs =
     case runIdentity
-           (connectPipelined cs []
+           (connectPipelined cs
              (reqRespClientPeerPipelined (reqRespClientMapPipelined xs))
-             (promoteToPipelined $ reqRespServerPeer
+             (reqRespServerPeer
                (reqRespServerMapAccumL (\a -> pure . f a) 0)))
 
       of (c, s, TerminalStates SingDone SingDone) ->
