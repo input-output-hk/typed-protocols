@@ -139,9 +139,9 @@ data PingPongClientIdle (n :: N) c m a where
 pingPongClientPeerPipelined
   :: Functor m
   => PingPongClientPipelined c m a
-  -> Client PingPong (Pipelined Z c) StIdle m a
+  -> ClientPipelined PingPong StIdle m a
 pingPongClientPeerPipelined (PingPongClientPipelined peer) =
-    pingPongClientPeerIdle peer
+    ClientPipelined $ pingPongClientPeerIdle peer
 
 
 pingPongClientPeerIdle

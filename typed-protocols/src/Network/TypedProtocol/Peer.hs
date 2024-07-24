@@ -17,6 +17,7 @@
 --
 module Network.TypedProtocol.Peer
   ( Peer (..)
+  , PeerPipelined (..)
   , Receiver (..)
   , Outstanding
   , N (..)
@@ -254,3 +255,11 @@ data Receiver ps pr st stdone m c where
                  -> Receiver ps pr st stdone m c
 
 deriving instance Functor m => Functor (Receiver ps pr st stdone m)
+
+-- | A description of a peer that engages in a protocol in a pipelined fashion.
+--
+data PeerPipelined ps pr (st :: ps) m a where
+    PeerPipelined :: { runPeerPipelined :: Peer ps pr (Pipelined Z c) st m a }
+                  -> PeerPipelined ps pr st m a
+
+deriving instance Functor m => Functor (PeerPipelined ps pr st m)

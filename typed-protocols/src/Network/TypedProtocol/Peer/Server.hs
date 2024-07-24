@@ -13,6 +13,8 @@
 --
 module Network.TypedProtocol.Peer.Server
   ( Server
+  , ServerPipelined
+  , TP.PeerPipelined(ServerPipelined, runServerPipelined)
   , pattern Effect
   , pattern Yield
   , pattern Await
@@ -44,6 +46,21 @@ type Server :: forall ps
             -> Type
             -> Type
 type Server ps pl st m a = Peer ps AsServer pl st m a
+
+
+-- | A description of a peer that engages in a protocol in a pipelined fashion.
+--
+type ServerPipelined  ps st m a = TP.PeerPipelined ps AsServer st m a
+
+pattern ServerPipelined :: forall ps st m a.
+                           ()
+                        => forall c.
+                           ()
+                        => Server ps (Pipelined Z c) st m a
+                        -> ServerPipelined ps st m a
+pattern ServerPipelined { runServerPipelined } = TP.PeerPipelined runServerPipelined
+
+{-# COMPLETE ServerPipelined #-}
 
 
 -- | Server role pattern for 'TP.Effect'.

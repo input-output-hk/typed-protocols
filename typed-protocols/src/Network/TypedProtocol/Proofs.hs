@@ -169,7 +169,7 @@ enqueue a (ConsQ b q) = ConsQ b (enqueue a q)
 -- us extra expressiveness or to break the protocol state machine.
 --
 forgetPipelined
-  :: forall ps (pr :: PeerRole) (st :: ps) c m a.
+  :: forall ps (pr :: PeerRole) (st :: ps) m a.
      Functor m
   => [Bool]
   -- ^ interleaving choices for pipelining allowed by
@@ -177,11 +177,11 @@ forgetPipelined
   -- pipelining.  For the 'CollectSTM' primitive, the stm action must not
   -- block otherwise even if the choice is to pipeline more (a 'True' value),
   -- we'll actually collect a result.
-  -> Peer ps pr (Pipelined Z c) st m a
+  -> PeerPipelined ps pr st m a
   -> Peer ps pr  NonPipelined   st m a
-forgetPipelined = goSender EmptyQ
+forgetPipelined cs0 (PeerPipelined peer) = goSender EmptyQ cs0 peer
   where
-    goSender :: forall st' n.
+    goSender :: forall st' n c.
                 Queue n c
              -> [Bool]
              -> Peer ps pr ('Pipelined n c) st' m a
@@ -196,7 +196,7 @@ forgetPipelined = goSender EmptyQ
     goSender (ConsQ x q) (_:cs) (Collect _ k)        = goSender q cs (k x)
     goSender (ConsQ x q) cs@[]  (Collect _ k)        = goSender q cs (k x)
 
-    goReceiver :: forall stCurrent stNext n.
+    goReceiver :: forall stCurrent stNext n c.
                   Queue n c
                -> [Bool]
                -> Peer     ps pr ('Pipelined (S n) c) stNext m a
@@ -218,17 +218,19 @@ forgetPipelined = goSender EmptyQ
 -- using `connectPipelined` function.
 --
 promoteToPipelined
-  :: forall ps (pr :: PeerRole) st c m a.
+  :: forall ps (pr :: PeerRole) st m a.
      Functor m
-  => Peer ps pr 'NonPipelined    st m a
-  -> Peer ps pr ('Pipelined Z c) st m a
-promoteToPipelined (Effect k)         = Effect
-                                      $ promoteToPipelined <$> k
-promoteToPipelined (Yield refl msg k) = Yield refl msg
-                                      $ promoteToPipelined k
-promoteToPipelined (Await refl k)     = Await refl
-                                      $ promoteToPipelined . k
-promoteToPipelined (Done refl k)      = Done refl k
+  => Peer ps pr NonPipelined    st m a
+  -> PeerPipelined ps pr st m a
+promoteToPipelined p = PeerPipelined (go p)
+  where
+    go :: forall st' c.
+          Peer ps pr NonPipelined    st' m a
+       -> Peer ps pr (Pipelined Z c) st' m a
+    go (Effect k)         = Effect $ go <$> k
+    go (Yield refl msg k) = Yield refl msg (go k)
+    go (Await refl k)     = Await refl (go . k)
+    go (Done refl k)      = Done refl k
 
 
 -- | Analogous to 'connect' but also for pipelined peers.
@@ -243,11 +245,11 @@ promoteToPipelined (Done refl k)      = Done refl k
 --
 connectPipelined
   :: forall ps (pr :: PeerRole)
-               (st :: ps) c m a b.
+               (st :: ps) m a b.
        (Monad m, SingI pr)
     => [Bool]
-    -> Peer ps             pr  ('Pipelined Z c) st m a
-    -> Peer ps (FlipAgency pr) NonPipelined     st m b
+    -> PeerPipelined ps             pr               st m a
+    -> Peer          ps (FlipAgency pr) NonPipelined st m b
     -> m (a, b, TerminalStates ps)
 connectPipelined csA a b =
     connect (forgetPipelined csA a) b
