@@ -8,20 +8,18 @@ module Network.TypedProtocol
     -- * Defining and implementing protocols
     -- $defining
     module Network.TypedProtocol.Core
+  , module Network.TypedProtocol.Peer
     -- ** Protocol proofs and tests
     -- $tests
   , module Network.TypedProtocol.Proofs
     -- * Running protocols
     -- $running
   , module Network.TypedProtocol.Driver
-    -- * Pipelining protocols
-    -- $pipelining
-  , module Network.TypedProtocol.Pipelined
   ) where
 
 import           Network.TypedProtocol.Core
+import           Network.TypedProtocol.Peer
 import           Network.TypedProtocol.Driver
-import           Network.TypedProtocol.Pipelined
 import           Network.TypedProtocol.Proofs
 
 

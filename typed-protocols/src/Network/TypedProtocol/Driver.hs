@@ -22,10 +22,11 @@ module Network.TypedProtocol.Driver
   , runPipelinedPeerWithDriver
   ) where
 
+import           Data.Singletons
 import           Data.Void (Void)
 
 import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Pipelined
+import           Network.TypedProtocol.Peer
 
 import           Control.Concurrent.Class.MonadSTM.TQueue
 import           Control.Monad.Class.MonadAsync
@@ -63,19 +64,25 @@ import           Control.Monad.Class.MonadSTM
 -- Driver interface
 --
 
-data Driver ps dstate m =
+data Driver ps (pr :: PeerRole) dstate m =
         Driver {
-          sendMessage :: forall (pr :: PeerRole) (st :: ps) (st' :: ps).
-                         PeerHasAgency pr st
+          sendMessage :: forall (st :: ps) (st' :: ps).
+                         SingI st
+                      => ReflRelativeAgency (StateAgency st)
+                                             WeHaveAgency
+                                            (Relative pr (StateAgency st))
                       -> Message ps st st'
                       -> m ()
 
-        , recvMessage :: forall (pr :: PeerRole) (st :: ps).
-                         PeerHasAgency pr st
+        , recvMessage :: forall (st :: ps).
+                         SingI st
+                      => ReflRelativeAgency (StateAgency st)
+                                             TheyHaveAgency
+                                            (Relative pr (StateAgency st))
                       -> dstate
                       -> m (SomeMessage st, dstate)
 
-        , startDState :: dstate
+        , initialDState :: dstate
         }
 
 -- | When decoding a 'Message' we only know the expected \"from\" state. We
@@ -98,8 +105,8 @@ data SomeMessage (st :: ps) where
 runPeerWithDriver
   :: forall ps (st :: ps) pr dstate m a.
      Monad m
-  => Driver ps dstate m
-  -> Peer ps pr st m a
+  => Driver ps pr dstate m
+  -> Peer ps pr NonPipelined Z st m a
   -> dstate
   -> m (a, dstate)
 runPeerWithDriver Driver{sendMessage, recvMessage} =
@@ -107,17 +114,17 @@ runPeerWithDriver Driver{sendMessage, recvMessage} =
   where
     go :: forall st'.
           dstate
-       -> Peer ps pr st' m a
+       -> Peer ps pr 'NonPipelined Z st' m a
        -> m (a, dstate)
     go dstate (Effect k) = k >>= go dstate
     go dstate (Done _ x) = return (x, dstate)
 
-    go dstate (Yield stok msg k) = do
-      sendMessage stok msg
+    go dstate (Yield refl msg k) = do
+      sendMessage refl msg
       go dstate k
 
-    go dstate (Await stok k) = do
-      (SomeMessage msg, dstate') <- recvMessage stok dstate
+    go dstate (Await refl k) = do
+      (SomeMessage msg, dstate') <- recvMessage refl dstate
       go dstate' (k msg)
 
     -- Note that we do not complain about trailing data in any case, neither
@@ -146,13 +153,13 @@ runPeerWithDriver Driver{sendMessage, recvMessage} =
 -- 'MonadAsync' constraint.
 --
 runPipelinedPeerWithDriver
-  :: forall ps (st :: ps) pr dstate m a.
+  :: forall ps (st :: ps) pr dstate c m a.
      MonadAsync m
-  => Driver ps dstate m
-  -> PeerPipelined ps pr st m a
+  => Driver ps pr dstate m
+  -> Peer ps pr ('Pipelined c) Z st m a
   -> dstate
   -> m (a, dstate)
-runPipelinedPeerWithDriver driver (PeerPipelined peer) dstate0 = do
+runPipelinedPeerWithDriver driver peer dstate0 = do
     receiveQueue <- atomically newTQueue
     collectQueue <- atomically newTQueue
     a <- runPipelinedPeerReceiverQueue receiveQueue collectQueue driver
@@ -172,7 +179,7 @@ runPipelinedPeerWithDriver driver (PeerPipelined peer) dstate0 = do
 
 data ReceiveHandler dstate ps pr m c where
      ReceiveHandler :: MaybeDState dstate n
-                    -> PeerReceiver ps pr (st :: ps) (st' :: ps) m c
+                    -> Receiver ps pr (st :: ps) (st' :: ps) m c
                     -> ReceiveHandler dstate ps pr m c
 
 -- | The handling of trailing data here is quite subtle. Trailing data is data
@@ -228,8 +235,8 @@ runPipelinedPeerSender
      )
   => TQueue m (ReceiveHandler dstate ps pr m c)
   -> TQueue m (c, dstate)
-  -> Driver ps dstate m
-  -> PeerSender ps pr st Z c m a
+  -> Driver ps pr dstate m
+  -> Peer ps pr ('Pipelined c) Z st m a
   -> dstate
   -> m (a, dstate)
 runPipelinedPeerSender receiveQueue collectQueue
@@ -242,31 +249,31 @@ runPipelinedPeerSender receiveQueue collectQueue
     go :: forall st' n.
           Nat n
        -> MaybeDState dstate n
-       -> PeerSender ps pr st' n c m a
+       -> Peer ps pr ('Pipelined c) n st' m a
        -> m (a, dstate)
-    go n    dstate             (SenderEffect k) = k >>= go n dstate
-    go Zero (HasDState dstate) (SenderDone _ x) = return (x, dstate)
+    go n    dstate             (Effect k) = k >>= go n dstate
+    go Zero (HasDState dstate) (Done _ x) = return (x, dstate)
 
-    go Zero dstate (SenderYield stok msg k) = do
-      sendMessage stok msg
+    go Zero dstate (Yield refl msg k) = do
+      sendMessage refl msg
       go Zero dstate k
 
-    go Zero (HasDState dstate) (SenderAwait stok k) = do
+    go Zero (HasDState dstate) (Await stok k) = do
       (SomeMessage msg, dstate') <- recvMessage stok dstate
       go Zero (HasDState dstate') (k msg)
 
-    go n dstate (SenderPipeline stok msg receiver k) = do
+    go n dstate (YieldPipelined refl msg receiver k) = do
       atomically (writeTQueue receiveQueue (ReceiveHandler dstate receiver))
-      sendMessage stok msg
+      sendMessage refl msg
       go (Succ n) NoDState k
 
-    go (Succ n) NoDState (SenderCollect Nothing k) = do
+    go (Succ n) NoDState (Collect Nothing k) = do
       (c, dstate) <- atomically (readTQueue collectQueue)
       case n of
         Zero    -> go Zero      (HasDState dstate) (k c)
         Succ n' -> go (Succ n')  NoDState          (k c)
 
-    go (Succ n) NoDState (SenderCollect (Just k') k) = do
+    go (Succ n) NoDState (Collect (Just k') k) = do
       mc <- atomically (tryReadTQueue collectQueue)
       case mc of
         Nothing  -> go (Succ n) NoDState  k'
@@ -283,13 +290,13 @@ runPipelinedPeerReceiverQueue
      )
   => TQueue m (ReceiveHandler dstate ps pr m c)
   -> TQueue m (c, dstate)
-  -> Driver ps dstate m
+  -> Driver ps pr dstate m
   -> m Void
 runPipelinedPeerReceiverQueue receiveQueue collectQueue
-                              driver@Driver{startDState} = do
+                              driver@Driver{initialDState} = do
     threadId <- myThreadId
     labelThread threadId "pipelined-recevier-queue"
-    go startDState
+    go initialDState
   where
     go :: dstate -> m Void
     go receiverDState = do
@@ -306,20 +313,20 @@ runPipelinedPeerReceiverQueue receiveQueue collectQueue
 runPipelinedPeerReceiver
   :: forall ps (st :: ps) (stdone :: ps) pr dstate m c.
      Monad m
-  => Driver ps dstate m
+  => Driver ps pr dstate m
   -> dstate
-  -> PeerReceiver ps pr (st :: ps) (stdone :: ps) m c
+  -> Receiver ps pr (st :: ps) (stdone :: ps) m c
   -> m (c, dstate)
 runPipelinedPeerReceiver Driver{recvMessage} = go
   where
     go :: forall st' st''.
           dstate
-       -> PeerReceiver ps pr st' st'' m c
+       -> Receiver ps pr st' st'' m c
        -> m (c, dstate)
     go dstate (ReceiverEffect k) = k >>= go dstate
 
     go dstate (ReceiverDone x) = return (x, dstate)
 
-    go dstate (ReceiverAwait stok k) = do
-      (SomeMessage msg, dstate') <- recvMessage stok dstate
+    go dstate (ReceiverAwait refl k) = do
+      (SomeMessage msg, dstate') <- recvMessage refl dstate
       go dstate' (k msg)

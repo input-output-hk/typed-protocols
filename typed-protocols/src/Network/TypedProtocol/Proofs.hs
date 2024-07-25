@@ -1,10 +1,11 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE EmptyCase             #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 
 -- This is already implied by the -Wall in the .cabal file, but lets just be
@@ -21,21 +22,22 @@ module Network.TypedProtocol.Proofs
     -- $about
     -- * Connect proof
     connect
+  , connectPipelined
   , TerminalStates (..)
     -- * Pipelining proofs
     -- | Additional proofs specific to the pipelining features
-  , connectPipelined
   , forgetPipelined
+  , promoteToPipelined
     -- ** Pipeline proof helpers
   , Queue (..)
   , enqueue
-    -- ** Auxilary functions
+    -- ** Auxiliary functions
   , pipelineInterleaving
   ) where
 
-import           Data.Void (absurd)
+import           Data.Singletons
 import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Pipelined
+import           Network.TypedProtocol.Peer
 
 -- $about
 --
@@ -73,18 +75,28 @@ import           Network.TypedProtocol.Pipelined
 -- * It is useful for testing peer implementations against each other in a
 -- minimalistic setting.
 --
-connect :: forall ps (pr :: PeerRole) (st :: ps) m a b.
-           (Monad m, Protocol ps)
-        => Peer ps pr st m a
-        -> Peer ps (FlipAgency pr) st m b
-        -> m (a, b, TerminalStates ps)
+connect
+   :: forall ps (pr :: PeerRole) (initSt :: ps) m a b.
+      (Monad m, SingI pr)
+   => Peer ps             pr  NonPipelined Z initSt m a
+   -> Peer ps (FlipAgency pr) NonPipelined Z initSt m b
+   -> m (a, b, TerminalStates ps pr)
 connect = go
   where
-    go :: forall (st' :: ps).
-          Peer ps pr st' m a
-       -> Peer ps (FlipAgency pr) st' m b
-       -> m (a, b, TerminalStates ps)
-    go (Done stA a)    (Done stB b)    = return (a, b, TerminalStates stA stB)
+    singPeerRole :: Sing pr
+    singPeerRole = sing
+
+    go :: forall (st :: ps).
+          Peer ps             pr  NonPipelined Z st m a
+       -> Peer ps (FlipAgency pr) NonPipelined Z st m b
+       -> m (a, b, TerminalStates ps pr)
+    go (Done reflA a)  (Done reflB b)  = return (a, b, terminals)
+      where
+        terminals :: TerminalStates ps pr
+        terminals = TerminalStates (sing :: Sing st)
+                                    reflA
+                                   (sing :: Sing st)
+                                    reflB
     go (Effect a )      b              = a >>= \a' -> go a' b
     go  a              (Effect b)      = b >>= \b' -> go a  b'
     go (Yield _ msg a) (Await _ b)     = go  a     (b msg)
@@ -92,215 +104,50 @@ connect = go
 
     -- By appealing to the proofs about agency for this protocol we can
     -- show that these other cases are impossible
-    go (Yield (ClientAgency stA) _ _) (Yield (ServerAgency stB) _ _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stA stB)
+    go (Yield reflA _ _) (Yield reflB _ _) =
+      case exclusionLemma_ClientAndServerHaveAgency singPeerRole reflA reflB of
+        ReflNobodyHasAgency -> case reflA of {}
 
-    go (Yield (ServerAgency stA) _ _) (Yield (ClientAgency stB) _ _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stB stA)
+    go (Await reflA _)   (Await reflB _)   =
+      case exclusionLemma_ClientAndServerHaveAgency singPeerRole reflA reflB of
+        ReflNobodyHasAgency -> case reflA of {}
 
-    go (Await (ServerAgency stA) _)   (Await (ClientAgency stB) _)   =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stB stA)
+    go (Done  reflA _) (Yield reflB _ _)   =
+      case terminationLemma_2 singPeerRole reflB reflA of
+        ReflNobodyHasAgency -> case reflB of {}
 
-    go (Await (ClientAgency stA) _)   (Await (ServerAgency stB) _)   =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stA stB)
+    go (Done  reflA _) (Await reflB _)     =
+      case terminationLemma_2 singPeerRole reflB reflA of
+        ReflNobodyHasAgency -> case reflB of {}
 
-    go (Done  stA _)            (Yield (ServerAgency stB) _ _) =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stA stB)
+    go (Yield reflA _ _) (Done reflB _)    =
+      case terminationLemma_1 singPeerRole reflA reflB of
+        ReflNobodyHasAgency -> case reflA of {}
 
-    go (Done  stA _)            (Yield (ClientAgency stB) _ _) =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stA stB)
-
-    go (Done  stA _)            (Await (ClientAgency stB) _)   =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stA stB)
-
-    go (Done  stA _)            (Await (ServerAgency stB) _)   =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stA stB)
-
-    go (Yield (ClientAgency stA) _ _) (Done stB _)    =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stB stA)
-
-    go (Yield (ServerAgency stA) _ _) (Done stB _)    =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stB stA)
-
-    go (Await (ServerAgency stA) _)   (Done stB _)    =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stB stA)
-
-    go (Await (ClientAgency stA) _)   (Done stB _)    =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stB stA)
+    go (Await reflA _)   (Done reflB _)    =
+      case terminationLemma_1 singPeerRole reflA reflB of
+        ReflNobodyHasAgency -> case reflA of {}
 
 
 -- | The terminal states for the protocol. Used in 'connect' and
 -- 'connectPipelined' to return the states in which the peers terminated.
 --
-data TerminalStates ps where
-     TerminalStates :: forall ps (st :: ps).
-                       NobodyHasAgency st
-                    -> NobodyHasAgency st
-                    -> TerminalStates ps
+data TerminalStates ps (pr :: PeerRole) where
+     TerminalStates
+       :: forall ps pr (st :: ps) (st' :: ps).
+          Sing st
+       -> ReflRelativeAgency (StateAgency st)
+                              NobodyHasAgency
+                             (Relative             pr  (StateAgency st))
+       -> Sing st'
+       -> ReflRelativeAgency (StateAgency st')
+                              NobodyHasAgency
+                             (Relative (FlipAgency pr) (StateAgency st'))
+       -> TerminalStates ps pr
 
-
--- | Analogous to 'connect' but for pipelined peers.
 --
--- Since pipelining allows multiple possible interleavings, we provide a
--- @[Bool]@ parameter to control the choices. Each @True@ will trigger picking
--- the first choice in the @SenderCollect@ construct (if possible), leading
--- to more results outstanding. This can also be interpreted as a greater
--- pipeline depth, or more messages in-flight.
+-- Remove Pipelining
 --
--- This can be exercised using a QuickCheck style generator.
---
-connectPipelined :: forall ps (pr :: PeerRole) (st :: ps) m a b.
-                    (Monad m, Protocol ps)
-                 => [Bool] -- ^ Interleaving choices. [] gives no pipelining.
-                 -> PeerPipelined ps pr st m a
-                 -> Peer          ps (FlipAgency pr) st m b
-                 -> m (a, b, TerminalStates ps)
-
-connectPipelined cs0 (PeerPipelined peerA) peerB =
-    goSender cs0 EmptyQ peerA peerB
-  where
-    goSender :: forall (st' :: ps) n c.
-                [Bool]
-             -> Queue                      n c
-             -> PeerSender ps pr st' n c m a
-             -> Peer       ps (FlipAgency pr) st'     m b
-             -> m (a, b, TerminalStates ps)
-
-    goSender _ EmptyQ (SenderDone stA a) (Done stB b) = return (a, b, terminals)
-      where terminals = TerminalStates stA stB
-
-    goSender cs q (SenderEffect a) b  = a >>= \a' -> goSender cs q a' b
-    goSender cs q a        (Effect b) = b >>= \b' -> goSender cs q a  b'
-
-    goSender cs q (SenderYield _ msg a) (Await _ b) = goSender cs q a (b msg)
-    goSender cs q (SenderAwait _ a) (Yield _ msg b) = goSender cs q (a msg) b
-
-    -- This does the receiver effects immediately, as if there were no
-    -- pipelining.
-    goSender cs q (SenderPipeline _ msg r a) (Await _ b) =
-      goReceiver r (b msg) >>= \(b', x) -> goSender cs (enqueue x q) a b'
-
-    -- However we make it possible to exercise the choice the environment has
-    -- in the non-determinism of the pipeline interleaving of collecting
-    -- results. Always picking the second continuation gives the fully serial
-    -- order. Always picking the first leads to a maximal (and possibly
-    -- unbounded) number of pending replies. By using a list of bools to
-    -- control the choices here, we can test any other order:
-    goSender (True:cs) q (SenderCollect (Just a) _) b = goSender cs q  a    b
-    goSender (_:cs) (ConsQ x q) (SenderCollect _ a) b = goSender cs q (a x) b
-    goSender    []  (ConsQ x q) (SenderCollect _ a) b = goSender [] q (a x) b
-
-    -- Proofs that the remaining cases are impossible
-    goSender _ _ (SenderDone stA _) (Yield (ServerAgency stB) _ _) =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stA stB)
-
-    goSender _ _ (SenderDone stA _) (Yield (ClientAgency stB) _ _) =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stA stB)
-
-    goSender _ _ (SenderDone stA _) (Await (ClientAgency stB) _) =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stA stB)
-
-    goSender _ _ (SenderDone stA _) (Await (ServerAgency stB) _) =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stA stB)
-
-    goSender _ _ (SenderYield (ClientAgency stA) _ _) (Done stB _) =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stB stA)
-
-    goSender _ _ (SenderYield (ServerAgency stA) _ _) (Done stB _) =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stB stA)
-
-    goSender _ _ (SenderYield (ClientAgency stA) _ _) (Yield (ServerAgency stB) _ _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stA stB)
-
-    goSender _ _ (SenderYield (ServerAgency stA) _ _) (Yield (ClientAgency stB) _ _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stB stA)
-
-    goSender _ _ (SenderAwait (ClientAgency stA) _) (Done stB _) =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stB stA)
-
-    goSender _ _ (SenderAwait (ServerAgency stA) _) (Done stB _) =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stB stA)
-
-    goSender _ _ (SenderAwait (ClientAgency stA) _) (Await (ServerAgency stB) _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stA stB)
-
-    goSender _ _ (SenderAwait (ServerAgency stA) _) (Await (ClientAgency stB) _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stB stA)
-
-    goSender _ _ (SenderPipeline (ClientAgency stA) _ _ _) (Done stB _) =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stB stA)
-
-    goSender _ _ (SenderPipeline (ServerAgency stA) _ _ _) (Done stB _) =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stB stA)
-
-    goSender _ _ (SenderPipeline (ClientAgency stA) _ _ _) (Yield (ServerAgency stB) _ _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stA stB)
-
-    goSender _ _ (SenderPipeline (ServerAgency stA) _ _ _) (Yield (ClientAgency stB) _ _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stB stA)
-
-
-    goReceiver :: forall (st' :: ps) (stdone :: ps) c.
-                  PeerReceiver ps pr st' stdone m c
-               -> Peer         ps (FlipAgency pr) st'        m b
-               -> m (Peer      ps (FlipAgency pr)     stdone m b, c)
-
-    goReceiver (ReceiverDone x)    b         = return (b, x)
-    goReceiver (ReceiverEffect a)  b         = a >>= \a' -> goReceiver a' b
-    goReceiver  a                 (Effect b) = b >>= \b' -> goReceiver a  b'
-
-    goReceiver (ReceiverAwait _ a) (Yield _ msg b) = goReceiver (a msg) b
-
-
-    -- Proofs that the remaining cases are impossible
-    goReceiver (ReceiverAwait (ServerAgency stA) _) (Done  stB _) =
-      absurd (exclusionLemma_NobodyAndServerHaveAgency stB stA)
-
-    goReceiver (ReceiverAwait (ClientAgency stA) _) (Done  stB _) =
-      absurd (exclusionLemma_NobodyAndClientHaveAgency stB stA)
-
-    goReceiver (ReceiverAwait (ServerAgency stA) _) (Await (ClientAgency stB) _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stB stA)
-
-    goReceiver (ReceiverAwait (ClientAgency stA) _) (Await (ServerAgency stB) _) =
-      absurd (exclusionLemma_ClientAndServerHaveAgency stA stB)
-
-
--- | Prove that we have a total conversion from pipelined peers to regular
--- peers. This is a sanity property that shows that pipelining did not give
--- us extra expressiveness or to break the protocol state machine.
---
-forgetPipelined
-  :: forall ps (pr :: PeerRole) (st :: ps) m a.
-     Functor m
-  => PeerPipelined ps pr st m a
-  -> Peer          ps pr st m a
-forgetPipelined (PeerPipelined peer) = goSender EmptyQ peer
-  where
-    goSender :: forall st' n c.
-                Queue                n c
-             -> PeerSender ps pr st' n c m a
-             -> Peer       ps pr st'     m a
-
-    goSender EmptyQ (SenderDone     st     k) = Done st k
-    goSender q      (SenderEffect          k) = Effect (goSender q <$> k)
-    goSender q      (SenderYield    st m   k) = Yield st m (goSender q k)
-    goSender q      (SenderAwait    st     k) = Await st   (goSender q <$> k)
-    goSender q      (SenderPipeline st m r k) = Yield st m (goReceiver q k r)
-    goSender (ConsQ x q) (SenderCollect  _ k) = goSender q (k x)
-    -- Here by picking the second continuation in Collect we resolve the
-    -- non-determinism by always picking the fully in-order non-pipelined
-    -- data flow path.
-
-    goReceiver :: forall stCurrent stNext n c.
-                  Queue                        n  c
-               -> PeerSender   ps pr stNext (S n) c   m a
-               -> PeerReceiver ps pr stCurrent stNext m c
-               -> Peer         ps pr stCurrent        m a
-
-    goReceiver q s (ReceiverDone     x) = goSender (enqueue x q) s
-    goReceiver q s (ReceiverEffect   k) = Effect (goReceiver q s <$> k)
-    goReceiver q s (ReceiverAwait st k) = Await st (goReceiver q s . k)
 
 
 -- | A size indexed queue. This is useful for proofs, including
@@ -319,12 +166,97 @@ enqueue a  EmptyQ     = ConsQ a EmptyQ
 enqueue a (ConsQ b q) = ConsQ b (enqueue a q)
 
 
+-- | Prove that we have a total conversion from pipelined peers to regular
+-- peers. This is a sanity property that shows that pipelining did not give
+-- us extra expressiveness or to break the protocol state machine.
+--
+forgetPipelined
+  :: forall ps (pr :: PeerRole) (st :: ps) c m a.
+     Functor m
+  => [Bool]
+  -> Peer ps pr ('Pipelined c) Z st m a
+  -> Peer ps pr 'NonPipelined  Z st m a
+forgetPipelined = goSender EmptyQ
+  where
+    goSender :: forall st' n.
+                Queue n c
+             -> [Bool]
+             -> Peer ps pr ('Pipelined c) n st' m a
+             -> Peer ps pr 'NonPipelined  Z st' m a
+
+    goSender EmptyQ _cs (Done           refl     k) = Done refl k
+    goSender q       cs (Effect                  k) = Effect (goSender q cs <$> k)
+    goSender q       cs (Yield          refl m   k) = Yield refl m (goSender q cs k)
+    goSender q       cs (Await          refl     k) = Await refl   (goSender q cs <$> k)
+    goSender q       cs (YieldPipelined refl m r k) = Yield refl m (goReceiver q cs k r)
+    goSender q (True:cs')       (Collect (Just k) _) = goSender q cs' k
+    goSender (ConsQ x q) (_:cs) (Collect _ k)        = goSender q cs (k x)
+    goSender (ConsQ x q) cs@[]  (Collect _ k)        = goSender q cs (k x)
+
+    goReceiver :: forall stCurrent stNext n.
+                  Queue n c
+               -> [Bool]
+               -> Peer     ps pr ('Pipelined c) (S n) stNext m a
+               -> Receiver ps pr  stCurrent stNext m c
+               -> Peer     ps pr 'NonPipelined Z stCurrent m a
+
+    goReceiver q cs s (ReceiverDone     x) = goSender (enqueue x q) cs s
+    goReceiver q cs s (ReceiverEffect   k) = Effect   (goReceiver q cs s <$> k)
+    goReceiver q cs s (ReceiverAwait refl k) = Await refl (goReceiver q cs s . k)
+
+
+-- | Promote a peer to a pipelined one.
+--
+-- This is a right inverse of `forgetPipelined`, e.g.
+--
+-- >>> forgetPipelined . promoteToPipelined = id
+--
+-- This function is useful to test a pipelined peer against a non-pipelined one
+-- using `connectPipelined` function.
+--
+promoteToPipelined
+  :: forall ps (pr :: PeerRole) st c m a.
+     Functor m
+  => Peer ps pr 'NonPipelined  Z st m a
+  -> Peer ps pr ('Pipelined c) Z st m a
+promoteToPipelined (Effect k)         = Effect
+                                      $ promoteToPipelined <$> k
+promoteToPipelined (Yield refl msg k) = Yield refl msg
+                                      $ promoteToPipelined k
+promoteToPipelined (Await refl k)     = Await refl
+                                      $ promoteToPipelined . k
+promoteToPipelined (Done refl k)      = Done refl k
+
+
+-- | Analogous to 'connect' but also for pipelined peers.
+--
+-- Since pipelining allows multiple possible interleavings, we provide a
+-- @[Bool]@ parameter to control the choices. Each @True@ will trigger picking
+-- the first choice in the @SenderCollect@ construct (if possible), leading
+-- to more results outstanding. This can also be interpreted as a greater
+-- pipeline depth, or more messages in-flight.
+--
+-- This can be exercised using a QuickCheck style generator.
+--
+connectPipelined
+  :: forall ps (pr :: PeerRole)
+               (st :: ps) c c' m a b.
+       (Monad m, SingI pr)
+    => [Bool]
+    -> [Bool]
+    -> Peer ps             pr  ('Pipelined c)  Z st m a
+    -> Peer ps (FlipAgency pr) ('Pipelined c') Z st m b
+    -> m (a, b, TerminalStates ps pr)
+connectPipelined csA csB a b =
+    connect (forgetPipelined csA a)
+            (forgetPipelined csB b)
+
 -- | A reference specification for interleaving of requests and responses
 -- with pipelining, where the environment can choose whether a response is
 -- available yet.
 --
 -- This also supports bounded choice where the maximum number of outstanding
--- in-flight responses is limted.
+-- in-flight responses is limited.
 --
 pipelineInterleaving :: Int    -- ^ Bound on outstanding responses
                      -> [Bool] -- ^ Pipelining choices
