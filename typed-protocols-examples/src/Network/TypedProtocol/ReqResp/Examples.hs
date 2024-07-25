@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE GADTs               #-}
+{-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Network.TypedProtocol.ReqResp.Examples where
@@ -8,7 +9,7 @@ module Network.TypedProtocol.ReqResp.Examples where
 import           Network.TypedProtocol.ReqResp.Client
 import           Network.TypedProtocol.ReqResp.Server
 
-import           Network.TypedProtocol.Pipelined
+import           Network.TypedProtocol.Peer.Client
 
 -- | An example request\/response client which ignores received responses.
 --
@@ -67,11 +68,11 @@ reqRespClientMap = go []
 reqRespClientMapPipelined :: forall req resp m.
                              Monad m
                           => [req]
-                          -> ReqRespClientPipelined req resp m [resp]
+                          -> ReqRespClientPipelined req resp resp m [resp]
 reqRespClientMapPipelined reqs0 =
     ReqRespClientPipelined (go [] Zero reqs0)
   where
-    go :: [resp] -> Nat o -> [req] -> ReqRespSender req resp o resp m [resp]
+    go :: [resp] -> Nat o -> [req] -> ReqRespIdle req resp resp o m [resp]
     go resps Zero reqs =
       case reqs of
         []        -> SendMsgDonePipelined (reverse resps)
@@ -82,10 +83,10 @@ reqRespClientMapPipelined reqs0 =
         (case reqs of
            []        -> Nothing
            req:reqs' -> Just (sendReq resps (Succ o) req reqs'))
-        (\resp -> go (resp:resps) o reqs)
+        (\resp -> return $ go (resp:resps) o reqs)
 
     sendReq :: [resp] -> Nat o -> req -> [req]
-            -> ReqRespSender req resp o resp m [resp]
+            -> ReqRespIdle req resp resp o m [resp]
     sendReq resps o req reqs' =
       SendMsgReqPipelined req
         (\resp -> return resp)
