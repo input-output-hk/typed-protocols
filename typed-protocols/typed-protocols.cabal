@@ -18,9 +18,11 @@ extra-source-files:  CHANGELOG.md
 library
   exposed-modules:   Network.TypedProtocol
                    , Network.TypedProtocol.Core
+                   , Network.TypedProtocol.Peer
+                   , Network.TypedProtocol.Peer.Client
+                   , Network.TypedProtocol.Peer.Server
                    , Network.TypedProtocol.Codec
                    , Network.TypedProtocol.Driver
-                   , Network.TypedProtocol.Peer
                    , Network.TypedProtocol.Proofs
 
   other-extensions:  GADTs
