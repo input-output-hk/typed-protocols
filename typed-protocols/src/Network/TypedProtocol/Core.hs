@@ -1,13 +1,15 @@
-{-# LANGUAGE DataKinds             #-}
-{-# LANGUAGE DeriveFunctor         #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE PolyKinds             #-}
-{-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE BangPatterns             #-}
+{-# LANGUAGE DataKinds                #-}
+{-# LANGUAGE EmptyCase                #-}
+{-# LANGUAGE GADTs                    #-}
+{-# LANGUAGE PolyKinds                #-}
+{-# LANGUAGE QuantifiedConstraints    #-}
+{-# LANGUAGE RankNTypes               #-}
+{-# LANGUAGE StandaloneDeriving       #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TypeFamilies             #-}
+{-# LANGUAGE TypeFamilyDependencies   #-}
+{-# LANGUAGE TypeOperators            #-}
 
 
 -- | This module defines the core of the typed protocol framework.
@@ -21,17 +23,28 @@ module Network.TypedProtocol.Core
     Protocol (..)
     -- $lemmas
     -- * Engaging in protocols
-    -- $using
   , PeerRole (..)
-  , TokPeerRole (..)
+  , SingPeerRole (..)
+  , Agency (..)
+  , RelativeAgency (..)
+  , Relative
+  , ReflRelativeAgency (..)
   , FlipAgency
-  , PeerHasAgency (..)
-  , WeHaveAgency
-  , TheyHaveAgency
-  , Peer (..)
+  , Pipelined (..)
+  , Trans (..)
+  , SingTrans (..)
+    -- * Protocol proofs and tests
+    -- $tests
+    -- $lemmas
+  , exclusionLemma_ClientAndServerHaveAgency
+  , terminationLemma_1
+  , terminationLemma_2
+  , ReflNobodyHasAgency (..)
   ) where
 
-import           Data.Void (Void)
+import           Data.Kind (Type)
+
+import           Data.Singletons
 
 -- $intro
 -- A typed protocol between two peers is defined via a state machine: a
@@ -133,9 +146,7 @@ import           Data.Void (Void)
 --
 -- As described above, this style of protocol gives agency to only one peer at
 -- once. That is, in each protocol state, one peer has agency (the ability to
--- send) and the other does not (it must only receive). The three associated
--- data families ('ClientHasAgency', 'ServerHasAgency' and 'NobodyHasAgency')
--- define which peer has agency for each state.
+-- send) and the other does not (it must only receive).
 --
 -- In the \"ping\/pong\" protocol example, the idle state is the one in which
 -- the client can send a message, and the busy state is the one in which the
@@ -143,19 +154,29 @@ import           Data.Void (Void)
 -- further messages. This arrangement is defined as so:
 --
 -- >    -- still within the instance Protocol PingPong
--- >    data ClientHasAgency st where
--- >      TokIdle :: ClientHasAgency StIdle
--- >
--- >    data ServerHasAgency st where
--- >      TokBusy :: ServerHasAgency StBusy
--- >
--- >    data NobodyHasAgency st where
--- >      TokDone :: NobodyHasAgency StDone
+-- >    type StateAgency StIdle = ClientAgency
+-- >    type StateAgency StBusy = ServerAgency
+-- >    type StateAgency StDone = NobodyAgency
 --
 -- In this simple protocol there is exactly one state in each category, but in
 -- general for non-trivial protocols there may be several protocol states in
 -- each category.
 --
+-- Furthermore we use singletons to provide term level reflection of type level
+-- states.  One is required to provide singletons for all types of kind
+-- 'PingPong'.  This is as simple as providing a GADT:
+--
+-- > data SingPingPong (st :: PingPong) where
+-- >   SingIdle :: SingPingPong StIdle
+-- >   SingBusy :: SingPingPong StBusy
+-- >   SingDone :: SingPingPong StDone
+--
+-- together with 'Sing' and 'SingI' instances:
+--
+-- > type instance Sing = SingPingPong
+-- > instance SingI StIdle where sing = SingIdle
+-- > instance SingI StBusy where sing = SingBusy
+-- > instance SingI StDone where sing = SingDone
 
 -- $tests
 -- The mechanism for labelling each protocol state with the agency does not
@@ -169,30 +190,87 @@ import           Data.Void (Void)
 -- each protocol that this property is not violated. It also provides utilities
 -- helpful for testing protocols.
 
+
+-- | Types for client and server peer roles. As protocol can be viewed from
+-- either client or server side.
+--
+-- Note that technically \"client\" and \"server\" are arbitrary labels. The
+-- framework is completely symmetric between the two peers.
+--
+-- This definition is only used as promoted types and kinds, never as values.
+--
+data PeerRole = AsClient | AsServer
+
+-- | Singletons for 'PeerRole'.  We provide 'Sing' and 'SingI' instances from
+-- the "singletons" package.
+--
+type SingPeerRole :: PeerRole -> Type
+data SingPeerRole pr where
+    SingAsClient :: SingPeerRole AsClient
+    SingAsServer :: SingPeerRole AsServer
+
+type instance Sing = SingPeerRole
+instance SingI AsClient where
+    sing = SingAsClient
+instance SingI AsServer where
+    sing = SingAsServer
+
+-- | A promoted data type which denotes three possible agencies a protocol
+-- state might be assigned.
+--
+data Agency where
+    -- | The client has agency.
+    ClientAgency :: Agency
+
+    -- | The server has agency.
+    ServerAgency :: Agency
+
+    -- | Nobody has agency, terminal state.
+    NobodyAgency :: Agency
+
+
+-- | A promoted data type which indicates the effective agency (which is
+-- relative to current role).
+--
+data RelativeAgency where
+    WeHaveAgency    :: RelativeAgency
+    TheyHaveAgency  :: RelativeAgency
+    NobodyHasAgency :: RelativeAgency
+
+
+-- | Compute effective agency with respect to the peer role, for client role,
+-- agency is preserved, while for the server role it is flipped.
+--
+type        Relative :: PeerRole -> Agency -> RelativeAgency
+type family Relative  pr a where
+  Relative AsClient ClientAgency = WeHaveAgency
+  Relative AsClient ServerAgency = TheyHaveAgency
+  Relative AsClient NobodyAgency = NobodyHasAgency
+  Relative AsServer ClientAgency = TheyHaveAgency
+  Relative AsServer ServerAgency = WeHaveAgency
+  Relative AsServer NobodyAgency = NobodyHasAgency
+
+
+-- | Type equality for 'RelativeAgency' which also carries information about
+-- agency.  It is isomorphic to a product of 'Agency' singleton and
+-- @r :~: r'@, where both @r@ and @r'@ have kind 'RelativeAgency'.
+--
+type ReflRelativeAgency :: Agency -> RelativeAgency -> RelativeAgency -> Type
+data ReflRelativeAgency a r r' where
+    ReflClientAgency :: ReflRelativeAgency ClientAgency r r
+    ReflServerAgency :: ReflRelativeAgency ServerAgency r r
+    ReflNobodyAgency :: ReflRelativeAgency NobodyAgency r r
+
 -- $lemmas
 --
--- The 'connect' and 'connectPipelined' proofs rely on lemmas about the
--- protocol. Specifically they rely on the property that each protocol state
--- is labelled with the agency of one peer or the other, or neither, but never
--- both. Or to put it another way, the protocol states should be partitioned
--- into those with agency for one peer, or the other or neither.
+-- The 'connect' proof rely on lemmas about the protocol. Specifically they
+-- rely on the property that each protocol state is labelled with the agency of
+-- one peer or the other, or neither, but never both.  This property is true by
+-- construction, since we use a type family 'StateAgency' which maps states to
+-- agencies, however we still need an evince that cases where both peer have
+-- the agency or neither of them has it can be eliminated.
 --
--- The way the labelling is encoded does not automatically enforce this
--- property. It is technically possible to set up the labelling for a protocol
--- so that one state is labelled as having both peers with agency, or declaring
--- simultaneously that one peer has agency and that neither peer has agency
--- in a particular state.
---
--- So the overall proofs rely on lemmas that say that the labelling has been
--- done correctly. This type bundles up those three lemmas.
---
--- Specifically proofs that it is impossible for a protocol state to have:
---
--- * client having agency and server having agency
--- * client having agency and nobody having agency
--- * server having agency and nobody having agency
---
--- These lemmas are structured as proofs by contradiction, e.g. stating
+-- The provided lemmas are structured as proofs by contradiction, e.g. stating
 -- \"if the client and the server have agency for this state then it leads to
 -- contradiction\". Contradiction is represented as the 'Void' type that has
 -- no values except ⊥.
@@ -206,54 +284,48 @@ import           Data.Void (Void)
 -- >   StDone :: PingPong
 -- >
 -- > instance Protocol PingPong where
+-- >     data Message PingPong st st' where
+-- >       MsgPing :: Message PingPong StIdle StBusy
+-- >       MsgPong :: Message PingPong StBusy StIdle
+-- >       MsgDone :: Message PingPong StIdle StDone
 -- >
--- >   data ClientHasAgency st where
--- >     TokIdle :: ClientHasAgency StIdle
+-- >     data TokState PingPong st where
+-- >       TokIdle :: TokState PingPong StIdle
+-- >       TokBusy :: TokState PingPong StBusy
+-- >       TokDone :: TokState PingPong StDone
 -- >
--- >   data ServerHasAgency st where
--- >     TokBusy :: ServerHasAgency StBusy
--- >
--- >   data NobodyHasAgency st where
--- >     TokDone :: NobodyHasAgency StDone
+-- >     type StateAgency StIdle = ClientAgency
+-- >     type StateAgency StBusy = ServerAgency
+-- >     type StateAgency StDone = NobodyAgency
 --
--- So now we can prove that if the client has agency for a state then there
--- are no cases in which the server has agency.
+-- The framework provides proofs which excludes that the client and server have
+-- agency at the same time.
 --
--- >   exclusionLemma_ClientAndServerHaveAgency TokIdle tok = case tok of {}
+-- * 'exclusionLemma_ClientAndServerHaveAgency',
+-- * 'terminationLemma_1',
+-- * 'terminationLemma_2'.
 --
--- For this protocol there is only one state in which the client has agency,
--- the idle state. By pattern matching on the state token for the server
--- agency we can list all the cases in which the server also has agency for
--- the idle state. There are of course none of these so we give the empty
--- set of patterns. GHC can check that we are indeed correct about this.
--- This also requires the @EmptyCase@ language extension.
---
--- To get this completeness checking it is important to compile modules
--- containing these lemmas with @-Wincomplete-patterns@, which is implied by
--- @-Wall@.
---
--- All three lemmas follow the same pattern.
+-- These lemmas are proven for all protocols.
 --
 
 -- | The protocol type class bundles up all the requirements for a typed
 -- protocol.
 --
--- Each protocol consists of three things:
+-- Each protocol consists of four components:
 --
 -- * The protocol itself, which is also expected to be the kind of the types
---   of the protocol states. The class is indexed on the protocol itself.
--- * The protocol messages.
--- * The partition of the protocol states into those in which the client has
---   agency, or the server has agency, or neither have agency.
+--   of the protocol states. The class is indexed on the protocol itself;
+-- * the protocol messages;
+-- * a type level map from the protocol states to agency: in each state either
+--   client or server or nobody has the agency.
+-- * a singleton type for the protocol states (e.g. `Sing` type family
+--   instance), together with 'SingI' instances.
 --
--- The labelling of each protocol state with the peer that has agency in that
--- state is done by giving a definition to the data families
--- 'ClientHasAgency', 'ServerHasAgency' and 'NobodyHasAgency'. These
--- definitions are expected to be singleton-style GADTs with one constructor
--- per protocol state.
---
--- Each protocol state must be assigned to only one label. See
--- "Network.TypedProtocol.Proofs" for more details on this point.
+-- It is required provide 'Sing' type family instance as well as 'SingI'
+-- instances for all protocol states.  These singletons allow one to pattern
+-- match on the state, which is useful when defining codecs, or providing
+-- informative error messages, however they are not necessary for proving
+-- correctness of the protocol.
 --
 class Protocol ps where
 
@@ -264,204 +336,153 @@ class Protocol ps where
   --
   data Message ps (st :: ps) (st' :: ps)
 
-  -- | Tokens for those protocol states in which the client has agency.
+  -- | Associate an 'Agency' for each state.
   --
-  data ClientHasAgency (st :: ps)
+  type StateAgency (st :: ps) :: Agency
 
-  -- | Tokens for those protocol states in which the server has agency.
-  --
-  data ServerHasAgency (st :: ps)
-
-  -- | Tokens for terminal protocol states in which neither the client nor
-  -- server has agency.
-  --
-  data NobodyHasAgency (st :: ps)
-
-  -- | Lemma that if the client has agency for a state, there are no
-  -- cases in which the server has agency for the same state.
-  --
-  exclusionLemma_ClientAndServerHaveAgency
-    :: forall (st :: ps).
-       ClientHasAgency st
-    -> ServerHasAgency st
-    -> Void
-
-  -- | Lemma that if the nobody has agency for a state, there are no
-  -- cases in which the client has agency for the same state.
-  --
-  exclusionLemma_NobodyAndClientHaveAgency
-    :: forall (st :: ps).
-       NobodyHasAgency st
-    -> ClientHasAgency st
-    -> Void
-
-  -- | Lemma that if the nobody has agency for a state, there are no
-  -- cases in which the server has agency for the same state.
-  --
-  exclusionLemma_NobodyAndServerHaveAgency
-    :: forall (st :: ps).
-       NobodyHasAgency st
-    -> ServerHasAgency st
-    -> Void
-
--- | Types for client and server peer roles. As protocol can be viewed from
--- either client or server side.
---
--- Note that technically \"client\" and \"server\" are arbitrary labels. The
--- framework is completely symmetric between the two peers.
---
--- This definition is only used as promoted types and kinds, never as values.
---
-data PeerRole = AsClient | AsServer
-
--- | Singletons for the promoted 'PeerRole' types.  Not directly used by the
--- framework, however some times useful when writing code that is shared between
--- client and server.
---
-data TokPeerRole (peerRole :: PeerRole) where
-    TokAsClient :: TokPeerRole AsClient
-    TokAsServer :: TokPeerRole AsServer
-
--- | This data type is used to hold state tokens for states with either client
--- or server agency. This GADT shows up when writing protocol peers, when
--- 'Yield'ing or 'Await'ing, and when writing message encoders\/decoders.
---
-data PeerHasAgency (pr :: PeerRole) (st :: ps) where
-  ClientAgency :: !(ClientHasAgency st) -> PeerHasAgency AsClient st
-  ServerAgency :: !(ServerHasAgency st) -> PeerHasAgency AsServer st
-
-instance ( forall (st' :: ps). Show (ClientHasAgency st')
-         , forall (st' :: ps). Show (ServerHasAgency st')
-         ) => Show (PeerHasAgency pr (st :: ps)) where
-    show (ClientAgency stok) = "ClientAgency " ++ show stok
-    show (ServerAgency stok) = "ServerAgency " ++ show stok
-
--- | A synonym for an state token in which \"our\" peer has agency. This is
--- parametrised over the client or server roles. In either case the peer in
--- question has agency.
---
--- This shows up when we are sending messages, or dealing with encoding
--- outgoing messages.
---
-type WeHaveAgency   (pr :: PeerRole) st = PeerHasAgency             pr  st
-
--- | A synonym for an state token in which the other peer has agency. This is
--- parametrised over the client or server roles. In either case the other peer
--- has agency.
---
--- This shows up when we are receiving messages, or dealing with decoding
--- incoming messages.
---
-type TheyHaveAgency (pr :: PeerRole) st = PeerHasAgency (FlipAgency pr) st
 
 -- | A type function to flip the client and server roles.
 --
-type family FlipAgency (pr :: PeerRole) where
+type        FlipAgency :: PeerRole -> PeerRole
+type family FlipAgency pr where
   FlipAgency AsClient = AsServer
   FlipAgency AsServer = AsClient
 
 
--- | A description of a peer that engages in a protocol.
+-- | An evidence that both relative agencies are equal to 'NobodyHasAgency'.
 --
--- The protocol describes what messages peers /may/ send or /must/ accept.
--- A particular peer implementation decides what to actually do within the
--- constraints of the protocol.
---
--- Peers engage in a protocol in either the client or server role. Of course
--- the client role can only interact with the serve role for the same protocol
--- and vice versa.
---
--- 'Peer' has several type arguments:
---
--- * the protocol itself;
--- * the client\/server role;
--- *.the current protocol state;
--- * the monad in which the peer operates; and
--- * the type of any final result once the peer terminates.
---
--- For example:
---
--- > pingPongClientExample :: Int -> Peer PingPong AsClient StIdle m ()
--- > pingPongServerExample ::        Peer PingPong AsServer StIdle m Int
---
--- The actions that a peer can take are:
---
--- * to perform local monadic effects
--- * to terminate with a result (but only in a terminal protocol state)
--- * to send a message (but only in a protocol state in which we have agency)
--- * to wait to receive a message (but only in a protocol state in which the
---   other peer has agency)
---
--- In the 'Done', 'Yield' and 'Await' cases we must provide evidence of both
--- the protocol state we are in and that the appropriate peer has agency.
--- This takes the form of 'ClientAgency' or 'ServerAgency' applied to a
--- protocol-specific state token: either a 'ClientHasAgency' or a
--- 'ServerHasAgency' token for the protocol. The 'Done' state does not need
--- the extra agency information.
---
--- While this evidence must be provided, the types guarantee that it is not
--- possible to supply incorrect evidence.
---
-data Peer ps (pr :: PeerRole) (st :: ps) m a where
-
-  -- | Perform a local monadic effect and then continue.
-  --
-  -- Example:
-  --
-  -- > Effect $ do
-  -- >   ...          -- actions in the monad
-  -- >   return $ ... -- another Peer value
-  --
-  Effect :: m (Peer ps pr st m a)
-         ->    Peer ps pr st m a
-
-  -- | Terminate with a result. A state token must be provided from the
-  -- 'NobodyHasAgency' states, so show that this is a state in which we can
-  -- terminate.
-  --
-  -- Example:
-  --
-  -- > Yield (ClientAgency TokIdle)
-  -- >        MsgDone
-  -- >       (Done TokDone result)
-  --
-  Done   :: !(NobodyHasAgency st)
-         -> a
-         -> Peer ps pr st m a
-
-  -- | Send a message to the other peer and then continue. This takes the
-  -- message and the continuation. It also requires evidence that we have
-  -- agency for this protocol state and thus are allowed to send messages.
-  --
-  -- Example:
-  --
-  -- > Yield (ClientAgency TokIdle) MsgPing $ ...
-  --
-  Yield  :: !(WeHaveAgency pr st)
-         -> Message ps st st'
-         -> Peer ps pr st' m a
-         -> Peer ps pr st  m a
-
-  -- | Waits to receive a message from the other peer and then continues.
-  -- This takes the the continuation that is supplied with the received
-  -- message. It also requires evidence that the other peer has agency for
-  -- this protocol state and thus we are expected to wait to receive messages.
-  --
-  -- Note that the continuation that gets supplied with the message must be
-  -- prepared to deal with /any/ message that is allowed in /this/ protocol
-  -- state. This is why the continuation /must/ be polymorphic in the target
-  -- state of the message (the third type argument of 'Message').
-  --
-  -- Example:
-  --
-  -- > Await (ClientAgency TokIdle) $ \msg ->
-  -- > case msg of
-  -- >   MsgDone -> ...
-  -- >   MsgPing -> ...
-  --
-  Await  :: !(TheyHaveAgency pr st)
-         -> (forall st'. Message ps st st' -> Peer ps pr st' m a)
-         -> Peer ps pr st m a
+type ReflNobodyHasAgency :: RelativeAgency -> RelativeAgency -> Type
+data ReflNobodyHasAgency ra ra' where
+     ReflNobodyHasAgency :: ReflNobodyHasAgency
+                                NobodyHasAgency
+                                NobodyHasAgency
 
 
-deriving instance Functor m => Functor (Peer ps (pr :: PeerRole) (st :: ps) m)
+-- | A proof that if both @Relative pr a@ and @Relative (FlipAgency pr) a@ are
+-- equal then nobody has agency.  In particual this lemma excludes the
+-- possibility that client and server has agency at the same state.
+--
+exclusionLemma_ClientAndServerHaveAgency
+  :: forall (pr :: PeerRole) (a :: Agency)
+            (ra  :: RelativeAgency).
+     SingPeerRole pr
+  -> ReflRelativeAgency a ra (Relative             pr  a)
+  -> ReflRelativeAgency a ra (Relative (FlipAgency pr) a)
+  -> ReflNobodyHasAgency     (Relative             pr  a)
+                             (Relative (FlipAgency pr) a)
+exclusionLemma_ClientAndServerHaveAgency
+  SingAsClient ReflNobodyAgency ReflNobodyAgency = ReflNobodyHasAgency
+exclusionLemma_ClientAndServerHaveAgency
+  SingAsServer ReflNobodyAgency ReflNobodyAgency = ReflNobodyHasAgency
+
+exclusionLemma_ClientAndServerHaveAgency
+  SingAsClient ReflClientAgency x        = case x of {}
+exclusionLemma_ClientAndServerHaveAgency
+  SingAsServer ReflClientAgency x        = case x of {}
+exclusionLemma_ClientAndServerHaveAgency
+  SingAsClient ReflServerAgency x        = case x of {}
+exclusionLemma_ClientAndServerHaveAgency
+  SingAsServer ReflServerAgency x        = case x of {}
+
+
+-- | A proof that if one side has terminated, then the other side terminated as
+-- well.
+--
+terminationLemma_1
+  :: SingPeerRole pr
+  -> ReflRelativeAgency a ra              (Relative             pr  a)
+  -> ReflRelativeAgency a NobodyHasAgency (Relative (FlipAgency pr) a)
+  -> ReflNobodyHasAgency                  (Relative             pr  a)
+                                          (Relative (FlipAgency pr) a)
+terminationLemma_1
+  SingAsClient ReflNobodyAgency ReflNobodyAgency = ReflNobodyHasAgency
+terminationLemma_1
+  SingAsServer ReflNobodyAgency ReflNobodyAgency = ReflNobodyHasAgency
+terminationLemma_1 SingAsClient ReflClientAgency x = case x of {}
+terminationLemma_1 SingAsClient ReflServerAgency x = case x of {}
+terminationLemma_1 SingAsServer ReflClientAgency x = case x of {}
+terminationLemma_1 SingAsServer ReflServerAgency x = case x of {}
+
+
+-- | Internal; only need to formulate auxiliary lemmas in the proof of
+-- 'terminationLemma_2'.
+--
+type        FlipRelAgency :: RelativeAgency -> RelativeAgency
+type family FlipRelAgency ra where
+  FlipRelAgency WeHaveAgency    = TheyHaveAgency
+  FlipRelAgency TheyHaveAgency  = WeHaveAgency
+  FlipRelAgency NobodyHasAgency = NobodyHasAgency
+
+
+-- | Similar to 'terminationLemma_1'.
+--
+-- Note: this could be proven the same way 'terminationLemma_1' is proved, but
+-- instead we use two lemmas to reduce the assumptions (arguments) and we apply
+-- 'terminationLemma_1'.
+--
+terminationLemma_2
+  :: SingPeerRole pr
+  -> ReflRelativeAgency a ra              (Relative (FlipAgency pr) a)
+  -> ReflRelativeAgency a NobodyHasAgency (Relative             pr  a)
+  -> ReflNobodyHasAgency                  (Relative (FlipAgency pr) a)
+                                          (Relative             pr  a)
+
+terminationLemma_2 singPeerRole refl refl' =
+    case terminationLemma_1 singPeerRole
+                       (lemma_flip  singPeerRole refl)
+                       (lemma_flip' singPeerRole refl')
+    of x@ReflNobodyHasAgency -> x
+    -- note: if we'd swap arguments of the returned @ReflNobodyHasAgency@ type,
+    -- we wouldn't need to pattern match on the result.  But in this form the
+    -- lemma is a symmetric version of 'terminationLemma_1'.
+  where
+    lemma_flip
+      :: SingPeerRole pr
+      -> ReflRelativeAgency a                ra  (Relative (FlipAgency pr) a)
+      -> ReflRelativeAgency a (FlipRelAgency ra) (Relative             pr  a)
+
+    lemma_flip'
+      :: SingPeerRole pr
+      -> ReflRelativeAgency a                ra  (Relative             pr  a)
+      -> ReflRelativeAgency a (FlipRelAgency ra) (Relative (FlipAgency pr) a)
+
+    -- both lemmas are identity functions:
+    lemma_flip  SingAsClient ReflClientAgency = ReflClientAgency
+    lemma_flip  SingAsClient ReflServerAgency = ReflServerAgency
+    lemma_flip  SingAsClient ReflNobodyAgency = ReflNobodyAgency
+    lemma_flip  SingAsServer ReflClientAgency = ReflClientAgency
+    lemma_flip  SingAsServer ReflServerAgency = ReflServerAgency
+    lemma_flip  SingAsServer ReflNobodyAgency = ReflNobodyAgency
+
+    lemma_flip' SingAsClient ReflClientAgency = ReflClientAgency
+    lemma_flip' SingAsClient ReflServerAgency = ReflServerAgency
+    lemma_flip' SingAsClient ReflNobodyAgency = ReflNobodyAgency
+    lemma_flip' SingAsServer ReflClientAgency = ReflClientAgency
+    lemma_flip' SingAsServer ReflServerAgency = ReflServerAgency
+    lemma_flip' SingAsServer ReflNobodyAgency = ReflNobodyAgency
+
+
+-- | Transition kind.
+--
+data Trans ps where
+    Tr :: forall ps. ps -> ps -> Trans ps
+
+
+-- | Singleton for @'Trans' ps@ kind.
+--
+type SingTrans :: Trans ps -> Type
+data SingTrans tr where
+    SingTr :: forall ps (st :: ps) (st' :: ps).
+              SingTrans (Tr st st')
+
+
+-- | Promoted data type which indicates if 'Peer' is used in
+-- pipelined mode or not.
+--
+data Pipelined where
+    -- | Pipelined peer which is using `c :: Type` for collecting responses
+    -- from a pipelined messages.
+    Pipelined    :: Type -> Pipelined
+
+    -- | Non-pipelined peer.
+    NonPipelined :: Pipelined
