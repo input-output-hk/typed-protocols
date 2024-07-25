@@ -1,14 +1,16 @@
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE GADTs               #-}
+{-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeOperators       #-}
 
 module Network.TypedProtocol.PingPong.Examples where
 
 import           Network.TypedProtocol.PingPong.Client
 import           Network.TypedProtocol.PingPong.Server
 
-import           Network.TypedProtocol.Pipelined
+import           Network.TypedProtocol.Peer.Client
 
 
 -- | The standard stateless ping-pong server instance.
@@ -66,12 +68,12 @@ pingPongClientCount n = SendMsgPing (pure (pingPongClientCount (n-1)))
 pingPongClientPipelinedMax
   :: forall m. Monad m
   => Int
-  -> PingPongClientPipelined m [Either Int Int]
+  -> PingPongClientPipelined Int m [Either Int Int]
 pingPongClientPipelinedMax c =
     PingPongClientPipelined (go [] Zero 0)
   where
     go :: [Either Int Int] -> Nat o -> Int
-       -> PingPongSender o Int m [Either Int Int]
+       -> PingPongClientIdle o Int m [Either Int Int]
     go acc o        n | n < c
                       = SendMsgPingPipelined
                           (return n)
@@ -92,12 +94,12 @@ pingPongClientPipelinedMax c =
 pingPongClientPipelinedMin
   :: forall m. Monad m
   => Int
-  -> PingPongClientPipelined m [Either Int Int]
+  -> PingPongClientPipelined Int m [Either Int Int]
 pingPongClientPipelinedMin c =
     PingPongClientPipelined (go [] Zero 0)
   where
     go :: [Either Int Int] -> Nat o -> Int
-       -> PingPongSender o Int m [Either Int Int]
+       -> PingPongClientIdle o Int m [Either Int Int]
     go acc (Succ o) n = CollectPipelined
                           (if n < c then Just (ping acc (Succ o) n)
                                     else Nothing)
@@ -107,7 +109,7 @@ pingPongClientPipelinedMin c =
     go acc Zero     _ = SendMsgDonePipelined (reverse acc)
 
     ping :: [Either Int Int] -> Nat o -> Int
-         -> PingPongSender o Int m [Either Int Int]
+         -> PingPongClientIdle o Int m [Either Int Int]
     ping acc o      n = SendMsgPingPipelined
                           (return n)
                           (go (Left n : acc) (Succ o) (succ n))
@@ -123,12 +125,12 @@ pingPongClientPipelinedMin c =
 pingPongClientPipelinedLimited
   :: forall m. Monad m
   => Int -> Int
-  -> PingPongClientPipelined m [Either Int Int]
+  -> PingPongClientPipelined Int m [Either Int Int]
 pingPongClientPipelinedLimited omax c =
     PingPongClientPipelined (go [] Zero 0)
   where
     go :: [Either Int Int] -> Nat o -> Int
-       -> PingPongSender o Int m [Either Int Int]
+       -> PingPongClientIdle o Int m [Either Int Int]
     go acc (Succ o) n = CollectPipelined
                           (if n < c && int (Succ o) < omax
                              then Just (ping acc (Succ o) n)
@@ -139,7 +141,7 @@ pingPongClientPipelinedLimited omax c =
     go acc Zero     _ = SendMsgDonePipelined (reverse acc)
 
     ping :: [Either Int Int] -> Nat o -> Int
-         -> PingPongSender o Int m [Either Int Int]
+         -> PingPongClientIdle o Int m [Either Int Int]
     ping acc o      n = SendMsgPingPipelined
                           (return n)
                           (go (Left n : acc) (Succ o) (succ n))

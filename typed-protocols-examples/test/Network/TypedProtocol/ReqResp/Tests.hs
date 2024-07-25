@@ -1,16 +1,24 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
-{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE BangPatterns             #-}
+{-# LANGUAGE DataKinds                #-}
+{-# LANGUAGE FlexibleInstances        #-}
+{-# LANGUAGE GADTs                    #-}
+{-# LANGUAGE NamedFieldPuns           #-}
+{-# LANGUAGE PolyKinds                #-}
+{-# LANGUAGE ScopedTypeVariables      #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TupleSections            #-}
+{-# LANGUAGE TypeApplications         #-}
+{-# LANGUAGE TypeOperators            #-}
+
+-- orphaned arbitrary instances
+{-# OPTIONS_GHC -Wno-orphans #-}
 
 
 module Network.TypedProtocol.ReqResp.Tests (tests) where
 
 import           Network.TypedProtocol.Channel
 import           Network.TypedProtocol.Codec
+import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Driver.Simple
 import           Network.TypedProtocol.Proofs
 
@@ -82,16 +90,16 @@ direct (SendMsgReq req kResp) ReqRespServer{recvMsgReq} = do
     direct client' server'
 
 
-directPipelined :: Monad m
-                => ReqRespClientPipelined req resp m a
-                -> ReqRespServer          req resp m b
+directPipelined :: forall req resp c m a b. Monad m
+                => ReqRespClientPipelined req resp c m a
+                -> ReqRespServer          req resp   m b
                 -> m (a, b)
 directPipelined (ReqRespClientPipelined client0) server0 =
     go EmptyQ client0 server0
   where
-    go :: Monad m
-       => Queue n c
-       -> ReqRespSender req resp n c m a
+    go :: forall n.
+          Queue n c
+       -> ReqRespIdle   req resp c n m a
        -> ReqRespServer req resp     m b
        -> m (a, b)
     go EmptyQ (SendMsgDonePipelined clientResult) ReqRespServer{recvMsgDone} =
@@ -102,8 +110,9 @@ directPipelined (ReqRespClientPipelined client0) server0 =
       x               <- kResp resp
       go (enqueue x q) client' server'
 
-    go (ConsQ x q) (CollectPipelined _ k) server =
-      go q (k x) server
+    go (ConsQ resp q) (CollectPipelined _ k) server = do
+      client' <- k resp
+      go q client' server
 
 
 prop_direct :: (Int -> Int -> (Int, Int)) -> [Int] -> Bool
@@ -136,19 +145,21 @@ prop_connect f xs =
              (reqRespClientPeer (reqRespClientMap xs))
              (reqRespServerPeer (reqRespServerMapAccumL (\a -> pure . f a) 0)))
 
-      of (c, s, TerminalStates TokDone TokDone) ->
+      of (c, s, TerminalStates SingDone ReflNobodyAgency
+                               SingDone ReflNobodyAgency) ->
            (s, c) == mapAccumL f 0 xs
 
 
 prop_connectPipelined :: [Bool] -> (Int -> Int -> (Int, Int)) -> [Int] -> Bool
 prop_connectPipelined cs f xs =
     case runIdentity
-           (connectPipelined cs
+           (connectPipelined cs []
              (reqRespClientPeerPipelined (reqRespClientMapPipelined xs))
-             (reqRespServerPeer          (reqRespServerMapAccumL
-                                            (\a -> pure . f a) 0)))
+             (promoteToPipelined $ reqRespServerPeer
+               (reqRespServerMapAccumL (\a -> pure . f a) 0)))
 
-      of (c, s, TerminalStates TokDone TokDone) ->
+      of (c, s, TerminalStates SingDone ReflNobodyAgency
+                               SingDone ReflNobodyAgency) ->
            (s, c) == mapAccumL f 0 xs
 
 
@@ -183,22 +194,22 @@ prop_channel_ST f xs =
 --
 
 instance (Arbitrary req, Arbitrary resp) =>
-         Arbitrary (AnyMessageAndAgency (ReqResp req resp)) where
+         Arbitrary (AnyMessage (ReqResp req resp)) where
   arbitrary = oneof
-    [ AnyMessageAndAgency (ClientAgency TokIdle) . MsgReq <$> arbitrary
-    , AnyMessageAndAgency (ServerAgency TokBusy) . MsgResp <$> arbitrary
-    , return (AnyMessageAndAgency (ClientAgency TokIdle) MsgDone)
+    [ AnyMessage . MsgReq <$> arbitrary
+    , AnyMessage . MsgResp <$> arbitrary
+    , return (AnyMessage MsgDone)
     ]
 
-  shrink (AnyMessageAndAgency a (MsgReq r))  =
-    [ AnyMessageAndAgency a (MsgReq r')
+  shrink (AnyMessage (MsgReq r))  =
+    [ AnyMessage (MsgReq r')
     | r' <- shrink r ]
 
-  shrink (AnyMessageAndAgency a (MsgResp r)) =
-    [ AnyMessageAndAgency a (MsgResp r')
+  shrink (AnyMessage (MsgResp r)) =
+    [ AnyMessage (MsgResp r')
     | r' <- shrink r ]
 
-  shrink (AnyMessageAndAgency _ MsgDone)     = []
+  shrink (AnyMessage MsgDone)     = []
 
 instance (Eq req, Eq resp) => Eq (AnyMessage (ReqResp req resp)) where
   (AnyMessage (MsgReq  r1)) == (AnyMessage (MsgReq  r2)) = r1 == r2
@@ -206,13 +217,13 @@ instance (Eq req, Eq resp) => Eq (AnyMessage (ReqResp req resp)) where
   (AnyMessage MsgDone)      == (AnyMessage MsgDone)      = True
   _                         == _                         = False
 
-prop_codec_ReqResp :: AnyMessageAndAgency (ReqResp String String) -> Bool
+prop_codec_ReqResp :: AnyMessage (ReqResp String String) -> Bool
 prop_codec_ReqResp =
     prop_codec
       runIdentity
       codecReqResp
 
-prop_codec_splits2_ReqResp :: AnyMessageAndAgency (ReqResp String String)
+prop_codec_splits2_ReqResp :: AnyMessage (ReqResp String String)
                            -> Bool
 prop_codec_splits2_ReqResp =
     prop_codec_splits
@@ -220,7 +231,7 @@ prop_codec_splits2_ReqResp =
       runIdentity
       codecReqResp
 
-prop_codec_splits3_ReqResp :: AnyMessageAndAgency (ReqResp String String)
+prop_codec_splits3_ReqResp :: AnyMessage (ReqResp String String)
                            -> Bool
 prop_codec_splits3_ReqResp =
     prop_codec_splits
@@ -229,13 +240,13 @@ prop_codec_splits3_ReqResp =
       codecReqResp
 
 prop_codec_cbor_ReqResp
-  :: AnyMessageAndAgency (ReqResp String String)
+  :: AnyMessage (ReqResp String String)
   -> Bool
 prop_codec_cbor_ReqResp msg =
   runST $ prop_codecM codecReqResp msg
 
 prop_codec_cbor_splits2_ReqResp
-  :: AnyMessageAndAgency (ReqResp String String)
+  :: AnyMessage (ReqResp String String)
   -> Bool
 prop_codec_cbor_splits2_ReqResp msg =
   runST $ prop_codec_splitsM
@@ -244,7 +255,7 @@ prop_codec_cbor_splits2_ReqResp msg =
       msg
 
 prop_codec_cbor_splits3_ReqResp
-  :: AnyMessageAndAgency (ReqResp String String)
+  :: AnyMessage (ReqResp String String)
   -> Bool
 prop_codec_cbor_splits3_ReqResp msg =
   runST $ prop_codec_splitsM
