@@ -1,3 +1,4 @@
+cabal-version:       3.0
 name:                typed-protocols-stateful-cborg
 version:             0.2.0.0
 synopsis:            CBOR codecs for typed-protocols
@@ -14,8 +15,6 @@ build-type:          Simple
 
 -- These should probably be added at some point.
 extra-source-files:  ChangeLog.md, README.md
-
-cabal-version:       >=1.10
 
 library
   exposed-modules:   Network.TypedProtocol.Stateful.Codec.CBOR
