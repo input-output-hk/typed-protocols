@@ -72,7 +72,7 @@ mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
       :: (forall s. CBOR.Decoder s a)
       -> m (DecodeStep BS.ByteString DeserialiseFailure m a)
     convertCborDecoder cborDecode =
-        withLiftST (convertCborDecoderBS cborDecode)
+        convertCborDecoderBS cborDecode stToIO
 
 -- | Construct a 'Codec' for a CBOR based serialisation format, using lazy
 -- 'BS.ByteString's.
@@ -114,7 +114,7 @@ mkCodecCborLazyBS cborMsgEncode cborMsgDecode =
       :: (forall s. CBOR.Decoder s a)
       -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m a)
     convertCborDecoder cborDecode =
-        withLiftST (convertCborDecoderLBS cborDecode)
+        convertCborDecoderLBS cborDecode stToIO
 
 {-# NOINLINE toLazyByteString #-}
 toLazyByteString :: BS.Builder -> LBS.ByteString
