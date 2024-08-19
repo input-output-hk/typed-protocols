@@ -227,7 +227,14 @@ data Peer ps pr pl st m a where
 deriving instance Functor m => Functor (Peer ps pr pl st m)
 
 
--- | Receiver 
+-- | Receiver.  It is limited to only awaiting for messages and running monadic
+-- computations.  This means that on can only pipeline messages if they can be
+-- connected by state transitions which all have remote agency.
+--
+-- The receiver runs in parallel, see `runPipelinedPeerWithDriver`.  This makes
+-- pipelining quite effective, since the receiver callbacks are called in
+-- a separate thread which can effectively use CPU cache.
+--
 type Receiver :: forall ps
               -> PeerRole
               -> ps
@@ -241,11 +248,17 @@ type Receiver :: forall ps
               -> Type
 data Receiver ps pr st stdone m c where
 
+  -- | Execute a monadic computation.
+  --
   ReceiverEffect :: m (Receiver ps pr st stdone m c)
                  ->    Receiver ps pr st stdone m c
 
+  -- | Return value.
+  --
   ReceiverDone   :: c -> Receiver ps pr stdone stdone m c
 
+  -- | Await for for a remote transition.
+  --
   ReceiverAwait  :: ( StateTokenI st
                     , ActiveState st
                     )
