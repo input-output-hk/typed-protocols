@@ -1,4 +1,5 @@
 {-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE NamedFieldPuns        #-}
@@ -6,6 +7,7 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE TypeFamilies          #-}
 -- @UndecidableInstances@ extension is required for defining @Show@ instance of
 -- @'AnyMessage'@ and @'AnyMessageAndAgency'@.
@@ -13,7 +15,12 @@
 
 module Network.TypedProtocol.Codec
   ( -- * Defining and using Codecs
-    Codec (..)
+    CodecF (..)
+  , Codec
+  , Annotator (..)
+  , AnnotatedCodec
+  , hoistAnnotation
+  , unAnnotateCodec
   , hoistCodec
   , isoCodec
   , mapFailureCodec
@@ -61,7 +68,9 @@ import           Network.TypedProtocol.Driver (SomeMessage (..))
 -- * The peer role (client\/server)
 -- * the type of decoding failures
 -- * the monad in which the decoder runs
--- * the type of the encoded data (typically strings or bytes)
+-- * a functor which wraps the decoder result, e.g. `SomeMessage` or `Annotator`.
+-- * the type of the encoded data (typically strings or bytes, or
+--   `AnyMessage` for testing purposes with no codec overhead).
 --
 -- It is expected that typical codec implementations will be polymorphic in
 -- the peer role. For example a codec for the ping\/pong protocol might have
@@ -70,6 +79,15 @@ import           Network.TypedProtocol.Driver (SomeMessage (..))
 -- > codecPingPong :: forall m. Monad m => Codec PingPong String m String
 --
 -- A codec consists of a message encoder and a decoder.
+--
+-- The `CodecF` type comes with two useful type aliases:
+-- * `Codec`          - which can decode protocol messages
+-- * `AnnotatedCodec` - which also has access to bytes which were fed to the
+--                      codec when decoding a message.
+--
+-- `AnnotatedCodec` is useful if one wants to decode data structures and retain
+-- their CBOR encoding (`decodeWithByteSpan` from `cborg` can be used for that
+-- purpose).
 --
 -- The encoder is supplied both with the message to encode and the current
 -- protocol state (matching the message). The protocol state can be either
@@ -122,7 +140,7 @@ import           Network.TypedProtocol.Driver (SomeMessage (..))
 -- This toy example format uses newlines @\n@ as a framing format. See
 -- 'DecodeStep' for suggestions on how to use it for more realistic formats.
 --
-data Codec ps failure m bytes = Codec {
+data CodecF ps failure m (f :: ps -> Type) bytes = Codec {
        encode :: forall (pr :: PeerRole) (st :: ps) (st' :: ps).
                  PeerHasAgency pr st
               -> Message ps st st'
@@ -130,14 +148,60 @@ data Codec ps failure m bytes = Codec {
 
        decode :: forall (pr :: PeerRole) (st :: ps).
                  PeerHasAgency pr st
-              -> m (DecodeStep bytes failure m (SomeMessage st))
+              -> m (DecodeStep bytes failure m (f st))
      }
+
+-- | The type of a standard `Codec` for `typed-protocols`.
+--
+type Codec ps failure m bytes = CodecF ps failure m SomeMessage bytes
+
+-- | A continuation for a decoder which is fed with whole bytes that were used
+-- to parse the message.
+--
+newtype Annotator bytes st = Annotator { runAnnotator :: bytes -> SomeMessage st }
+
+-- | Codec which has access to bytes received from the network to annotate
+-- decoded structure.
+--
+-- AnnotatedCodec works in two stages.  First it is decoding the structure as
+-- bytes are received from the network, like a `Codec` does.  The codec returns
+-- a continuation `Annotator` which is fed with whole bytes used to parse the
+-- message.  It is the driver which is responsible for passing bytes which were
+-- fed to the incremental codec. 
+--
+type AnnotatedCodec ps failure m bytes = CodecF ps failure m (Annotator bytes) bytes
+
+
+-- | Transform annotation.
+--
+hoistAnnotation :: forall ps failure m f g bytes.
+                   Functor m
+                => (forall st. f st -> g st)
+                -> CodecF ps failure m f bytes
+                -> CodecF ps failure m g bytes
+hoistAnnotation nat codec@Codec { decode } = codec { decode = decode' }
+  where
+    decode' :: forall (pr :: PeerRole) (st :: ps).
+               PeerHasAgency pr st
+            -> m (DecodeStep bytes failure m (g st))
+    decode' tok = fmap nat <$> decode tok
+
+
+-- | Remove annotation. It is only safe if the `Annotator` treats empty input
+-- in a safe way.
+--
+unAnnotateCodec :: forall ps failure m bytes.
+                   (Functor m, Monoid bytes)
+                => AnnotatedCodec ps failure m bytes
+                -> Codec ps failure m bytes
+unAnnotateCodec = hoistAnnotation (($ mempty) . runAnnotator)
+
 
 hoistCodec
   :: ( Functor n )
   => (forall x . m x -> n x)
-  -> Codec ps failure m bytes
-  -> Codec ps failure n bytes
+  -> CodecF ps failure m f bytes
+  -> CodecF ps failure n f bytes
 hoistCodec nat codec = codec
   { decode = fmap (hoistDecodeStep nat) . nat . decode codec
   }
@@ -145,8 +209,8 @@ hoistCodec nat codec = codec
 isoCodec :: Functor m
          => (bytes -> bytes')
          -> (bytes' -> bytes)
-         -> Codec ps failure m bytes
-         -> Codec ps failure m bytes'
+         -> CodecF ps failure m f bytes
+         -> CodecF ps failure m f bytes'
 isoCodec f finv Codec {encode, decode} = Codec {
       encode = \tok msg -> f $ encode tok msg,
       decode = \tok -> isoDecodeStep f finv <$> decode tok
@@ -155,8 +219,8 @@ isoCodec f finv Codec {encode, decode} = Codec {
 mapFailureCodec
   :: Functor m
   => (failure -> failure')
-  -> Codec ps failure  m bytes
-  -> Codec ps failure' m bytes
+  -> CodecF ps failure  m f bytes
+  -> CodecF ps failure' m f bytes
 mapFailureCodec f Codec {encode, decode} = Codec {
     encode = encode,
     decode = \tok -> mapFailureDecodeStep f <$> decode tok
@@ -198,6 +262,8 @@ data DecodeStep bytes failure m a =
     -- | The decoder ran into an error. The decoder either used
     -- @'fail'@ or was not provided enough input.
   | DecodeFail failure
+
+deriving instance Functor m => Functor (DecodeStep bytes failure m)
 
 isoDecodeStep
   :: Functor m

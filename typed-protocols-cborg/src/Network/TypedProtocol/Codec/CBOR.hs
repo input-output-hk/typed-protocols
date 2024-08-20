@@ -29,10 +29,10 @@ import           Network.TypedProtocol.Core
 
 type DeserialiseFailure = CBOR.DeserialiseFailure
 
--- | Construct a 'Codec' for a CBOR based serialisation format, using strict
+-- | Construct a 'CodecF' for a CBOR based serialisation format, using strict
 -- 'BS.ByteString's.
 --
--- This is an adaptor between the @cborg@ library and the 'Codec' abstraction.
+-- This is an adaptor between the @cborg@ library and the 'CodecF' abstraction.
 --
 -- It takes encode and decode functions for the protocol messages that use the
 -- CBOR library encoder and decoder.
@@ -42,7 +42,7 @@ type DeserialiseFailure = CBOR.DeserialiseFailure
 -- natively produces chunks).
 --
 mkCodecCborStrictBS
-  :: forall ps m. MonadST m
+  :: forall ps m f. MonadST m
 
   => (forall (pr :: PeerRole) (st :: ps) (st' :: ps).
              PeerHasAgency pr st
@@ -50,9 +50,9 @@ mkCodecCborStrictBS
 
   -> (forall (pr :: PeerRole) (st :: ps) s.
              PeerHasAgency pr st
-          -> CBOR.Decoder s (SomeMessage st))
+          -> CBOR.Decoder s (f st))
 
-  -> Codec ps DeserialiseFailure m BS.ByteString
+  -> CodecF ps DeserialiseFailure m f BS.ByteString
 mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
     Codec {
       encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
@@ -65,14 +65,15 @@ mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
       . cborEncode
 
     convertCborDecoder
-      :: (forall s. CBOR.Decoder s a)
-      -> m (DecodeStep BS.ByteString DeserialiseFailure m a)
+      :: (forall s. CBOR.Decoder s (f a))
+      -> m (DecodeStep BS.ByteString DeserialiseFailure m (f a))
     convertCborDecoder cborDecode =
         withLiftST (convertCborDecoderBS cborDecode)
 
+
 convertCborDecoderBS
   :: forall s m a. Functor m
-  => (CBOR.Decoder s a)
+  => CBOR.Decoder s a
   -> (forall b. ST s b -> m b)
   -> m (DecodeStep BS.ByteString DeserialiseFailure m a)
 convertCborDecoderBS cborDecode liftST =
@@ -87,16 +88,16 @@ convertCborDecoderBS cborDecode liftST =
     go (CBOR.Partial k)        = DecodePartial (fmap go . liftST . k)
 
 
--- | Construct a 'Codec' for a CBOR based serialisation format, using lazy
+-- | Construct a 'CodecF' for a CBOR based serialisation format, using lazy
 -- 'BS.ByteString's.
 --
--- This is an adaptor between the @cborg@ library and the 'Codec' abstraction.
+-- This is an adaptor between the @cborg@ library and the 'CodecF' abstraction.
 --
 -- It takes encode and decode functions for the protocol messages that use the
 -- CBOR library encoder and decoder.
 --
 mkCodecCborLazyBS
-  :: forall ps m. MonadST m
+  :: forall ps m f. MonadST m
 
   => (forall (pr :: PeerRole) (st :: ps) (st' :: ps).
              PeerHasAgency pr st
@@ -104,9 +105,9 @@ mkCodecCborLazyBS
 
   -> (forall (pr :: PeerRole) (st :: ps) s.
              PeerHasAgency pr st
-          -> CBOR.Decoder s (SomeMessage st))
+          -> CBOR.Decoder s (f st))
 
-  -> Codec ps CBOR.DeserialiseFailure m LBS.ByteString
+  -> CodecF ps CBOR.DeserialiseFailure m f LBS.ByteString
 mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
     Codec {
       encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
@@ -120,14 +121,15 @@ mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
       . cborEncode
 
     convertCborDecoder
-      :: (forall s. CBOR.Decoder s a)
-      -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m a)
+      :: (forall s. CBOR.Decoder s (f a))
+      -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m (f a))
     convertCborDecoder cborDecode =
         withLiftST (convertCborDecoderLBS cborDecode)
 
+
 convertCborDecoderLBS
   :: forall s m a. Monad m
-  => (CBOR.Decoder s a)
+  => CBOR.Decoder s a
   -> (forall b. ST s b -> m b)
   -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m a)
 convertCborDecoderLBS cborDecode liftST =
