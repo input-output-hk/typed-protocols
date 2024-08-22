@@ -135,7 +135,7 @@ runPeer
   -> Peer ps pr 'NonPipelined Z st m a
   -> m (a, Maybe bytes)
 runPeer tracer codec channel peer =
-    runPeerWithDriver driver peer Nothing
+    runPeerWithDriver driver peer
   where
     driver = driverSimple tracer codec channel
 
@@ -156,7 +156,7 @@ runPipelinedPeer
   -> Peer ps pr ('Pipelined c) Z st m a
   -> m (a, Maybe bytes)
 runPipelinedPeer tracer codec channel peer =
-    runPipelinedPeerWithDriver driver peer Nothing
+    runPipelinedPeerWithDriver driver peer
   where
     driver = driverSimple tracer codec channel
 
