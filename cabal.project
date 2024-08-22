@@ -19,6 +19,6 @@ packages: ./typed-protocols
           ./typed-protocols-stateful
           ./typed-protocols-stateful-cborg
           ./typed-protocols-examples
-          ./typed-protocols-doc
+          -- ./typed-protocols-doc
 
 test-show-details: direct
