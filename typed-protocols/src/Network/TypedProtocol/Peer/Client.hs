@@ -14,7 +14,7 @@
 module Network.TypedProtocol.Peer.Client
   ( Client
   , ClientPipelined
-  , TP.PeerPipelined(ClientPipelined, runClientPipelined)
+  , TP.PeerPipelined (ClientPipelined, runClientPipelined)
   , pattern Effect
   , pattern Yield
   , pattern Await

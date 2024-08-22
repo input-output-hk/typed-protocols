@@ -18,8 +18,8 @@ module Network.TypedProtocol
   ) where
 
 import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer
 import           Network.TypedProtocol.Driver
+import           Network.TypedProtocol.Peer
 import           Network.TypedProtocol.Proofs
 
 
