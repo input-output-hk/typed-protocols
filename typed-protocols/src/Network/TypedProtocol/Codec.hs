@@ -51,7 +51,7 @@ module Network.TypedProtocol.Codec
   , prop_codecs_compatM
   , prop_codecs_compat
   , SomeState (..)
-    -- ** StateToken 
+    -- ** StateToken
   , StateToken
   , StateTokenI (..)
   ) where

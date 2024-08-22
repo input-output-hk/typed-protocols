@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP                      #-}
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE NamedFieldPuns           #-}
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs             #-}
+{-# LANGUAGE NamedFieldPuns    #-}
 
 -- orphaned arbitrary instances
 {-# OPTIONS_GHC -Wno-orphans #-}
