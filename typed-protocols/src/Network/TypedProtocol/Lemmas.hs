@@ -4,8 +4,8 @@
 {-# LANGUAGE RankNTypes               #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeFamilies             #-}
-{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use camelCase" #-}
 
 -- | The module contains exclusion lemmas which are proven using ad absurdum:
