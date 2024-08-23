@@ -9,20 +9,15 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 
-
 -- This is already implied by the -Wall in the .cabal file, but lets just be
 -- completely explicit about it too, since we rely on the completeness
 -- checking in the cases below for the completeness of our proofs.
 {-# OPTIONS_GHC -Wincomplete-patterns #-}
 
--- | Proofs about the typed protocol framework.
---
--- It also provides helpful testing utilities.
+-- | Proofs and helpful testing utilities.
 --
 module Network.TypedProtocol.Proofs
-  ( -- * About these proofs
-    -- $about
-    -- * Connect proof
+  ( -- * Connect proofs
     connect
   , connectPipelined
   , TerminalStates (..)
@@ -41,27 +36,6 @@ import           Data.Singletons
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Lemmas
 import           Network.TypedProtocol.Peer
-
--- $about
---
--- Typed languages such as Haskell can embed proofs. In total languages this
--- is straightforward: a value inhabiting a type is a proof of the property
--- corresponding to the type.
---
--- In languages like Haskell that have ⊥ as a value of every type, things
--- are slightly more complicated. We have to demonstrate that the value that
--- inhabits the type of interest is not ⊥ which we can do by evaluation.
---
--- This idea crops up frequently in advanced type level programming in Haskell.
--- For example @Refl@ proofs that two types are equal have to have a runtime
--- representation that is evaluated to demonstrate it is not ⊥ before it
--- can be relied upon.
---
--- The proofs here are about the nature of typed protocols in this framework.
--- The 'connect' and 'connectPipelined' proofs rely on a few lemmas about
--- the individual protocol. See 'AgencyProofs'.
-
-
 
 
 -- | The 'connect' function takes two peers that agree on a protocol and runs
@@ -82,8 +56,11 @@ connect
    :: forall ps (pr :: PeerRole) (initSt :: ps) m a b.
       (Monad m, SingI pr)
    => Peer ps             pr  NonPipelined initSt m a
+   -- ^ a peer
    -> Peer ps (FlipAgency pr) NonPipelined initSt m b
+   -- ^ a peer with flipped agency
    -> m (a, b, TerminalStates ps)
+   -- ^ peers results and an evidence of their termination
 connect = go
   where
     singPeerRole :: Sing pr
@@ -140,7 +117,9 @@ data TerminalStates ps where
        :: forall ps (st :: ps).
           (StateAgency st  ~ NobodyAgency)
        => StateToken st
+       -- ^ state termination evidence for the first peer
        -> StateToken st
+       -- ^ state termination evidence for the second peer
        -> TerminalStates ps
 
 --
@@ -164,7 +143,7 @@ enqueue a  EmptyQ     = ConsQ a EmptyQ
 enqueue a (ConsQ b q) = ConsQ b (enqueue a q)
 
 
--- | Prove that we have a total conversion from pipelined peers to regular
+-- | Proof that we have a total conversion from pipelined peers to regular
 -- peers. This is a sanity property that shows that pipelining did not give
 -- us extra expressiveness or to break the protocol state machine.
 --
@@ -172,13 +151,10 @@ forgetPipelined
   :: forall ps (pr :: PeerRole) (st :: ps) m a.
      Functor m
   => [Bool]
-  -- ^ interleaving choices for pipelining allowed by
-  -- `Collect` and `CollectSTM` primitive. False values or `[]` give no
-  -- pipelining.  For the 'CollectSTM' primitive, the stm action must not
-  -- block otherwise even if the choice is to pipeline more (a 'True' value),
-  -- we'll actually collect a result.
-  -> PeerPipelined ps pr st m a
-  -> Peer ps pr  NonPipelined   st m a
+  -- ^ interleaving choices for pipelining allowed by `Collect` primitive. False
+  -- values or `[]` give no pipelining.
+  -> PeerPipelined ps pr              st m a
+  -> Peer          ps pr NonPipelined st m a
 forgetPipelined cs0 (PeerPipelined peer) = goSender EmptyQ cs0 peer
   where
     goSender :: forall st' n c.
@@ -214,14 +190,13 @@ forgetPipelined cs0 (PeerPipelined peer) = goSender EmptyQ cs0 peer
 --
 -- >>> forgetPipelined . promoteToPipelined = id
 --
--- This function is useful to test a pipelined peer against a non-pipelined one
--- using `connectPipelined` function.
---
 promoteToPipelined
   :: forall ps (pr :: PeerRole) st m a.
      Functor m
-  => Peer ps pr NonPipelined    st m a
-  -> PeerPipelined ps pr st m a
+  => Peer          ps pr NonPipelined st m a
+  -- ^ a peer
+  -> PeerPipelined ps pr              st m a
+  -- ^ a pipelined peer
 promoteToPipelined p = PeerPipelined (go p)
   where
     go :: forall st' c.
@@ -248,9 +223,13 @@ connectPipelined
                (st :: ps) m a b.
        (Monad m, SingI pr)
     => [Bool]
+    -- ^ an interleaving
     -> PeerPipelined ps             pr               st m a
+    -- ^ a pipelined peer
     -> Peer          ps (FlipAgency pr) NonPipelined st m b
+    -- ^ a non-pipelined peer with fliped agency
     -> m (a, b, TerminalStates ps)
+    -- ^ peers results and an evidence of their termination
 connectPipelined csA a b =
     connect (forgetPipelined csA a) b
 

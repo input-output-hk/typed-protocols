@@ -46,8 +46,8 @@ import Network.TypedProtocol.Core as Core
 --
 -- For example:
 --
--- > pingPongClientExample :: Int -> Peer PingPong AsClient StIdle m ()
--- > pingPongServerExample ::        Peer PingPong AsServer StIdle m Int
+-- > pingPongClientExample :: Peer PingPong AsClient StIdle m ()
+-- > pingPongServerExample :: Peer PingPong AsServer StIdle m Int
 --
 -- The actions that a peer can take are:
 --

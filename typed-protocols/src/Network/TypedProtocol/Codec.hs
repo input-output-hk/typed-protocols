@@ -1,34 +1,26 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE NamedFieldPuns           #-}
-{-# LANGUAGE PatternSynonyms          #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE QuantifiedConstraints    #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE TypeFamilies             #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
 -- @UndecidableInstances@ extension is required for defining @Show@ instance of
 -- @'AnyMessage'@ and @'AnyMessage'@.
-{-# LANGUAGE UndecidableInstances     #-}
-{-# LANGUAGE ViewPatterns             #-}
+{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module Network.TypedProtocol.Codec
   ( -- * Defining and using Codecs
+    -- ** Codec type
     Codec (..)
   , hoistCodec
   , isoCodec
   , mapFailureCodec
-    -- ** Related types
-  , IsActiveState (..)
-  , ActiveState
-  , ActiveAgency
-  , ActiveAgency' (..)
-  , notActiveState
-  , PeerRole (..)
-  , SomeMessage (..)
-  , CodecFailure (..)
     -- ** Incremental decoding
   , DecodeStep (..)
   , runDecoder
@@ -36,7 +28,23 @@ module Network.TypedProtocol.Codec
   , hoistDecodeStep
   , isoDecodeStep
   , mapFailureDecodeStep
-    -- ** Codec properties
+    -- ** Related types
+    -- *** SomeMessage
+  , SomeMessage (..)
+    -- *** StateToken
+  , StateToken
+  , StateTokenI (..)
+    -- *** ActiveState
+  , IsActiveState (..)
+  , ActiveState
+  , ActiveAgency
+  , ActiveAgency' (..)
+  , notActiveState
+    -- *** PeerRole
+  , PeerRole (..)
+    -- * CodecFailure
+  , CodecFailure (..)
+    -- * Testing codec properties
   , AnyMessage (..)
   , pattern AnyMessageAndAgency
   , prop_codecM
@@ -48,9 +56,6 @@ module Network.TypedProtocol.Codec
   , prop_codecs_compatM
   , prop_codecs_compat
   , SomeState (..)
-    -- ** StateToken
-  , StateToken
-  , StateTokenI (..)
   ) where
 
 import           Control.Exception (Exception)
@@ -69,16 +74,9 @@ import           Network.TypedProtocol.Driver (SomeMessage (..))
 -- The codec is parametrised by:
 --
 -- * The protocol
--- * The peer role (client\/server)
 -- * the type of decoding failures
 -- * the monad in which the decoder runs
 -- * the type of the encoded data (typically strings or bytes)
---
--- It is expected that typical codec implementations will be polymorphic in
--- the peer role. For example a codec for the ping\/pong protocol might have
--- type:
---
--- > codecPingPong :: forall m. Monad m => Codec PingPong String m String
 --
 -- A codec consists of a message encoder and a decoder.
 --
@@ -93,9 +91,9 @@ import           Network.TypedProtocol.Driver (SomeMessage (..))
 -- > encode :: SingI st
 -- >        => Message PingPong st st'
 -- >        -> String
--- >  encode MsgPing = "ping\n"
--- >  encode MsgDone = "done\n"
--- >  encode MsgPong = "pong\n"
+-- > encode MsgPing = "ping\n"
+-- > encode MsgDone = "done\n"
+-- > encode MsgPong = "pong\n"
 --
 -- The decoder is also given the current protocol state and it is expected to
 -- be able to decode /any/ message that is valid in that state, but /only/
@@ -113,22 +111,24 @@ import           Network.TypedProtocol.Driver (SomeMessage (..))
 -- decoder input matches exactly with the message boundaries.
 --
 -- > decode :: forall st m. SingI st
--- >        => m (DecodeStep String String m (SomeMessage st))
--- > decode =
+-- >        => StateToken st
+-- >        -> m (DecodeStep String String m (SomeMessage st))
+-- > decode stok =
 -- >   decodeTerminatedFrame '\n' $ \str trailing ->
--- >     case (stateToken :: StateToken st, str) of
--- >       (TokBusy, "pong") ->
+-- >     case (stok, str) of
+-- >       (SingBusy, "pong") ->
 -- >            DecodeDone (SomeMessage MsgPong) trailing
--- >       (TokIdle, "ping") ->
+-- >       (SingIdle, "ping") ->
 -- >            DecodeDone (SomeMessage MsgPing) trailing
--- >       (TokIdle, "done") ->
+-- >       (SingIdle, "done") ->
 -- >            DecodeDone (SomeMessage MsgDone) trailing
 -- >       _ -> DecodeFail ("unexpected message: " ++ str)
 --
--- The main thing to note is the pattern matching on the combination of the
--- message string and the protocol state. This neatly fulfils the requirement
--- that we only return messages that are of the correct type for the given
--- protocol state.
+-- See "typed-protocols-examples" for the full example.
+--
+-- Note that the pattern matching on the combination of the message string and
+-- the protocol state. This neatly fulfils the requirement that we only return
+-- messages that are of the correct type for the given protocol state.
 --
 -- This toy example format uses newlines @\n@ as a framing format. See
 -- 'DecodeStep' for suggestions on how to use it for more realistic formats.
@@ -137,53 +137,58 @@ data Codec ps failure m bytes = Codec {
        encode :: forall (st :: ps) (st' :: ps).
                  StateTokenI st
               => ActiveState st
+              -- evidence that the state 'st' is active
               => Message ps st st'
+              -- message to encode
               -> bytes,
 
        decode :: forall (st :: ps).
                  ActiveState st
               => StateToken st
+              -- evidence for an active state
               -> m (DecodeStep bytes failure m (SomeMessage st))
      }
+-- TODO: input-output-hk/typed-protocols#57
 
+-- | Change functor in which the codec is running.
+--
 hoistCodec
   :: ( Functor n )
   => (forall x . m x -> n x)
+  -- ^ a natural transformation
   -> Codec ps failure m bytes
   -> Codec ps failure n bytes
 hoistCodec nat codec = codec
   { decode = fmap (hoistDecodeStep nat) . nat . decode codec
   }
 
+-- | Change bytes of a codec.
+--
 isoCodec :: Functor m
-         => (bytes -> bytes')
+         => (bytes  -> bytes')
+         -- ^ map from 'bytes' to `bytes'`
          -> (bytes' -> bytes)
+         -- ^ its inverse
          -> Codec ps failure m bytes
+         -- ^ codec
          -> Codec ps failure m bytes'
 isoCodec f finv Codec {encode, decode} = Codec {
       encode = \msg -> f $ encode msg,
       decode = \tok -> isoDecodeStep f finv <$> decode tok
     }
 
+-- | Modify failure type.
+--
 mapFailureCodec
   :: Functor m
   => (failure -> failure')
+  -- ^ a function to apply to failure
   -> Codec ps failure  m bytes
   -> Codec ps failure' m bytes
 mapFailureCodec f Codec {encode, decode} = Codec {
     encode = encode,
     decode = \tok -> mapFailureDecodeStep f <$> decode tok
   }
-
--- The types here are pretty fancy. The decode is polymorphic in the protocol
--- state, but only for kinds that are the same kind as the protocol state.
--- The TheyHaveAgency is a type family that resolves to a singleton, and the
--- result uses existential types to hide the unknown type of the state we're
--- transitioning to.
---
--- Both the Message and TheyHaveAgency data families are indexed on the kind ps
--- which is why it has to be a parameter here, otherwise these type functions
--- are unusable.
 
 
 -- | An incremental decoder with return a value of type @a@.
@@ -212,19 +217,28 @@ data DecodeStep bytes failure m a =
     -- @'fail'@ or was not provided enough input.
   | DecodeFail failure
 
+
+-- | Change bytes of 'DecodeStep'.
+--
 isoDecodeStep
   :: Functor m
   => (bytes -> bytes')
+  -- ^ map from 'bytes' to `bytes'`
   -> (bytes' -> bytes)
+  -- its inverse
   -> DecodeStep bytes failure m a
   -> DecodeStep bytes' failure m a
 isoDecodeStep f  finv  (DecodePartial g)    = DecodePartial (fmap (isoDecodeStep f finv) . g . fmap finv)
 isoDecodeStep f  _finv (DecodeDone a bytes) = DecodeDone a (fmap f bytes)
 isoDecodeStep _f _finv (DecodeFail failure) = DecodeFail failure
 
+
+-- | Change functor in which the codec is running.
+--
 hoistDecodeStep
   :: ( Functor n )
   => (forall x . m x -> n x)
+  -- ^ a natural transformation
   -> DecodeStep bytes failure m a
   -> DecodeStep bytes failure n a
 hoistDecodeStep nat step = case step of
@@ -232,9 +246,13 @@ hoistDecodeStep nat step = case step of
   DecodeFail fail_AvoidNameShadow -> DecodeFail fail_AvoidNameShadow
   DecodePartial k -> DecodePartial (fmap (hoistDecodeStep nat) . nat . k)
 
+
+-- | Modify failure type.
+--
 mapFailureDecodeStep
   :: Functor m
   => (failure -> failure')
+  -- ^ a function to apply to failure
   -> DecodeStep bytes failure  m a
   -> DecodeStep bytes failure' m a
 mapFailureDecodeStep f step = case step of
@@ -268,7 +286,9 @@ instance Exception CodecFailure
 --
 runDecoder :: Monad m
            => [bytes]
+           -- ^ bytes to be fed into the incremental 'DecodeStep'
            -> DecodeStep bytes failure m a
+           -- ^ decoder
            -> m (Either failure a)
 runDecoder _      (DecodeDone x _trailing) = return (Right x)
 runDecoder _      (DecodeFail failure)     = return (Left failure)
@@ -281,8 +301,10 @@ runDecoder (b:bs) (DecodePartial k)        = k (Just b) >>= runDecoder bs
 --
 runDecoderPure :: Monad m
                => (forall b. m b -> b)
+               -- ^ run monad 'm' in a pure way, e.g. 'runIdentity'
                -> m (DecodeStep bytes failure m a)
                -> [bytes]
+               -- ^ input bytes
                -> Either failure a
 runDecoderPure runM decoder bs = runM (runDecoder bs =<< decoder)
 
@@ -303,6 +325,7 @@ data AnyMessage ps where
                 , ActiveState st
                 )
              => Message ps (st :: ps) (st' :: ps)
+             -- ^ 'Message' between some states
              -> AnyMessage ps
 
 
@@ -342,8 +365,11 @@ prop_codecM
      , Eq (AnyMessage ps)
      )
   => Codec ps failure m bytes
+  -- ^ codec
   -> AnyMessage ps
+  -- ^ some message
   -> m Bool
+  -- ^ returns 'True' iff round trip returns the exact same message
 prop_codecM Codec {encode, decode} (AnyMessage (msg :: Message ps st st')) = do
     r <- decode stateToken >>= runDecoder [encode msg]
     case r :: Either failure (SomeMessage st) of
@@ -377,7 +403,8 @@ prop_codec runM codec msg =
 prop_codec_splitsM
   :: forall ps failure m bytes.
      (Monad m, Eq (AnyMessage ps))
-  => (bytes -> [[bytes]])   -- ^ alternative re-chunkings of serialised form
+  => (bytes -> [[bytes]])
+  -- ^ alternative re-chunkings of serialised form
   -> Codec ps failure m bytes
   -> AnyMessage ps
   -> m Bool
@@ -399,6 +426,7 @@ prop_codec_splits
   :: forall ps failure m bytes.
      (Monad m, Eq (AnyMessage ps))
   => (bytes -> [[bytes]])
+  -- ^ alternative re-chunkings of serialised form
   -> (forall a. m a -> a)
   -> Codec ps failure m bytes
   -> AnyMessage ps
@@ -417,6 +445,7 @@ data SomeState (ps :: Type) where
     :: forall ps (st :: ps).
        ActiveState st
     => StateToken st
+    -- ^ state token for some active state 'st'
     -> SomeState ps
 
 -- | Binary compatibility of two protocols
@@ -440,7 +469,7 @@ prop_codec_binary_compatM
   => Codec psA failure m bytes
   -> Codec psB failure m bytes
   -> (forall (stA :: psA). ActiveState stA => StateToken stA -> SomeState psB)
-     -- ^ The states of A map directly of states of B.
+     -- ^ the states of A map directly to states of B.
   -> AnyMessage psA
   -> m Bool
 prop_codec_binary_compatM
@@ -475,6 +504,7 @@ prop_codec_binary_compat
   -> Codec psA failure m bytes
   -> Codec psB failure m bytes
   -> (forall (stA :: psA). StateToken stA -> SomeState psB)
+     -- ^ the states of A map directly to states of B.
   -> AnyMessage psA
   -> Bool
 prop_codec_binary_compat runM codecA codecB stokEq msgA =
@@ -492,8 +522,11 @@ prop_codecs_compatM
      , forall a. Monoid a => Monoid (m a)
      )
   => Codec ps failure m bytes
+  -- ^ first codec
   -> Codec ps failure m bytes
+  -- ^ second codec
   -> AnyMessage ps
+  -- ^ some message
   -> m Bool
 prop_codecs_compatM codecA codecB
                     (AnyMessage (msg :: Message ps st st')) =

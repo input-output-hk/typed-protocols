@@ -49,12 +49,14 @@ mkCodecCborStrictBS
              StateTokenI st
           =>ActiveState st
           => f st' -> Message ps st st' -> CBOR.Encoding)
+  -- ^ cbor encoder
 
   -> (forall (st :: ps) s.
              ActiveState st
           => StateToken st
           -> f st
           -> CBOR.Decoder s (SomeMessage st))
+  -- ^ cbor decoder
 
   -> Codec ps DeserialiseFailure f m BS.ByteString
 mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
@@ -90,12 +92,14 @@ mkCodecCborLazyBS
           => ActiveState st
           => f st'
           -> Message ps st st' -> CBOR.Encoding)
+  -- ^ cbor encoder
 
   -> (forall (st :: ps) s.
              ActiveState st
           => StateToken st
           -> f st
           -> CBOR.Decoder s (SomeMessage st))
+  -- ^ cbor decoder
 
   -> Codec ps CBOR.DeserialiseFailure f m LBS.ByteString
 mkCodecCborLazyBS cborMsgEncode cborMsgDecode =

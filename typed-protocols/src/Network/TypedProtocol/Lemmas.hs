@@ -20,6 +20,24 @@ import           Data.Kind (Type)
 import           Network.TypedProtocol.Core
 
 
+-- $about
+--
+-- Typed languages such as Haskell can embed proofs. In total languages this
+-- is straightforward: a value inhabiting a type is a proof of the property
+-- corresponding to the type.
+--
+-- In languages like Haskell that have ⊥ as a value of every type, things
+-- are slightly more complicated. We have to demonstrate that the value that
+-- inhabits the type of interest is not ⊥ which we can do by evaluation.
+--
+-- This idea crops up frequently in advanced type level programming in Haskell.
+-- For example @Refl@ proofs that two types are equal have to have a runtime
+-- representation that is evaluated to demonstrate it is not ⊥ before it
+-- can be relied upon.
+--
+-- The proofs here are about the nature of typed protocols in this framework.
+-- The 'connect' and 'connectPipelined' proofs rely on a few internal lemmas.
+
 -- | An evidence that both relative agencies are equal to 'NobodyHasAgency'.
 --
 type ReflNobodyHasAgency :: RelativeAgency -> RelativeAgency -> Type
@@ -38,9 +56,14 @@ exclusionLemma_ClientAndServerHaveAgency
             (ra  :: RelativeAgency).
      SingPeerRole pr
   -> ReflRelativeAgency a ra (Relative             pr  a)
+  -- ^ evidence that `ra` is equal to `Relative pr a`, e.g. that client has
+  -- agency
   -> ReflRelativeAgency a ra (Relative (FlipAgency pr) a)
+  -- ^ evidence that `ra` is equal to `Relative (FlipAgency pr) a`, e.g. that
+  -- the server has agency
   -> ReflNobodyHasAgency     (Relative             pr  a)
                              (Relative (FlipAgency pr) a)
+  -- ^ derived evidence that nobody has agency in that case
 exclusionLemma_ClientAndServerHaveAgency
   SingAsClient ReflNobodyAgency ReflNobodyAgency = ReflNobodyHasAgency
 exclusionLemma_ClientAndServerHaveAgency

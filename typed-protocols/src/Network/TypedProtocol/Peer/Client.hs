@@ -8,23 +8,26 @@
 {-# LANGUAGE TypeOperators            #-}
 
 -- | Bidirectional patterns for @'Peer' ps 'AsClient'@.   The advantage of
--- these patterns is that they automatically provide the 'RelativeAgencyEq'
--- singleton.
+-- these patterns is that they automatically provide the 'ReflRelativeAgency'
+-- evidence.
 --
 module Network.TypedProtocol.Peer.Client
-  ( Client
-  , ClientPipelined
-  , TP.PeerPipelined (ClientPipelined, runClientPipelined)
+  ( -- * Client type alias and its pattern synonyms
+    Client
   , pattern Effect
   , pattern Yield
   , pattern Await
   , pattern Done
   , pattern YieldPipelined
   , pattern Collect
+    -- * Receiver type alias and its pattern synonyms
   , Receiver
   , pattern ReceiverEffect
   , pattern ReceiverAwait
   , pattern ReceiverDone
+    -- * ClientPipelined type alias and its pattern synonym
+  , ClientPipelined
+  , TP.PeerPipelined (ClientPipelined, runClientPipelined)
     -- * re-exports
   , IsPipelined (..)
   , Outstanding

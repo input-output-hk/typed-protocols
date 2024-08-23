@@ -12,7 +12,8 @@
 -- singleton.
 --
 module Network.TypedProtocol.Stateful.Peer.Server
-  ( Server
+  ( -- * Server type alias and its pattern synonyms
+    Server
   , pattern Effect
   , pattern Yield
   , pattern Await

@@ -12,7 +12,8 @@
 -- singleton.
 --
 module Network.TypedProtocol.Stateful.Peer.Client
-  ( Client
+  ( -- * Client type alias and its pattern synonyms
+    Client
   , pattern Effect
   , pattern Yield
   , pattern Await

@@ -24,16 +24,23 @@ module Network.TypedProtocol.Stateful.Codec
   , isoCodec
   , mapFailureCodec
   , liftCodec
-    -- ** Related types
-  , ActiveState
-  , PeerRole (..)
-  , SomeMessage (..)
-  , CodecFailure (..)
     -- ** Incremental decoding
   , DecodeStep (..)
   , runDecoder
   , runDecoderPure
-    -- ** Codec properties
+    -- ** Related types
+    -- *** SomeMessage
+  , SomeMessage (..)
+    -- *** StateToken 
+  , StateToken
+  , StateTokenI (..)
+    -- *** ActiveState
+  , ActiveState
+    -- *** PeerRole
+  , PeerRole (..)
+    -- * CodecFailure
+  , CodecFailure (..)
+    -- * Testing codec properties
   , AnyMessage (..)
   , pattern AnyMessageAndAgency
   , prop_codecM
@@ -42,9 +49,6 @@ module Network.TypedProtocol.Stateful.Codec
   , prop_codec_splits
   , prop_codecs_compatM
   , prop_codecs_compat
-    -- ** StateToken 
-  , StateToken
-  , StateTokenI (..)
   ) where
 
 import           Data.Kind (Type)

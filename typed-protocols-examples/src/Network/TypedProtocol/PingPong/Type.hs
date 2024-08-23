@@ -42,12 +42,9 @@ data SPingPong (st :: PingPong) where
 
 deriving instance Show (SPingPong st)
 
-instance StateTokenI StIdle where
-    stateToken = SingIdle
-instance StateTokenI StBusy where
-    stateToken = SingBusy
-instance StateTokenI StDone where
-    stateToken = SingDone
+instance StateTokenI StIdle where stateToken = SingIdle
+instance StateTokenI StBusy where stateToken = SingBusy
+instance StateTokenI StDone where stateToken = SingDone
 
 instance Protocol PingPong where
 

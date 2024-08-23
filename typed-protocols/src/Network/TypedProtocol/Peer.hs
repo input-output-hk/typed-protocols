@@ -11,10 +11,6 @@
 
 -- | Protocol EDSL.
 --
--- __Note__: 'Network.TypedProtocol.Peer.Client.Client' and
--- 'Network.TypedProtocol.Peer.Server.Server' patterns are easier to use,
--- however this module provides in-depth documentation.
---
 module Network.TypedProtocol.Peer
   ( Peer (..)
   , PeerPipelined (..)
@@ -32,6 +28,10 @@ import           Network.TypedProtocol.Core as Core
 
 -- | A description of a peer that engages in a protocol.
 --
+-- __Note__: You should use pattern synonyms exposed in
+-- "Network.TypedProtocol.Peer.Client" and "Network.TypedProtocol.Peer.Server",
+-- however here we provide in-depth documentation.
+--
 -- The protocol describes what messages peers /may/ send or /must/ accept.
 -- A particular peer implementation decides what to actually do within the
 -- constraints of the protocol.
@@ -44,21 +44,19 @@ import           Network.TypedProtocol.Core as Core
 --
 -- * the protocol itself;
 -- * the client\/server role;
--- * whether the peer is using pipelining or not;
--- * the type level queue of future transitions not yet performed due to
---   pipelining;
+-- * whether the peer is using pipelining or not, if pipelined it holds the
+--   depth of pipelining and a type used to collect data from pipelined
+--   transitions;
 -- * the current protocol state;
 -- * the monad in which the peer operates (e.g. 'IO');
--- * the stm monad, (e.g. 'STM' or it can be left abstract if 'CollectSTM' is
---   not used);
 -- * the type of the final result once the peer terminates.
 --
 -- For example:
 --
--- > pingPongClientExample :: Int -> Peer PingPong AsClient    Pipelined Empty StIdle IO STM ()
--- > pingPongServerExample ::        Peer PingPong AsServer NonPipeliend Empty StIdle IO stm Int
+-- > pingPongClientExample :: Peer PingPong AsClient (Pipelined Z Int) StIdle IO ()
+-- > pingPongServerExample :: Peer PingPong AsServer NonPipeliend      StIdle IO Int
 --
--- The actions that a non pipelining peer can take are:
+-- The actions that a non-pipelining peer can take are:
 --
 -- * to perform local monadic effects
 -- * to terminate with a result (but only in a terminal protocol state)
@@ -69,25 +67,17 @@ import           Network.TypedProtocol.Core as Core
 -- In addition a pipelining peer can:
 --
 -- * pipeline a message, which requires upfront declaration at which state we
---   are continue.  This pushes the skipped transition to the back of the
---   pipelining queue.
--- * collect a response, which removes a transition from the front of the
---   queue.  It's worth to notice that this modifies the first element in the
---   queue, in particular it does not changes the queue length.
---   If there's no reply yet, collect allows to either block or continue,
---   possibly pipelining more messages.
--- * collect an identity transition (which removes the first element from the
---   queue).
--- * race between receiving a response and an stm transaction returning
---   a continuation.
+--   continue at and passing a receiver which will run in parallel.  When
+--   receiver terminates it pushes the result into the pipelining queue.
+-- * collect a response from the pipelining queue.
 --
 -- The 'Yield', 'Await', 'Done', 'YieldPipelined', 'Collect',
 -- constructors require to provide an evidence that the
 -- peer has agency in the current state. The types guarantee that it is not
--- possible to supply incorrect evidence,  however you should use
--- 'Network.TypedProtocol.Peer.Client.Client' and
--- 'Network.TypedProtocol.Peer.Client.Server' pattern synonyms which provide
--- this evidence for you.
+-- possible to supply incorrect evidence,  however the
+-- pattern synonyms exposed in "Network.TypedProtocol.Peer.Client" and
+-- "Network.TypedProtocol.Peer.Client" supply this evidence for you, and hence
+-- are easier to use and let you avoid some kinds of type errors.
 --
 type Peer :: forall ps
           -> PeerRole
@@ -192,9 +182,9 @@ data Peer ps pr pl st m a where
   -- Pipelining primitives
   --
 
-  -- | Pipelined send which. Note that the continuation decides from which
-  -- state we pipeline next message, and the gap is pushed at the back of
-  -- the queue.
+  -- | Pipelined send.  We statically decide from which state we continue (the
+  -- `st''` state here), the gap (between `st'` and `st''`) must be fulfilled
+  -- by 'Receiver' which runs will run in parallel.
   --
   YieldPipelined
     :: forall ps pr (st :: ps) (st' :: ps) c n st'' m a.
@@ -207,11 +197,13 @@ data Peer ps pr pl st m a where
     -> Message ps st st'
     -- ^ protocol message
     -> Receiver ps pr st' st'' m c
+    -- ^ receiver
     -> Peer ps pr (Pipelined (S n) c) st'' m a
-    -- ^ continuation
+    -- ^ continuation from state `st''`
     -> Peer ps pr (Pipelined    n  c)   st   m a
 
-  -- | Partially collect promised transition.
+  -- | Collect results returned by a `Receiver`.  Results are collected in the
+  -- first-in-first-out way.
   --
   Collect
     :: forall ps pr c n st m a.
@@ -228,12 +220,13 @@ deriving instance Functor m => Functor (Peer ps pr pl st m)
 
 
 -- | Receiver.  It is limited to only awaiting for messages and running monadic
--- computations.  This means that on can only pipeline messages if they can be
+-- computations.  This means that one can only pipeline messages if they can be
 -- connected by state transitions which all have remote agency.
 --
 -- The receiver runs in parallel, see `runPipelinedPeerWithDriver`.  This makes
 -- pipelining quite effective, since the receiver callbacks are called in
--- a separate thread which can effectively use CPU cache.
+-- a separate thread which can effectively use CPU cache and can avoids
+-- unnecessary context switches.
 --
 type Receiver :: forall ps
               -> PeerRole
@@ -270,6 +263,10 @@ data Receiver ps pr st stdone m c where
 deriving instance Functor m => Functor (Receiver ps pr st stdone m)
 
 -- | A description of a peer that engages in a protocol in a pipelined fashion.
+--
+-- This type is useful for wrapping pipelined peers to hide information which
+-- is only relevant in peer lift.  It is expected by
+-- `Network.TypedProtocol.Driver.runPeerPipelinedWithDriver`.
 --
 data PeerPipelined ps pr (st :: ps) m a where
     PeerPipelined :: { runPeerPipelined :: Peer ps pr (Pipelined Z c) st m a }

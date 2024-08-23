@@ -13,12 +13,13 @@
 -- imported qualified.
 --
 module Network.TypedProtocol.Stateful.Driver
-  ( -- * Running a peer
-    runPeerWithDriver
+  ( -- * DriverIngerface
+    Driver (..)
+    -- * Running a peer
+  , runPeerWithDriver
     -- * Re-exports
-  , DecodeStep (..)
-  , Driver (..)
   , SomeMessage (..)
+  , DecodeStep (..)
   ) where
 
 import Control.Monad.Class.MonadSTM
@@ -46,12 +47,6 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
 
         , -- | Receive a message, a blocking action which reads from the network
           -- and runs the incremental decoder until a full message is decoded.
-          -- As an input it might receive a 'DecodeStep' previously started with
-          -- 'tryRecvMessage'.
-          --
-          -- It could be implemented in terms of 'recvMessageSTM', but in some
-          -- cases it can be easier (or more performant) to have a different
-          -- implementation.
           --
           recvMessage   :: forall (st :: ps).
                            StateTokenI st

@@ -37,27 +37,30 @@ import           Control.Monad.Class.MonadSTM
 -- $intro
 --
 -- A 'Peer' is a particular implementation of an agent that engages in a
--- typed protocol. To actually run one we need a source and sink for the typed
--- protocol messages. These are provided by a 'Channel' and a 'Codec'. The
--- 'Channel' represents one end of an untyped duplex message transport, and
--- the 'Codec' handles conversion between the typed protocol messages and
--- the untyped channel.
+-- typed protocol. To actually run one we need an untyped channel representing
+-- one end of an untyped duplex message transport, which allows to send and
+-- receive bytes.  One will also need a 'Codec' which handles conversion
+-- between the typed protocol messages and the untyped channel.
 --
--- So given the 'Peer' and a compatible 'Codec' and 'Channel' we can run the
--- peer in some appropriate monad. The peer and codec have to agree on
--- the same protocol and role in that protocol. The codec and channel have to
--- agree on the same untyped medium, e.g. text or bytes. All three have to
--- agree on the same monad in which they will run.
+-- Given the 'Peer', a compatible 'Network.TypedProtocol.Codec.Codec' and
+-- an untyped channel we can run the peer in some appropriate monad (e.g. 'IO',
+-- or a simulation monad for testing purposes). The peer and codec have to
+-- agree on the same protocol. The codec and channel have to agree on the same
+-- untyped medium, e.g. text or bytes. All three have to agree on the same
+-- monad in which they will run.
 --
 -- This module provides drivers for normal and pipelined peers. There is
 -- very little policy involved here so typically it should be possible to
 -- use these drivers, and customise things by adjusting the peer, or codec
--- or channel.
+-- or channel (together with an implementation of a 'Driver' based on it).
 --
--- It is of course possible to write custom drivers and the code for these ones
--- may provide a useful starting point. The 'runDecoder' function may be a
--- helpful utility for use in custom drives.
+-- For implementing a 'Driver' based on some untyped channel, the
+-- 'Network.TypedProtocol.Codec.runDecoder' function may be a helpful utility.
 --
+-- For a possible definition of an untyped channel and how to construct
+-- a `Driver` from it see @typed-protocols-examples@ package.  For production
+-- grade examples see https://github.com/IntersectMBO/ouroboros-network
+-- repository.
 
 
 --
@@ -66,23 +69,37 @@ import           Control.Monad.Class.MonadSTM
 
 data Driver ps (pr :: PeerRole) dstate m =
         Driver {
+          -- | Send a message; the message must transition from an active state.
+          -- One needs to supply agency evidence.
           sendMessage :: forall (st :: ps) (st' :: ps).
                          StateTokenI st
                       => StateTokenI st'
                       => ActiveState st
                       => WeHaveAgencyProof pr st
+                      -- agency evidence
                       -> Message ps st st'
+                      -- message to send
                       -> m ()
 
+        -- | Receive some message, since we don't know the final state of
+        -- the protocol it is wrapped in `SomeMessage` type; the message must
+        -- transition from an active state. One needs to supply agency
+        -- evidence.
+        --
         , recvMessage :: forall (st :: ps).
                          StateTokenI st
                       => ActiveState st
                       => TheyHaveAgencyProof pr st
+                      -- agency evidence
                       -> dstate
+                      -- current driver state
                       -> m (SomeMessage st, dstate)
+                      -- received message together with new driver state
 
-        , initialDState :: dstate
+        , -- | Initial state of the driver
+          initialDState :: dstate
         }
+-- TODO: input-output-hk/typed-protocols#57
 
 
 -- | When decoding a 'Message' we only know the expected \"from\" state. We
