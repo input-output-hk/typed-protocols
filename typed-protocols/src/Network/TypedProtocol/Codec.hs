@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns             #-}
 {-# LANGUAGE DataKinds                #-}
 {-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE FlexibleInstances        #-}
@@ -386,8 +387,8 @@ prop_codec_splitsM splits
     and <$> sequence
       [ do r <- decode stateToken >>= runDecoder bytes'
            case r :: Either failure (SomeMessage st) of
-             Right (SomeMessage msg') -> return $! AnyMessage msg' == AnyMessage msg
-             Left _                   -> return False
+             Right (SomeMessage !msg') -> return $ AnyMessage msg' == AnyMessage msg
+             Left _                    -> return False
 
       | let bytes = encode msg
       , bytes' <- splits bytes ]
@@ -499,12 +500,12 @@ prop_codecs_compatM codecA codecB
                     (AnyMessage (msg :: Message ps st st')) =
     getAll <$> do r <- decode codecB (stateToken :: StateToken st) >>= runDecoder [encode codecA msg]
                   case r :: Either failure (SomeMessage st) of
-                    Right (SomeMessage msg') -> return $! All $ AnyMessage msg' == AnyMessage msg
-                    Left _                   -> return $! All False
+                    Right (SomeMessage !msg') -> return $ All $ AnyMessage msg' == AnyMessage msg
+                    Left _                    -> return $ All False
             <> do r <- decode codecA (stateToken :: StateToken st) >>= runDecoder [encode codecB msg]
                   case r :: Either failure (SomeMessage st) of
-                    Right (SomeMessage msg') -> return $! All $ AnyMessage msg' == AnyMessage msg
-                    Left _                   -> return $! All False
+                    Right (SomeMessage !msg') -> return $ All $ AnyMessage msg' == AnyMessage msg
+                    Left _                    -> return $ All False
 
 -- | Like @'prop_codecs_compatM'@ but run in a pure monad @m@, e.g. @Identity@.
 --
