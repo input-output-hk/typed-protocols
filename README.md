@@ -12,16 +12,16 @@ A robust session type framework which supports [protocol pipelining][protocol-pi
 Public content
 --------------
 
-Duncan Coutts (@dcoutts) Haskell eXchange 2019 [talk][haskell-eXchange].
+[Duncan Coutts][dcoutts] Haskell eXchange 2019 [talk][haskell-eXchange].
 
-Monadic party workshop by Marcin Szamotulski (@coot):
+Monadic party workshop by Marcin Szamotulski ([coot]):
 * [part 1][monadic-party-part-1]
 * [part 2][monadic-party-part-2]
 * [part 2][monadic-party-part-3]
 
-Talk at [Haskell Love 2021][haskell-love] by Marcin Szamotulski (@coot), [slides][haskell-love-slides].
+Talk at [Haskell Love 2021][haskell-love] by Marcin Szamotulski ([coot]), [slides][haskell-love-slides].
 
-An [Agda][typed-protocols-agda] implementation by Marcin Szamotulski (@coot).
+An [Agda][typed-protocols-agda] implementation by Marcin Szamotulski ([coot]).
 
 
 [protocol-pipelining]: https://www.wikiwand.com/en/Protocol_pipelining
@@ -32,3 +32,5 @@ An [Agda][typed-protocols-agda] implementation by Marcin Szamotulski (@coot).
 [haskell-love-slides]: https://coot.me/posts/typed-protocols-at-haskell-love.html
 [haskell-love]: https://www.youtube.com/watch?v=EbK6VAqYh3g
 [typed-protocols-agda]: https://coot.me/agda/posts.agda.typed-protocols.html
+[coot]: https://github.com/coot
+[dcoutts]: https://github.com/dcoutts
