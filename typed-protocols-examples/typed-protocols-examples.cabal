@@ -1,6 +1,6 @@
 cabal-version:       3.0
 name:                typed-protocols-examples
-version:             0.2.0.2
+version:             0.2.0.3
 synopsis:            Examples and tests for the typed-protocols framework
 -- description:
 license:             Apache-2.0
@@ -48,8 +48,7 @@ library
                      cborg,
                      serialise,
                      contra-tracer,
-                     io-classes,
-                     si-timers,
+                     io-classes:{io-classes,si-timers},
                      time,
                      typed-protocols,
                      typed-protocols-cborg
@@ -77,9 +76,8 @@ test-suite test
                    , typed-protocols
                    , typed-protocols-cborg
                    , typed-protocols-examples
-                   , io-classes
+                   , io-classes:{io-classes,si-timers}
                    , io-sim
-                   , si-timers
                    , QuickCheck
                    , tasty
                    , tasty-quickcheck
