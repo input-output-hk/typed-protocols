@@ -15,7 +15,7 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     env:
-      CABAL_VERSION: "3.10.1.0"
+      CABAL_VERSION: "3.12.1.0"
 
     defaults:
       run:
@@ -51,7 +51,7 @@ jobs:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: ${{ env.CABAL_VERSION }}
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: "Configure cabal.project.local"
       run: |
@@ -68,14 +68,14 @@ jobs:
         cat dist-newstyle/cache/plan.json | jq -r '."install-plan"[].id' | sort | uniq > dependencies.txt
         echo "weeknum=$(/bin/date -u "+%W")" >> $GITHUB_OUTPUT
 
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       name: "Cache cabal store"
       with:
         path: ${{ runner.os == 'Windows' && steps.win-setup-haskell.outputs.cabal-store || steps.setup-haskell.outputs.cabal-store }}
         key: cache-dependencies-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('dependencies.txt') }}
         restore-keys: cache-dependencies-${{ env.CACHE_VERSION }}-${{ runner.os }}-${{ matrix.ghc }}
 
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       name: "Cache `dist-newstyle`"
       with:
         path: |
@@ -123,7 +123,7 @@ jobs:
       run: |
         echo "$HOME/.cabal/bin" >> $GITHUB_PATH
 
-    - uses: actions/cache@v3
+    - uses: actions/cache@v4
       name: "Cache `stylish-haskell`"
       with:
         path: ~/.cabal/bin/stylish-haskell
@@ -144,7 +144,7 @@ jobs:
         which stylish-haskell
         stylish-haskell --version
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: "Run `stylish-haskell`"
       run: |
