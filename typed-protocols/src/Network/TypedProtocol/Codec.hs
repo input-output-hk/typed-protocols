@@ -15,10 +15,8 @@
 
 module Network.TypedProtocol.Codec
   ( -- * Defining and using Codecs
-    CodecF (..)
-  , Codec
+    Codec (..)
   , Annotator (..)
-  , AnnotatedCodec
   , hoistAnnotation
   , unAnnotateCodec
   , hoistCodec
@@ -140,7 +138,7 @@ import           Network.TypedProtocol.Driver (SomeMessage (..))
 -- This toy example format uses newlines @\n@ as a framing format. See
 -- 'DecodeStep' for suggestions on how to use it for more realistic formats.
 --
-data CodecF ps failure m (f :: ps -> Type) bytes = Codec {
+data Codec ps failure m annotator bytes = Codec {
        encode :: forall (pr :: PeerRole) (st :: ps) (st' :: ps).
                  PeerHasAgency pr st
               -> Message ps st st'
@@ -148,37 +146,21 @@ data CodecF ps failure m (f :: ps -> Type) bytes = Codec {
 
        decode :: forall (pr :: PeerRole) (st :: ps).
                  PeerHasAgency pr st
-              -> m (DecodeStep bytes failure m (f st))
+              -> m (DecodeStep bytes failure m (annotator st))
      }
 
--- | The type of a standard `Codec` for `typed-protocols`.
+-- | The Annotator type exposes the CBOR encoded bytestream to the codec when
+-- decoding is done.
 --
-type Codec ps failure m bytes = CodecF ps failure m SomeMessage bytes
-
--- | A continuation for a decoder which is fed with whole bytes that were used
--- to parse the message.
---
-newtype Annotator bytes st = Annotator { runAnnotator :: bytes -> SomeMessage st }
-
--- | Codec which has access to bytes received from the network to annotate
--- decoded structure.
---
--- AnnotatedCodec works in two stages.  First it is decoding the structure as
--- bytes are received from the network, like a `Codec` does.  The codec returns
--- a continuation `Annotator` which is fed with whole bytes used to parse the
--- message.  It is the driver which is responsible for passing bytes which were
--- fed to the incremental codec. 
---
-type AnnotatedCodec ps failure m bytes = CodecF ps failure m (Annotator bytes) bytes
-
+data Annotator bytes st = Annotator { runAnnotator :: bytes -> SomeMessage st }
 
 -- | Transform annotation.
 --
 hoistAnnotation :: forall ps failure m f g bytes.
                    Functor m
                 => (forall st. f st -> g st)
-                -> CodecF ps failure m f bytes
-                -> CodecF ps failure m g bytes
+                -> Codec ps failure m f bytes
+                -> Codec ps failure m g bytes
 hoistAnnotation nat codec@Codec { decode } = codec { decode = decode' }
   where
     decode' :: forall (pr :: PeerRole) (st :: ps).
@@ -192,16 +174,16 @@ hoistAnnotation nat codec@Codec { decode } = codec { decode = decode' }
 --
 unAnnotateCodec :: forall ps failure m bytes.
                    (Functor m, Monoid bytes)
-                => AnnotatedCodec ps failure m bytes
-                -> Codec ps failure m bytes
+                => Codec ps failure m (Annotator bytes) bytes
+                -> Codec ps failure m SomeMessage bytes
 unAnnotateCodec = hoistAnnotation (($ mempty) . runAnnotator)
 
 
 hoistCodec
   :: ( Functor n )
   => (forall x . m x -> n x)
-  -> CodecF ps failure m f bytes
-  -> CodecF ps failure n f bytes
+  -> Codec ps failure m annotator bytes
+  -> Codec ps failure n annotator bytes
 hoistCodec nat codec = codec
   { decode = fmap (hoistDecodeStep nat) . nat . decode codec
   }
@@ -209,8 +191,8 @@ hoistCodec nat codec = codec
 isoCodec :: Functor m
          => (bytes -> bytes')
          -> (bytes' -> bytes)
-         -> CodecF ps failure m f bytes
-         -> CodecF ps failure m f bytes'
+         -> Codec ps failure m annotator bytes
+         -> Codec ps failure m annotator bytes'
 isoCodec f finv Codec {encode, decode} = Codec {
       encode = \tok msg -> f $ encode tok msg,
       decode = \tok -> isoDecodeStep f finv <$> decode tok
@@ -219,8 +201,8 @@ isoCodec f finv Codec {encode, decode} = Codec {
 mapFailureCodec
   :: Functor m
   => (failure -> failure')
-  -> CodecF ps failure  m f bytes
-  -> CodecF ps failure' m f bytes
+  -> Codec ps failure  m annotator bytes
+  -> Codec ps failure' m annotator bytes
 mapFailureCodec f Codec {encode, decode} = Codec {
     encode = encode,
     decode = \tok -> mapFailureDecodeStep f <$> decode tok
@@ -382,7 +364,7 @@ prop_codecM
      ( Monad m
      , Eq (AnyMessage ps)
      )
-  => Codec ps failure m bytes
+  => Codec ps failure m SomeMessage bytes
   -> AnyMessageAndAgency ps
   -> m Bool
 prop_codecM Codec {encode, decode} (AnyMessageAndAgency stok msg) = do
@@ -397,7 +379,7 @@ prop_codec
   :: forall ps failure m bytes.
      (Monad m, Eq (AnyMessage ps))
   => (forall a. m a -> a)
-  -> Codec ps failure m bytes
+  -> Codec ps failure m SomeMessage bytes
   -> AnyMessageAndAgency ps
   -> Bool
 prop_codec runM codec msg =
@@ -419,7 +401,7 @@ prop_codec_splitsM
   :: forall ps failure m bytes.
      (Monad m, Eq (AnyMessage ps))
   => (bytes -> [[bytes]])   -- ^ alternative re-chunkings of serialised form
-  -> Codec ps failure m bytes
+  -> Codec ps failure m SomeMessage bytes
   -> AnyMessageAndAgency ps
   -> m Bool
 prop_codec_splitsM splits
@@ -441,7 +423,7 @@ prop_codec_splits
      (Monad m, Eq (AnyMessage ps))
   => (bytes -> [[bytes]])
   -> (forall a. m a -> a)
-  -> Codec ps failure m bytes
+  -> Codec ps failure m SomeMessage bytes
   -> AnyMessageAndAgency ps
   -> Bool
 prop_codec_splits splits runM codec msg =
@@ -477,8 +459,8 @@ prop_codec_binary_compatM
      ( Monad m
      , Eq (AnyMessage psA)
      )
-  => Codec psA failure m bytes
-  -> Codec psB failure m bytes
+  => Codec psA failure m SomeMessage bytes
+  -> Codec psB failure m SomeMessage bytes
   -> (forall pr (stA :: psA). PeerHasAgency pr stA -> SamePeerHasAgency pr psB)
      -- ^ The states of A map directly of states of B.
   -> AnyMessageAndAgency psA
@@ -510,8 +492,8 @@ prop_codec_binary_compat
      , Eq (AnyMessage psA)
      )
   => (forall a. m a -> a)
-  -> Codec psA failure m bytes
-  -> Codec psB failure m bytes
+  -> Codec psA failure m SomeMessage bytes
+  -> Codec psB failure m SomeMessage bytes
   -> (forall pr (stA :: psA). PeerHasAgency pr stA -> SamePeerHasAgency pr psB)
   -> AnyMessageAndAgency psA
   -> Bool
@@ -529,8 +511,8 @@ prop_codecs_compatM
      , Eq (AnyMessage ps)
      , forall a. Monoid a => Monoid (m a)
      )
-  => Codec ps failure m bytes
-  -> Codec ps failure m bytes
+  => Codec ps failure m SomeMessage bytes
+  -> Codec ps failure m SomeMessage bytes
   -> AnyMessageAndAgency ps
   -> m Bool
 prop_codecs_compatM codecA codecB
@@ -553,8 +535,8 @@ prop_codecs_compat
      , forall a. Monoid a => Monoid (m a)
      )
   => (forall a. m a -> a)
-  -> Codec ps failure m bytes
-  -> Codec ps failure m bytes
+  -> Codec ps failure m SomeMessage bytes
+  -> Codec ps failure m SomeMessage bytes
   -> AnyMessageAndAgency ps
   -> Bool
 prop_codecs_compat run codecA codecB msg =
