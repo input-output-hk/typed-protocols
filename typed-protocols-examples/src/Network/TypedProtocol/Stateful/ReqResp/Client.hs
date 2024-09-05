@@ -1,52 +1,42 @@
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
 {-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators       #-}
 
 module Network.TypedProtocol.Stateful.ReqResp.Client
-  ( -- * Non-Pipelined Client
-    ReqRespClient (..)
+  ( ReqRespClient (..)
   , reqRespClientPeer
   ) where
 
-import           Data.Kind (Type)
-
-import           Network.TypedProtocol.ReqResp.Type
+import           Data.Typeable
 import           Network.TypedProtocol.Stateful.Peer.Client
+import           Network.TypedProtocol.Stateful.ReqResp.Type
 
+data ReqRespClient req m a where
+  SendMsgReq  :: Typeable resp
+              => req resp
+              -> (resp -> m (ReqRespClient req m a))
+              -> ReqRespClient req m a
 
-data ReqRespClient req resp (f :: ReqResp req resp -> Type) m a where
-  SendMsgReq  :: f StBusy
-              -> req
-              -> (f StBusy -> resp -> ( m (ReqRespClient req resp f m a)
-                                      , f StIdle
-                                      ))
-              -> ReqRespClient req resp f m a
-
-  SendMsgDone :: f StDone
-              -> m a
-              -> ReqRespClient req resp f m a
+  SendMsgDone :: a
+              -> ReqRespClient req m a
 
 
 reqRespClientPeer
   :: Monad m
-  => ReqRespClient req resp f m a
-  -> Client  (ReqResp req resp) StIdle f m a
+  => ReqRespClient req m a
+  -> Client (ReqResp req) StIdle State m a
 
-reqRespClientPeer (SendMsgDone f result) =
-    Effect $ do
-      r <- result
-      return $ Yield f MsgDone (Done r)
+reqRespClientPeer (SendMsgDone a) =
+      Yield StateDone MsgDone (Done a)
 
-reqRespClientPeer (SendMsgReq f req next) =
-    Yield f (MsgReq req) $
-    Await $ \f' (MsgResp resp) ->
-      case next f' resp of
-        (client, f'') ->
-          ( Effect $ reqRespClientPeer <$> client
-          , f''
-          )
+reqRespClientPeer (SendMsgReq req next) =
+    Yield (StateBusy req)
+          (MsgReq req) $
+    Await $ \_ (MsgResp resp) ->
+      let client = next resp
+      in ( Effect $ reqRespClientPeer <$> client
+         , StateIdle
+         )

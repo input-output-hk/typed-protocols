@@ -38,7 +38,10 @@ library
                    , Network.TypedProtocol.ReqResp2.Type
                    , Network.TypedProtocol.ReqResp2.Client
 
+                   , Network.TypedProtocol.Stateful.ReqResp.Type
                    , Network.TypedProtocol.Stateful.ReqResp.Client
+                   , Network.TypedProtocol.Stateful.ReqResp.Server
+                   , Network.TypedProtocol.Stateful.ReqResp.Codec
                    , Network.TypedProtocol.Stateful.ReqResp.Examples
 
                    , Network.TypedProtocol.Trans.Wedge

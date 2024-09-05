@@ -39,12 +39,12 @@ codecReqResp =
       decodeTerminatedFrame '\n' $ \str trailing ->
         case (stok, break (==' ') str) of
           (SingIdle, ("MsgReq", str'))
-             | Just resp <- readMaybe str'
-            -> DecodeDone (SomeMessage (MsgReq resp)) trailing
+             | Just req <- readMaybe str'
+            -> DecodeDone (SomeMessage (MsgReq req)) trailing
           (SingIdle, ("MsgDone", ""))
             -> DecodeDone (SomeMessage MsgDone) trailing
           (SingBusy, ("MsgResp", str'))
-             | Just resp <- readMaybe str'
+            | Just resp <- readMaybe str'
             -> DecodeDone (SomeMessage (MsgResp resp)) trailing
 
           (_       , _     ) -> DecodeFail failure

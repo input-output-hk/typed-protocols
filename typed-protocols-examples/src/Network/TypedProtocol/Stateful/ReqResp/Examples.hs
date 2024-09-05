@@ -2,49 +2,32 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE PolyKinds           #-}
+{-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Network.TypedProtocol.Stateful.ReqResp.Examples
-  ( ReqRespStateCallbacks (..)
-  , reqRespClientMap
-  ) where
+module Network.TypedProtocol.Stateful.ReqResp.Examples where
 
-import           Data.Kind (Type)
-
-import           Network.TypedProtocol.ReqResp.Type
-import           Network.TypedProtocol.Stateful.ReqResp.Client
+import           Network.TypedProtocol.Stateful.ReqResp.Server
+import           Network.TypedProtocol.Stateful.ReqResp.Type
 
 
-data ReqRespStateCallbacks (f :: ReqResp req resp -> Type) =
-    ReqRespStateCallbacks {
-        rrBusyToIdle :: f StBusy -> f StIdle
-      , rrBusyToBusy :: f StBusy -> f StBusy
-      , rrBusyToDone :: f StBusy -> f StDone
-      }
+fileRPCServer :: Monad m
+              => (forall resp. FileAPI resp -> m resp)
+              -- ^ execute `FileAPI` locally
+              -> ReqRespServer FileAPI m ()
+fileRPCServer run = ReqRespServer {
+    reqRespServerDone = (),
+    reqRespHandleReq = \req -> do
+      resp <- run req
+      return (resp, fileRPCServer run)
+  }
 
-reqRespClientMap
-  :: forall req resp f m.
-     Monad m
-  => ReqRespStateCallbacks f
-  -> f StBusy
-  -> [req]
-  -> ReqRespClient req resp f m ([resp], f StDone)
-reqRespClientMap ReqRespStateCallbacks
-                           { rrBusyToIdle
-                           , rrBusyToBusy
-                           , rrBusyToDone
-                           } = go []
-  where
-    go :: [resp]
-       -> f StBusy
-       -> [req]
-       -> ReqRespClient req resp f m ([resp], f StDone)
-    go resps f []         = SendMsgDone f' (pure (reverse resps, f'))
-      where
-        f' = rrBusyToDone f
-    go resps f (req:reqs) =
-      SendMsgReq f req $ \f' resp ->
-        ( return (go (resp:resps) (rrBusyToBusy f') reqs)
-        , rrBusyToIdle f'
-        )
+-- | Example of a file API
+--
+simpleFileAPI :: Monad m => FileAPI resp -> m resp
+simpleFileAPI (ReadFile filepath) = return filepath
+simpleFileAPI (WriteFile _ _)     = return ()
+
+simpleFileRPCServer :: Monad m => ReqRespServer FileAPI m ()
+simpleFileRPCServer = fileRPCServer simpleFileAPI
 
