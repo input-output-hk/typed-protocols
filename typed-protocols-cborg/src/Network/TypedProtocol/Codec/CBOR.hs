@@ -42,7 +42,7 @@ type DeserialiseFailure = CBOR.DeserialiseFailure
 -- natively produces chunks).
 --
 mkCodecCborStrictBS
-  :: forall ps m f. MonadST m
+  :: forall ps m annotator. MonadST m
 
   => (forall (pr :: PeerRole) (st :: ps) (st' :: ps).
              PeerHasAgency pr st
@@ -50,9 +50,9 @@ mkCodecCborStrictBS
 
   -> (forall (pr :: PeerRole) (st :: ps) s.
              PeerHasAgency pr st
-          -> CBOR.Decoder s (f st))
+          -> CBOR.Decoder s (annotator st))
 
-  -> CodecF ps DeserialiseFailure m f BS.ByteString
+  -> Codec ps DeserialiseFailure m annotator BS.ByteString
 mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
     Codec {
       encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
@@ -65,8 +65,8 @@ mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
       . cborEncode
 
     convertCborDecoder
-      :: (forall s. CBOR.Decoder s (f a))
-      -> m (DecodeStep BS.ByteString DeserialiseFailure m (f a))
+      :: (forall s. CBOR.Decoder s (annotator st))
+      -> m (DecodeStep BS.ByteString DeserialiseFailure m (annotator st))
     convertCborDecoder cborDecode =
         withLiftST (convertCborDecoderBS cborDecode)
 
@@ -97,7 +97,7 @@ convertCborDecoderBS cborDecode liftST =
 -- CBOR library encoder and decoder.
 --
 mkCodecCborLazyBS
-  :: forall ps m f. MonadST m
+  :: forall ps m annotator. MonadST m
 
   => (forall (pr :: PeerRole) (st :: ps) (st' :: ps).
              PeerHasAgency pr st
@@ -105,9 +105,9 @@ mkCodecCborLazyBS
 
   -> (forall (pr :: PeerRole) (st :: ps) s.
              PeerHasAgency pr st
-          -> CBOR.Decoder s (f st))
+          -> CBOR.Decoder s (annotator st))
 
-  -> CodecF ps CBOR.DeserialiseFailure m f LBS.ByteString
+  -> Codec ps CBOR.DeserialiseFailure m annotator LBS.ByteString
 mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
     Codec {
       encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
@@ -121,8 +121,8 @@ mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
       . cborEncode
 
     convertCborDecoder
-      :: (forall s. CBOR.Decoder s (f a))
-      -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m (f a))
+      :: (forall s. CBOR.Decoder s (annotator st))
+      -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m (annotator st))
     convertCborDecoder cborDecode =
         withLiftST (convertCborDecoderLBS cborDecode)
 
