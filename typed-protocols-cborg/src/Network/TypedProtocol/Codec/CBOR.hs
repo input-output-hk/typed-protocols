@@ -11,7 +11,7 @@ module Network.TypedProtocol.Codec.CBOR
   ) where
 
 import           Control.Monad.Class.MonadST (MonadST (..))
-import           Control.Monad.ST hiding (stToIO)
+import           Control.Monad.ST
 
 import qualified Codec.CBOR.Decoding as CBOR (Decoder)
 import qualified Codec.CBOR.Encoding as CBOR (Encoding)
@@ -68,7 +68,7 @@ mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
       :: (forall s. CBOR.Decoder s a)
       -> m (DecodeStep BS.ByteString DeserialiseFailure m a)
     convertCborDecoder cborDecode =
-        convertCborDecoderBS cborDecode stToIO
+        withLiftST (convertCborDecoderBS cborDecode)
 
 convertCborDecoderBS
   :: forall s m a. Functor m
@@ -123,7 +123,7 @@ mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
       :: (forall s. CBOR.Decoder s a)
       -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m a)
     convertCborDecoder cborDecode =
-        convertCborDecoderLBS cborDecode stToIO
+        withLiftST (convertCborDecoderLBS cborDecode)
 
 convertCborDecoderLBS
   :: forall s m a. Monad m
