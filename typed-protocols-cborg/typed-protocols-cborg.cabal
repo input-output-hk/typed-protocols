@@ -22,7 +22,7 @@ library
                      bytestring      >=0.10  && <0.13,
                      cborg           >=0.2.1 && <0.3,
 
-                     io-classes,
+                     io-classes     ^>=1.5,
                      typed-protocols
 
   hs-source-dirs:    src
