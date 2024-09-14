@@ -262,7 +262,7 @@ runPipelinedPeerSender receiveQueue collectQueue
                        Driver{sendMessage, recvMessage}
                        peer dstate0 = do
     threadId <- myThreadId
-    labelThread threadId "pipeliend-peer-seneder"
+    labelThread threadId "pipelined-peer-sender"
     go Zero (HasDState dstate0) peer
   where
     go :: forall st' n.
@@ -314,7 +314,7 @@ runPipelinedPeerReceiverQueue
 runPipelinedPeerReceiverQueue receiveQueue collectQueue
                               driver@Driver{initialDState} = do
     threadId <- myThreadId
-    labelThread threadId "pipelined-recevier-queue"
+    labelThread threadId "pipelined-receiver-queue"
     go initialDState
   where
     go :: dstate -> m Void
