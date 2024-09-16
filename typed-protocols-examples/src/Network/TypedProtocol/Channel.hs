@@ -1,7 +1,9 @@
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications    #-}
 
 module Network.TypedProtocol.Channel
   ( Channel (..)
@@ -10,8 +12,12 @@ module Network.TypedProtocol.Channel
   , fixedInputChannel
   , mvarsAsChannel
   , handlesAsChannel
+#if !defined(mingw32_HOST_OS)
+  , socketAsChannel
+#endif
   , createConnectedChannels
   , createConnectedBufferedChannels
+  , createConnectedBufferedChannelsUnbounded
   , createPipelineTestChannels
   , channelEffect
   , delayChannel
@@ -25,7 +31,13 @@ import           Control.Monad.Class.MonadTimer.SI
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as LBS
 import           Data.ByteString.Lazy.Internal (smallChunkSize)
+import           Data.Proxy
 import           Numeric.Natural
+
+#if !defined(mingw32_HOST_OS)
+import           Network.Socket (Socket)
+import qualified Network.Socket.ByteString.Lazy as Socket
+#endif
 
 import qualified System.IO as IO (Handle, hFlush, hIsEOF)
 
@@ -119,12 +131,20 @@ mvarsAsChannel bufferRead bufferWrite =
 --
 -- This is primarily useful for testing protocols.
 --
-createConnectedChannels :: MonadSTM m => m (Channel m a, Channel m a)
+createConnectedChannels :: forall m a. (MonadLabelledSTM m, MonadTraceSTM m, Show a) => m (Channel m a, Channel m a)
 createConnectedChannels = do
     -- Create two TMVars to act as the channel buffer (one for each direction)
     -- and use them to make both ends of a bidirectional channel
-    bufferA <- atomically $ newEmptyTMVar
-    bufferB <- atomically $ newEmptyTMVar
+    bufferA <- atomically $ do
+      v <- newEmptyTMVar
+      labelTMVar v "buffer-a"
+      traceTMVar (Proxy @m) v $ \_ a -> pure $ TraceString ("buffer-a: " ++ show a)
+      return v
+    bufferB <- atomically $ do
+      v <- newEmptyTMVar
+      traceTMVar (Proxy @m) v $ \_ a -> pure $ TraceString ("buffer-b: " ++ show a)
+      labelTMVar v "buffer-b"
+      return v
 
     return (mvarsAsChannel bufferB bufferA,
             mvarsAsChannel bufferA bufferB)
@@ -156,11 +176,32 @@ createConnectedBufferedChannels sz = do
         recv   = atomically (Just <$> readTBQueue bufferRead)
 
 
+-- | Create a pair of channels that are connected via two unbounded buffers.
+--
+-- This is primarily useful for testing protocols.
+--
+createConnectedBufferedChannelsUnbounded :: forall m a. MonadSTM m
+                                         => m (Channel m a, Channel m a)
+createConnectedBufferedChannelsUnbounded = do
+    -- Create two TQueues to act as the channel buffers (one for each
+    -- direction) and use them to make both ends of a bidirectional channel
+    bufferA <- newTQueueIO
+    bufferB <- newTQueueIO
+
+    return (queuesAsChannel bufferB bufferA,
+            queuesAsChannel bufferA bufferB)
+  where
+    queuesAsChannel bufferRead bufferWrite =
+        Channel{send, recv}
+      where
+        send x  = atomically (writeTQueue bufferWrite x)
+        recv    = atomically (     Just <$> readTQueue bufferRead)
+
 -- | Create a pair of channels that are connected via N-place buffers.
 --
 -- This variant /fails/ when  'send' would exceed the maximum buffer size.
--- Use this variant when you want the 'PeerPipelined' to limit the pipelining
--- itself, and you want to check that it does not exceed the expected level of
+-- Use this variant when you want the 'Peer' to limit the pipelining itself,
+-- and you want to check that it does not exceed the expected level of
 -- pipelining.
 --
 -- This is primarily useful for testing protocols.
@@ -194,7 +235,8 @@ createPipelineTestChannels sz = do
 --
 -- The Handles should be open in the appropriate read or write mode, and in
 -- binary mode. Writes are flushed after each write, so it is safe to use
--- a buffering mode.
+-- a buffering mode.  On unix named pipes can be used, see
+-- 'Network.TypedProtocol.ReqResp.Test.prop_namedPipePipelined_IO'
 --
 -- For bidirectional handles it is safe to pass the same handle for both.
 --
@@ -250,6 +292,23 @@ delayChannel :: MonadDelay m
 delayChannel delay = channelEffect (\_ -> return ())
                                    (\_ -> threadDelay delay)
 
+
+#if !defined(mingw32_HOST_OS)
+socketAsChannel :: Socket
+                -> Channel IO LBS.ByteString
+socketAsChannel sock =
+    Channel{send, recv}
+  where
+    send :: LBS.ByteString -> IO ()
+    send = Socket.sendAll sock
+
+    recv :: IO (Maybe LBS.ByteString)
+    recv = do
+      bs <- Socket.recv sock (fromIntegral smallChunkSize)
+      if LBS.null bs
+        then return Nothing
+        else return (Just bs)
+#endif
 
 -- | Channel which logs sent and received messages.
 --

@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns        #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE EmptyCase           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE PolyKinds           #-}
@@ -25,7 +26,7 @@ module Network.TypedProtocol.Driver
 import           Data.Void (Void)
 
 import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Pipelined
+import           Network.TypedProtocol.Peer
 
 import           Control.Concurrent.Class.MonadSTM.TQueue
 import           Control.Monad.Class.MonadAsync
@@ -36,47 +37,70 @@ import           Control.Monad.Class.MonadSTM
 -- $intro
 --
 -- A 'Peer' is a particular implementation of an agent that engages in a
--- typed protocol. To actually run one we need a source and sink for the typed
--- protocol messages. These are provided by a 'Channel' and a 'Codec'. The
--- 'Channel' represents one end of an untyped duplex message transport, and
--- the 'Codec' handles conversion between the typed protocol messages and
--- the untyped channel.
+-- typed protocol. To actually run one we need an untyped channel representing
+-- one end of an untyped duplex message transport, which allows to send and
+-- receive bytes.  One will also need a 'Codec' which handles conversion
+-- between the typed protocol messages and the untyped channel.
 --
--- So given the 'Peer' and a compatible 'Codec' and 'Channel' we can run the
--- peer in some appropriate monad. The peer and codec have to agree on
--- the same protocol and role in that protocol. The codec and channel have to
--- agree on the same untyped medium, e.g. text or bytes. All three have to
--- agree on the same monad in which they will run.
+-- Given the 'Peer', a compatible 'Network.TypedProtocol.Codec.Codec' and
+-- an untyped channel we can run the peer in some appropriate monad (e.g. 'IO',
+-- or a simulation monad for testing purposes). The peer and codec have to
+-- agree on the same protocol. The codec and channel have to agree on the same
+-- untyped medium, e.g. text or bytes. All three have to agree on the same
+-- monad in which they will run.
 --
 -- This module provides drivers for normal and pipelined peers. There is
 -- very little policy involved here so typically it should be possible to
 -- use these drivers, and customise things by adjusting the peer, or codec
--- or channel.
+-- or channel (together with an implementation of a 'Driver' based on it).
 --
--- It is of course possible to write custom drivers and the code for these ones
--- may provide a useful starting point. The 'runDecoder' function may be a
--- helpful utility for use in custom drives.
+-- For implementing a 'Driver' based on some untyped channel, the
+-- 'Network.TypedProtocol.Codec.runDecoder' function may be a helpful utility.
 --
+-- For a possible definition of an untyped channel and how to construct
+-- a `Driver` from it see @typed-protocols-examples@ package.  For production
+-- grade examples see https://github.com/IntersectMBO/ouroboros-network
+-- repository.
 
 
 --
 -- Driver interface
 --
 
-data Driver ps dstate m =
+data Driver ps (pr :: PeerRole) dstate m =
         Driver {
-          sendMessage :: forall (pr :: PeerRole) (st :: ps) (st' :: ps).
-                         PeerHasAgency pr st
+          -- | Send a message; the message must transition from an active state.
+          -- One needs to supply agency evidence.
+          sendMessage :: forall (st :: ps) (st' :: ps).
+                         StateTokenI st
+                      => StateTokenI st'
+                      => ActiveState st
+                      => WeHaveAgencyProof pr st
+                      -- agency evidence
                       -> Message ps st st'
+                      -- message to send
                       -> m ()
 
-        , recvMessage :: forall (pr :: PeerRole) (st :: ps).
-                         PeerHasAgency pr st
+        -- | Receive some message, since we don't know the final state of
+        -- the protocol it is wrapped in `SomeMessage` type; the message must
+        -- transition from an active state. One needs to supply agency
+        -- evidence.
+        --
+        , recvMessage :: forall (st :: ps).
+                         StateTokenI st
+                      => ActiveState st
+                      => TheyHaveAgencyProof pr st
+                      -- agency evidence
                       -> dstate
+                      -- current driver state
                       -> m (SomeMessage st, dstate)
+                      -- received message together with new driver state
 
-        , startDState :: dstate
+        , -- | Initial state of the driver
+          initialDState :: dstate
         }
+-- TODO: input-output-hk/typed-protocols#57
+
 
 -- | When decoding a 'Message' we only know the expected \"from\" state. We
 -- cannot know the \"to\" state as this depends on the message we decode. To
@@ -84,7 +108,11 @@ data Driver ps dstate m =
 -- type to hide the \"to"\ state.
 --
 data SomeMessage (st :: ps) where
-     SomeMessage :: Message ps st st' -> SomeMessage st
+     SomeMessage :: ( StateTokenI st
+                    , StateTokenI st'
+                    , ActiveState st
+                    )
+                 => Message ps st st' -> SomeMessage st
 
 
 --
@@ -98,26 +126,25 @@ data SomeMessage (st :: ps) where
 runPeerWithDriver
   :: forall ps (st :: ps) pr dstate m a.
      Monad m
-  => Driver ps dstate m
-  -> Peer ps pr st m a
-  -> dstate
+  => Driver ps pr dstate m
+  -> Peer ps pr NonPipelined st m a
   -> m (a, dstate)
-runPeerWithDriver Driver{sendMessage, recvMessage} =
-    flip go
+runPeerWithDriver Driver{sendMessage, recvMessage, initialDState} =
+    go initialDState
   where
     go :: forall st'.
           dstate
-       -> Peer ps pr st' m a
+       -> Peer ps pr 'NonPipelined st' m a
        -> m (a, dstate)
     go dstate (Effect k) = k >>= go dstate
     go dstate (Done _ x) = return (x, dstate)
 
-    go dstate (Yield stok msg k) = do
-      sendMessage stok msg
+    go dstate (Yield refl msg k) = do
+      sendMessage refl msg
       go dstate k
 
-    go dstate (Await stok k) = do
-      (SomeMessage msg, dstate') <- recvMessage stok dstate
+    go dstate (Await refl k) = do
+      (SomeMessage msg, dstate') <- recvMessage refl dstate
       go dstate' (k msg)
 
     -- Note that we do not complain about trailing data in any case, neither
@@ -148,17 +175,16 @@ runPeerWithDriver Driver{sendMessage, recvMessage} =
 runPipelinedPeerWithDriver
   :: forall ps (st :: ps) pr dstate m a.
      MonadAsync m
-  => Driver ps dstate m
+  => Driver ps pr dstate m
   -> PeerPipelined ps pr st m a
-  -> dstate
   -> m (a, dstate)
-runPipelinedPeerWithDriver driver (PeerPipelined peer) dstate0 = do
+runPipelinedPeerWithDriver driver@Driver{initialDState} (PeerPipelined peer) = do
     receiveQueue <- atomically newTQueue
     collectQueue <- atomically newTQueue
     a <- runPipelinedPeerReceiverQueue receiveQueue collectQueue driver
            `withAsyncLoop`
          runPipelinedPeerSender        receiveQueue collectQueue driver
-                                       peer dstate0
+                                       peer initialDState
     return a
 
   where
@@ -172,7 +198,7 @@ runPipelinedPeerWithDriver driver (PeerPipelined peer) dstate0 = do
 
 data ReceiveHandler dstate ps pr m c where
      ReceiveHandler :: MaybeDState dstate n
-                    -> PeerReceiver ps pr (st :: ps) (st' :: ps) m c
+                    -> Receiver ps pr (st :: ps) (st' :: ps) m c
                     -> ReceiveHandler dstate ps pr m c
 
 -- | The handling of trailing data here is quite subtle. Trailing data is data
@@ -228,45 +254,45 @@ runPipelinedPeerSender
      )
   => TQueue m (ReceiveHandler dstate ps pr m c)
   -> TQueue m (c, dstate)
-  -> Driver ps dstate m
-  -> PeerSender ps pr st Z c m a
+  -> Driver ps pr dstate m
+  -> Peer ps pr ('Pipelined Z c) st m a
   -> dstate
   -> m (a, dstate)
 runPipelinedPeerSender receiveQueue collectQueue
                        Driver{sendMessage, recvMessage}
                        peer dstate0 = do
     threadId <- myThreadId
-    labelThread threadId "pipeliend-peer-seneder"
+    labelThread threadId "pipelined-peer-sender"
     go Zero (HasDState dstate0) peer
   where
     go :: forall st' n.
           Nat n
        -> MaybeDState dstate n
-       -> PeerSender ps pr st' n c m a
+       -> Peer ps pr ('Pipelined n c) st' m a
        -> m (a, dstate)
-    go n    dstate             (SenderEffect k) = k >>= go n dstate
-    go Zero (HasDState dstate) (SenderDone _ x) = return (x, dstate)
+    go n    dstate             (Effect k) = k >>= go n dstate
+    go Zero (HasDState dstate) (Done _ x) = return (x, dstate)
 
-    go Zero dstate (SenderYield stok msg k) = do
-      sendMessage stok msg
+    go Zero dstate (Yield refl msg k) = do
+      sendMessage refl msg
       go Zero dstate k
 
-    go Zero (HasDState dstate) (SenderAwait stok k) = do
+    go Zero (HasDState dstate) (Await stok k) = do
       (SomeMessage msg, dstate') <- recvMessage stok dstate
       go Zero (HasDState dstate') (k msg)
 
-    go n dstate (SenderPipeline stok msg receiver k) = do
+    go n dstate (YieldPipelined refl msg receiver k) = do
       atomically (writeTQueue receiveQueue (ReceiveHandler dstate receiver))
-      sendMessage stok msg
+      sendMessage refl msg
       go (Succ n) NoDState k
 
-    go (Succ n) NoDState (SenderCollect Nothing k) = do
+    go (Succ n) NoDState (Collect Nothing k) = do
       (c, dstate) <- atomically (readTQueue collectQueue)
       case n of
         Zero    -> go Zero      (HasDState dstate) (k c)
         Succ n' -> go (Succ n')  NoDState          (k c)
 
-    go (Succ n) NoDState (SenderCollect (Just k') k) = do
+    go (Succ n) NoDState (Collect (Just k') k) = do
       mc <- atomically (tryReadTQueue collectQueue)
       case mc of
         Nothing  -> go (Succ n) NoDState  k'
@@ -283,13 +309,13 @@ runPipelinedPeerReceiverQueue
      )
   => TQueue m (ReceiveHandler dstate ps pr m c)
   -> TQueue m (c, dstate)
-  -> Driver ps dstate m
+  -> Driver ps pr dstate m
   -> m Void
 runPipelinedPeerReceiverQueue receiveQueue collectQueue
-                              driver@Driver{startDState} = do
+                              driver@Driver{initialDState} = do
     threadId <- myThreadId
-    labelThread threadId "pipelined-recevier-queue"
-    go startDState
+    labelThread threadId "pipelined-receiver-queue"
+    go initialDState
   where
     go :: dstate -> m Void
     go receiverDState = do
@@ -306,20 +332,20 @@ runPipelinedPeerReceiverQueue receiveQueue collectQueue
 runPipelinedPeerReceiver
   :: forall ps (st :: ps) (stdone :: ps) pr dstate m c.
      Monad m
-  => Driver ps dstate m
+  => Driver ps pr dstate m
   -> dstate
-  -> PeerReceiver ps pr (st :: ps) (stdone :: ps) m c
+  -> Receiver ps pr (st :: ps) (stdone :: ps) m c
   -> m (c, dstate)
 runPipelinedPeerReceiver Driver{recvMessage} = go
   where
     go :: forall st' st''.
           dstate
-       -> PeerReceiver ps pr st' st'' m c
+       -> Receiver ps pr st' st'' m c
        -> m (c, dstate)
     go dstate (ReceiverEffect k) = k >>= go dstate
 
     go dstate (ReceiverDone x) = return (x, dstate)
 
-    go dstate (ReceiverAwait stok k) = do
-      (SomeMessage msg, dstate') <- recvMessage stok dstate
+    go dstate (ReceiverAwait refl k) = do
+      (SomeMessage msg, dstate') <- recvMessage refl dstate
       go dstate' (k msg)

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns         #-}
 {-# LANGUAGE DataKinds            #-}
 {-# LANGUAGE FlexibleContexts     #-}
 {-# LANGUAGE GADTs                #-}
@@ -24,6 +25,7 @@ module Network.TypedProtocol.Driver.Simple
     -- * Connected peers
   , runConnectedPeers
   , runConnectedPeersPipelined
+  , runConnectedPeersAsymmetric
     -- * Driver utilities
     -- | This may be useful if you want to write your own driver.
   , driverSimple
@@ -34,7 +36,7 @@ import           Network.TypedProtocol.Channel
 import           Network.TypedProtocol.Codec
 import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Driver
-import           Network.TypedProtocol.Pipelined
+import           Network.TypedProtocol.Peer
 
 import           Control.Monad.Class.MonadAsync
 import           Control.Monad.Class.MonadThrow
@@ -77,29 +79,39 @@ instance Show (AnyMessage ps) => Show (TraceSendRecv ps) where
   show (TraceRecvMsg msg) = "Recv " ++ show msg
 
 
-driverSimple :: forall ps failure bytes m.
+driverSimple :: forall ps pr failure bytes m.
                 (MonadThrow m, Exception failure)
              => Tracer m (TraceSendRecv ps)
              -> Codec ps failure m bytes
              -> Channel m bytes
-             -> Driver ps (Maybe bytes) m
+             -> Driver ps pr (Maybe bytes) m
 driverSimple tracer Codec{encode, decode} channel@Channel{send} =
-    Driver { sendMessage, recvMessage, startDState = Nothing }
+    Driver { sendMessage, recvMessage, initialDState = Nothing }
   where
-    sendMessage :: forall (pr :: PeerRole) (st :: ps) (st' :: ps).
-                   PeerHasAgency pr st
+    sendMessage :: forall (st :: ps) (st' :: ps).
+                   ( StateTokenI st
+                   , ActiveState st
+                   )
+                => ReflRelativeAgency (StateAgency st)
+                                       WeHaveAgency
+                                      (Relative pr (StateAgency st))
                 -> Message ps st st'
                 -> m ()
-    sendMessage stok msg = do
-      send (encode stok msg)
+    sendMessage !_refl msg = do
+      send (encode msg)
       traceWith tracer (TraceSendMsg (AnyMessage msg))
 
-    recvMessage :: forall (pr :: PeerRole) (st :: ps).
-                   PeerHasAgency pr st
+    recvMessage :: forall (st :: ps).
+                   ( StateTokenI st
+                   , ActiveState st
+                   )
+                => ReflRelativeAgency (StateAgency st)
+                                       TheyHaveAgency
+                                      (Relative pr (StateAgency st))
                 -> Maybe bytes
                 -> m (SomeMessage st, Maybe bytes)
-    recvMessage stok trailing = do
-      decoder <- decode stok
+    recvMessage !_refl trailing = do
+      decoder <- decode stateToken
       result  <- runDecoderWithChannel channel trailing decoder
       case result of
         Right x@(SomeMessage msg, _trailing') -> do
@@ -114,15 +126,15 @@ driverSimple tracer Codec{encode, decode} channel@Channel{send} =
 -- This runs the peer to completion (if the protocol allows for termination).
 --
 runPeer
-  :: forall ps (st :: ps) pr failure bytes m a .
+  :: forall ps (st :: ps) pr failure bytes m a.
      (MonadThrow m, Exception failure)
   => Tracer m (TraceSendRecv ps)
   -> Codec ps failure m bytes
   -> Channel m bytes
-  -> Peer ps pr st m a
-  -> m a
+  -> Peer ps pr 'NonPipelined st m a
+  -> m (a, Maybe bytes)
 runPeer tracer codec channel peer =
-    fst <$> runPeerWithDriver driver peer (startDState driver)
+    runPeerWithDriver driver peer
   where
     driver = driverSimple tracer codec channel
 
@@ -141,9 +153,9 @@ runPipelinedPeer
   -> Codec ps failure m bytes
   -> Channel m bytes
   -> PeerPipelined ps pr st m a
-  -> m a
+  -> m (a, Maybe bytes)
 runPipelinedPeer tracer codec channel peer =
-    fst <$> runPipelinedPeerWithDriver driver peer (startDState driver)
+    runPipelinedPeerWithDriver driver peer
   where
     driver = driverSimple tracer codec channel
 
@@ -184,15 +196,15 @@ runConnectedPeers :: (MonadAsync m, MonadCatch m,
                   => m (Channel m bytes, Channel m bytes)
                   -> Tracer m (Role, TraceSendRecv ps)
                   -> Codec ps failure m bytes
-                  -> Peer ps pr st m a
-                  -> Peer ps (FlipAgency pr) st m b
+                  -> Peer ps             pr  'NonPipelined st m a
+                  -> Peer ps (FlipAgency pr) 'NonPipelined st m b
                   -> m (a, b)
 runConnectedPeers createChannels tracer codec client server =
     createChannels >>= \(clientChannel, serverChannel) ->
 
-    runPeer tracerClient codec clientChannel client
+    (fst <$> runPeer tracerClient codec clientChannel client)
       `concurrently`
-    runPeer tracerServer codec serverChannel server
+    (fst <$> runPeer tracerServer codec serverChannel server)
   where
     tracerClient = contramap ((,) Client) tracer
     tracerServer = contramap ((,) Server) tracer
@@ -202,16 +214,41 @@ runConnectedPeersPipelined :: (MonadAsync m, MonadCatch m,
                            => m (Channel m bytes, Channel m bytes)
                            -> Tracer m (PeerRole, TraceSendRecv ps)
                            -> Codec ps failure m bytes
-                           -> PeerPipelined ps pr st m a
-                           -> Peer          ps (FlipAgency pr) st m b
+                           -> PeerPipelined ps             pr                st m a
+                           -> Peer          ps (FlipAgency pr) 'NonPipelined st m b
                            -> m (a, b)
 runConnectedPeersPipelined createChannels tracer codec client server =
     createChannels >>= \(clientChannel, serverChannel) ->
 
-    runPipelinedPeer tracerClient codec clientChannel client
+    (fst <$> runPipelinedPeer tracerClient codec clientChannel client)
       `concurrently`
-    runPeer          tracerServer codec serverChannel server
+    (fst <$> runPeer          tracerServer codec serverChannel server)
   where
     tracerClient = contramap ((,) AsClient) tracer
     tracerServer = contramap ((,) AsServer) tracer
 
+
+-- Run the same protocol with different codes.  This is useful for testing
+-- 'Handshake' protocol which knows how to decode different versions.
+--
+runConnectedPeersAsymmetric
+    :: ( MonadAsync      m
+       , MonadMask       m
+       , Exception failure
+       )
+    => m (Channel m bytes, Channel m bytes)
+    -> Tracer m (Role, TraceSendRecv ps)
+    -> Codec ps failure m bytes
+    -> Codec ps failure m bytes
+    -> PeerPipelined ps             pr                st m a
+    -> Peer          ps (FlipAgency pr) 'NonPipelined st m b
+    -> m (a, b)
+runConnectedPeersAsymmetric createChannels tracer codec codec' client server =
+    createChannels >>= \(clientChannel, serverChannel) ->
+
+    (fst <$> runPipelinedPeer tracerClient codec  clientChannel client)
+      `concurrently`
+    (fst <$> runPeer tracerServer codec' serverChannel server)
+  where
+    tracerClient = contramap ((,) Client) tracer
+    tracerServer = contramap ((,) Server) tracer

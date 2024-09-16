@@ -9,6 +9,7 @@
 module Network.TypedProtocol.ReqResp.Codec where
 
 import           Network.TypedProtocol.Codec
+import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.PingPong.Codec (decodeTerminatedFrame)
 import           Network.TypedProtocol.ReqResp.Type
 import           Text.Read (readMaybe)
@@ -21,35 +22,33 @@ codecReqResp ::
 codecReqResp =
     Codec{encode, decode}
   where
-    encode :: forall (pr  :: PeerRole)
-                     (st  :: ReqResp req resp)
-                     (st' :: ReqResp req resp)
-           .  PeerHasAgency pr st
-           -> Message (ReqResp req resp) st st'
+    encode :: forall req' resp'
+                     (st  :: ReqResp req' resp')
+                     (st' :: ReqResp req' resp')
+           .  ( Show (Message (ReqResp req' resp') st st') )
+           => Message (ReqResp req' resp') st st'
            -> String
-    encode (ClientAgency TokIdle) msg = show msg ++ "\n"
-    encode (ServerAgency TokBusy) msg = show msg ++ "\n"
+    encode msg = show msg ++ "\n"
 
-    decode :: forall (pr :: PeerRole)
-                     (st :: ReqResp req resp)
-           .  PeerHasAgency pr st
-           -> m (DecodeStep String CodecFailure m (SomeMessage st))
+    decode :: forall req' resp' m'
+                     (st :: ReqResp req' resp')
+           .  (Monad m', Read req', Read resp', ActiveState st)
+           => StateToken st
+           -> m' (DecodeStep String CodecFailure m' (SomeMessage st))
     decode stok =
       decodeTerminatedFrame '\n' $ \str trailing ->
         case (stok, break (==' ') str) of
-          (ClientAgency TokIdle, ("MsgReq", str'))
-             | Just resp <- readMaybe str'
-            -> DecodeDone (SomeMessage (MsgReq resp)) trailing
-          (ClientAgency TokIdle, ("MsgDone", ""))
+          (SingIdle, ("MsgReq", str'))
+             | Just req <- readMaybe str'
+            -> DecodeDone (SomeMessage (MsgReq req)) trailing
+          (SingIdle, ("MsgDone", ""))
             -> DecodeDone (SomeMessage MsgDone) trailing
-          (ServerAgency TokBusy, ("MsgResp", str'))
-             | Just resp <- readMaybe str'
+          (SingBusy, ("MsgResp", str'))
+            | Just resp <- readMaybe str'
             -> DecodeDone (SomeMessage (MsgResp resp)) trailing
 
-          (ServerAgency _      , _     ) -> DecodeFail failure
+          (_       , _     ) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)
-          (ClientAgency _      , _     ) -> DecodeFail failure
-            where failure = CodecFailure ("unexpected client message: " ++ str)
 
 
 codecReqRespId ::
@@ -59,17 +58,17 @@ codecReqRespId ::
 codecReqRespId =
     Codec{encode, decode}
   where
-    encode :: forall (pr  :: PeerRole)
-                     (st  :: ReqResp req resp)
+    encode :: forall (st  :: ReqResp req resp)
                      (st' :: ReqResp req resp)
-           .  PeerHasAgency pr st
-           -> Message (ReqResp req resp) st st'
+           .  StateTokenI st
+           => ActiveState st
+           => Message (ReqResp req resp) st st'
            -> AnyMessage (ReqResp req resp)
-    encode _ msg = AnyMessage msg
+    encode msg = AnyMessage msg
 
-    decode :: forall (pr :: PeerRole)
-                     (st :: ReqResp req resp)
-           .  PeerHasAgency pr st
+    decode :: forall (st :: ReqResp req resp)
+           .  ActiveState st
+           => StateToken st
            -> m (DecodeStep (AnyMessage (ReqResp req resp)) CodecFailure m (SomeMessage st))
     decode stok =
       pure $ DecodePartial $ \mb ->
@@ -77,15 +76,18 @@ codecReqRespId =
           Nothing -> return $ DecodeFail (CodecFailure "expected more data")
           Just (AnyMessage msg) -> return $
             case (stok, msg) of
-              (ClientAgency TokIdle, MsgReq{})
+              (SingIdle, MsgReq{})
                 -> DecodeDone (SomeMessage msg) Nothing
-              (ClientAgency TokIdle, MsgDone)
+              (SingIdle, MsgDone)
                 -> DecodeDone (SomeMessage msg) Nothing
-              (ServerAgency TokBusy, MsgResp{})
+              (SingBusy, MsgResp{})
                 -> DecodeDone (SomeMessage msg) Nothing
 
-              (ServerAgency _      , _     ) -> DecodeFail failure
-                where failure = CodecFailure ("unexpected server message: " ++ show msg)
-              (ClientAgency _      , _     ) -> DecodeFail failure
-                where failure = CodecFailure ("unexpected client message: " ++ show msg)
+              (SingIdle, _) ->
+                DecodeFail failure
+                  where failure = CodecFailure ("unexpected client message: " ++ show msg)
+              (SingBusy, _) ->
+                DecodeFail failure
+                  where failure = CodecFailure ("unexpected server message: " ++ show msg)
 
+              (a@SingDone, _) -> notActiveState a

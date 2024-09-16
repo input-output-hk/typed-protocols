@@ -1,6 +1,6 @@
 cabal-version:       3.0
 name:                typed-protocols-examples
-version:             0.2.0.2
+version:             0.3.0.0
 synopsis:            Examples and tests for the typed-protocols framework
 -- description:
 license:             Apache-2.0
@@ -35,6 +35,16 @@ library
                    , Network.TypedProtocol.ReqResp.Codec.CBOR
                    , Network.TypedProtocol.ReqResp.Examples
 
+                   , Network.TypedProtocol.ReqResp2.Type
+                   , Network.TypedProtocol.ReqResp2.Client
+
+                   , Network.TypedProtocol.Stateful.ReqResp.Type
+                   , Network.TypedProtocol.Stateful.ReqResp.Client
+                   , Network.TypedProtocol.Stateful.ReqResp.Server
+                   , Network.TypedProtocol.Stateful.ReqResp.Codec
+                   , Network.TypedProtocol.Stateful.ReqResp.Examples
+
+                   , Network.TypedProtocol.Trans.Wedge
   other-extensions:  GADTs
                    , RankNTypes
                    , PolyKinds
@@ -47,12 +57,15 @@ library
                      bytestring,
                      cborg,
                      serialise,
+                     singletons,
                      contra-tracer,
                      io-classes,
                      si-timers,
+                     network,
                      time,
-                     typed-protocols,
-                     typed-protocols-cborg
+                     typed-protocols ^>= 0.2,
+                     typed-protocols-cborg,
+                     typed-protocols-stateful
 
   hs-source-dirs:    src
   default-language:  Haskell2010
@@ -83,6 +96,12 @@ test-suite test
                    , QuickCheck
                    , tasty
                    , tasty-quickcheck
+
+  if !os(windows)
+      build-depends: directory
+                   , network
+                   , unix
+
   default-language:  Haskell2010
   ghc-options:       -rtsopts
                      -Wall

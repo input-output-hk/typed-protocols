@@ -1,13 +1,19 @@
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE MonoLocalBinds      #-}
 {-# LANGUAGE PolyKinds           #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Network.TypedProtocol.Codec.CBOR
   ( module Network.TypedProtocol.Codec
-  , DeserialiseFailure
   , mkCodecCborLazyBS
   , mkCodecCborStrictBS
+  , convertCborDecoderBS
+  , convertCborDecoderLBS
+    -- * Re-exports
+  , CBOR.DeserialiseFailure (..)
   ) where
 
 import           Control.Monad.Class.MonadST (MonadST (..))
@@ -27,8 +33,6 @@ import           Network.TypedProtocol.Codec
 import           Network.TypedProtocol.Core
 
 
-type DeserialiseFailure = CBOR.DeserialiseFailure
-
 -- | Construct a 'Codec' for a CBOR based serialisation format, using strict
 -- 'BS.ByteString's.
 --
@@ -44,19 +48,23 @@ type DeserialiseFailure = CBOR.DeserialiseFailure
 mkCodecCborStrictBS
   :: forall ps m. MonadST m
 
-  => (forall (pr :: PeerRole) (st :: ps) (st' :: ps).
-             PeerHasAgency pr st
-          -> Message ps st st' -> CBOR.Encoding)
+  => (forall (st :: ps) (st' :: ps).
+             StateTokenI st
+          => ActiveState st
+          => Message ps st st' -> CBOR.Encoding)
+  -- ^ cbor encoder
 
-  -> (forall (pr :: PeerRole) (st :: ps) s.
-             PeerHasAgency pr st
+  -> (forall (st :: ps) s.
+             ActiveState st
+          => StateToken st
           -> CBOR.Decoder s (SomeMessage st))
+  -- ^ cbor decoder
 
-  -> Codec ps DeserialiseFailure m BS.ByteString
+  -> Codec ps CBOR.DeserialiseFailure m BS.ByteString
 mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
     Codec {
-      encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
-      decode = \stok     -> convertCborDecoder (cborMsgDecode stok)
+      encode = \msg  -> convertCborEncoder cborMsgEncode msg,
+      decode = \stok -> convertCborDecoder (cborMsgDecode stok)
     }
   where
     convertCborEncoder :: (a -> CBOR.Encoding) -> a -> BS.ByteString
@@ -66,20 +74,22 @@ mkCodecCborStrictBS cborMsgEncode cborMsgDecode =
 
     convertCborDecoder
       :: (forall s. CBOR.Decoder s a)
-      -> m (DecodeStep BS.ByteString DeserialiseFailure m a)
+      -> m (DecodeStep BS.ByteString CBOR.DeserialiseFailure m a)
     convertCborDecoder cborDecode =
         convertCborDecoderBS cborDecode stToIO
 
 convertCborDecoderBS
   :: forall s m a. Functor m
-  => (CBOR.Decoder s a)
+  => CBOR.Decoder s a
+  -- ^ cbor decoder
   -> (forall b. ST s b -> m b)
-  -> m (DecodeStep BS.ByteString DeserialiseFailure m a)
+  -- ^ lift ST computation (e.g. 'Control.Monad.ST.stToIO', 'stToPrim', etc)
+  -> m (DecodeStep BS.ByteString CBOR.DeserialiseFailure m a)
 convertCborDecoderBS cborDecode liftST =
     go <$> liftST (CBOR.deserialiseIncremental cborDecode)
   where
     go :: CBOR.IDecode s a
-       -> DecodeStep BS.ByteString DeserialiseFailure m a
+       -> DecodeStep BS.ByteString CBOR.DeserialiseFailure m a
     go (CBOR.Done  trailing _ x)
       | BS.null trailing       = DecodeDone x Nothing
       | otherwise              = DecodeDone x (Just trailing)
@@ -98,19 +108,23 @@ convertCborDecoderBS cborDecode liftST =
 mkCodecCborLazyBS
   :: forall ps m. MonadST m
 
-  => (forall (pr :: PeerRole) (st :: ps) (st' :: ps).
-             PeerHasAgency pr st
-          -> Message ps st st' -> CBOR.Encoding)
+  => (forall (st :: ps) (st' :: ps).
+             StateTokenI st
+          => ActiveState st
+          => Message ps st st' -> CBOR.Encoding)
+  -- ^ cbor encoder
 
-  -> (forall (pr :: PeerRole) (st :: ps) s.
-             PeerHasAgency pr st
+  -> (forall (st :: ps) s.
+             ActiveState st
+          => StateToken st
           -> CBOR.Decoder s (SomeMessage st))
+  -- ^ cbor decoder
 
   -> Codec ps CBOR.DeserialiseFailure m LBS.ByteString
 mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
     Codec {
-      encode = \stok msg -> convertCborEncoder (cborMsgEncode stok) msg,
-      decode = \stok     -> convertCborDecoder (cborMsgDecode stok)
+      encode = \msg  -> convertCborEncoder cborMsgEncode msg,
+      decode = \stok -> convertCborDecoder (cborMsgDecode stok)
     }
   where
     convertCborEncoder :: (a -> CBOR.Encoding) -> a -> LBS.ByteString
@@ -127,8 +141,10 @@ mkCodecCborLazyBS  cborMsgEncode cborMsgDecode =
 
 convertCborDecoderLBS
   :: forall s m a. Monad m
-  => (CBOR.Decoder s a)
+  => CBOR.Decoder s a
+  -- ^ cbor decoder
   -> (forall b. ST s b -> m b)
+  -- ^ lift ST computation (e.g. 'Control.Monad.ST.stToIO', 'stToPrim', etc)
   -> m (DecodeStep LBS.ByteString CBOR.DeserialiseFailure m a)
 convertCborDecoderLBS cborDecode liftST =
     go [] =<< liftST (CBOR.deserialiseIncremental cborDecode)
@@ -148,7 +164,7 @@ convertCborDecoderLBS cborDecode liftST =
     -- We keep a bunch of chunks and supply the CBOR decoder with them
     -- until we run out, when we go get another bunch.
     go (c:cs) (CBOR.Partial  k) = go cs =<< liftST (k (Just c))
-    go []     (CBOR.Partial  k) = return $ DecodePartial $ \mbs -> case mbs of
+    go []     (CBOR.Partial  k) = return $ DecodePartial $ \case
                                     Nothing -> go [] =<< liftST (k Nothing)
                                     Just bs -> go cs (CBOR.Partial k)
                                       where cs = LBS.toChunks bs
