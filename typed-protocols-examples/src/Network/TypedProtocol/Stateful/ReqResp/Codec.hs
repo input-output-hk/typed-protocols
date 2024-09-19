@@ -29,7 +29,7 @@ codecReqResp
   -- ^ encode `req resp`
   -> (String -> Maybe (Some req))
   -- ^ decode `req resp`
-  -> (forall resp. resp -> String)
+  -> (forall resp. req resp -> resp -> String)
   -- ^ encode resp
   -> (forall resp. req resp -> String -> Maybe resp)
   -- ^ decode resp
@@ -40,9 +40,9 @@ codecReqResp encodeReq decodeReq encodeResp decodeResp =
     encode :: State st'
            -> Message (ReqResp req) st st'
            -> String
-    encode _ (MsgReq req)   = "MsgReq " ++ encodeReq req ++ "\n"
-    encode _ MsgDone        = "MsgDone\n"
-    encode _ (MsgResp resp) = "MsgResp " ++ encodeResp resp ++ "\n"
+    encode _ (MsgReq req)       = "MsgReq " ++ encodeReq req ++ "\n"
+    encode _ MsgDone            = "MsgDone\n"
+    encode _ (MsgResp req resp) = "MsgResp " ++ encodeResp req resp ++ "\n"
 
     decode :: forall (st :: ReqResp req).
               ActiveState st
@@ -60,7 +60,7 @@ codecReqResp encodeReq decodeReq encodeResp decodeResp =
           (SingBusy, StateBusy req, ("MsgResp", str'))
             -- note that we need `req` to decode response of the given type
             |  Just resp <- decodeResp req str'
-            -> DecodeDone (SomeMessage (MsgResp resp)) trailing
+            -> DecodeDone (SomeMessage (MsgResp req resp)) trailing
           (_, _, _) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)
 
@@ -95,7 +95,7 @@ codecReqRespId eqRespTypes = Codec { encode, decode }
           -> DecodeDone (SomeMessage msg) Nothing
         (SingIdle, StateIdle, Just (Bytes msg@MsgReq{}))
           -> DecodeDone (SomeMessage msg) Nothing
-        (SingBusy, StateBusy req, Just (Bytes msg@(MsgResp _)))
+        (SingBusy, StateBusy req, Just (Bytes msg@MsgResp{}))
           -- the codec needs to verify that response type of `req` and `msg` agrees
           |  Just Refl <- eqRespTypes (reqRespType req) (msgRespType msg)
           -> DecodeDone (SomeMessage msg) Nothing
@@ -106,7 +106,7 @@ codecReqRespId eqRespTypes = Codec { encode, decode }
 
     msgRespType :: forall resp. Message (ReqResp FileAPI) (StBusy resp) StIdle
                 -> Proxy resp
-    msgRespType (MsgResp _) = Proxy
+    msgRespType (MsgResp _ _) = Proxy
 
     reqRespType :: forall resp. FileAPI resp -> Proxy resp
     reqRespType _ = Proxy
