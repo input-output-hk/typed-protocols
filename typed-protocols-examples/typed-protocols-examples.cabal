@@ -1,6 +1,6 @@
 cabal-version:       3.0
 name:                typed-protocols-examples
-version:             0.3.0.0
+version:             0.4.0.0
 synopsis:            Examples and tests for the typed-protocols framework
 -- description:
 license:             Apache-2.0
