@@ -112,8 +112,10 @@ data Peer ps pr st f m a where
        )
     => WeHaveAgencyProof pr st
     -- ^ agency singleton
+    -> f st
+    -- ^ initial protocol state
     -> f st'
-    -- ^ protocol state
+    -- ^ final protocol state
     -> Message ps st st'
     -- ^ protocol message
     -> Peer ps pr st' f m a

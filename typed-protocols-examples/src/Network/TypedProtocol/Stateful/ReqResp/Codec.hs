@@ -37,12 +37,12 @@ codecReqResp
 codecReqResp encodeReq decodeReq encodeResp decodeResp =
     Codec { encode, decode }
   where
-    encode :: State st'
+    encode :: State st
            -> Message (ReqResp req) st st'
            -> String
     encode _ (MsgReq req)       = "MsgReq " ++ encodeReq req ++ "\n"
     encode _ MsgDone            = "MsgDone\n"
-    encode _ (MsgResp req resp) = "MsgResp " ++ encodeResp req resp ++ "\n"
+    encode (StateBusy req) (MsgResp resp) = "MsgResp " ++ encodeResp req resp ++ "\n"
 
     decode :: forall (st :: ReqResp req).
               ActiveState st
@@ -60,7 +60,7 @@ codecReqResp encodeReq decodeReq encodeResp decodeResp =
           (SingBusy, StateBusy req, ("MsgResp", str'))
             -- note that we need `req` to decode response of the given type
             |  Just resp <- decodeResp req str'
-            -> DecodeDone (SomeMessage (MsgResp req resp)) trailing
+            -> DecodeDone (SomeMessage (MsgResp resp)) trailing
           (_, _, _) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)
 
@@ -106,7 +106,7 @@ codecReqRespId eqRespTypes = Codec { encode, decode }
 
     msgRespType :: forall resp. Message (ReqResp FileAPI) (StBusy resp) StIdle
                 -> Proxy resp
-    msgRespType (MsgResp _ _) = Proxy
+    msgRespType (MsgResp _) = Proxy
 
     reqRespType :: forall resp. FileAPI resp -> Proxy resp
     reqRespType _ = Proxy

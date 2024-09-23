@@ -30,7 +30,7 @@ reqRespServerPeer ReqRespServer { reqRespServerDone = a,
     MsgDone -> (Done a, StateDone)
     MsgReq req ->
       ( Effect $
-              (\(resp, k') -> Yield StateIdle (MsgResp req resp) (reqRespServerPeer  k'))
+              (\(resp, k') -> Yield (StateBusy req) StateIdle (MsgResp resp) (reqRespServerPeer  k'))
           <$> k req
       , StateBusy req
       )

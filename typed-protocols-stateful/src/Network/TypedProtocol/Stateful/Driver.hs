@@ -41,7 +41,7 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
                         => ReflRelativeAgency (StateAgency st)
                                                WeHaveAgency
                                               (Relative pr (StateAgency st))
-                        -> f st'
+                        -> f st
                         -> Message ps st st'
                         -> m ()
 
@@ -92,9 +92,9 @@ runPeerWithDriver Driver{ sendMessage
 
     go !dstate  _ (Done _ x) = return (x, dstate)
 
-    go !dstate  _ (Yield refl !f msg k) = do
+    go !dstate  _ (Yield refl !f !f' msg k) = do
       sendMessage refl f msg
-      go dstate f k
+      go dstate f' k
 
     go !dstate !f (Await refl k) = do
       (SomeMessage msg, dstate') <- recvMessage refl f dstate
