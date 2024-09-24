@@ -1,6 +1,6 @@
-cabal-version:       3.0
+cabal-version:       3.4
 name:                typed-protocols-cborg
-version:             0.2.0.0
+version:             0.3.0.0
 synopsis:            CBOR codecs for typed-protocols
 -- description:
 license:             Apache-2.0
@@ -18,13 +18,13 @@ extra-source-files:  CHANGELOG.md, README.md
 library
   exposed-modules:   Network.TypedProtocol.Codec.CBOR
 
-  build-depends:     base            >=4.12  && <4.21,
-                     bytestring      >=0.10  && <0.13,
-                     cborg           >=0.2.1 && <0.3,
-                     singletons,       
+  build-depends:     base             >=4.12  && <4.21,
+                     bytestring       >=0.10  && <0.13,
+                     cborg            >=0.2.1 && <0.3,
+                     singletons,        
 
-                     io-classes     ^>=1.5,
-                     typed-protocols
+                     io-classes      ^>=1.5,
+                     typed-protocols ^>=0.3
 
   hs-source-dirs:    src
   default-language:  Haskell2010
