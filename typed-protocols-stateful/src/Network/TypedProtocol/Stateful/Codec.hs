@@ -41,8 +41,7 @@ module Network.TypedProtocol.Stateful.Codec
     -- * CodecFailure
   , CodecFailure (..)
     -- * Testing codec properties
-  , AnyMessage (..)
-  , pattern AnyMessageAndAgency
+  , AnyMessage (.., AnyMessageAndAgency)
   , showAnyMessage
   , prop_codecM
   , prop_codec
@@ -60,7 +59,7 @@ import           Network.TypedProtocol.Codec (CodecFailure (..),
                    DecodeStep (..),  SomeMessage (..), hoistDecodeStep,
                    isoDecodeStep, mapFailureDecodeStep, runDecoder,
                    runDecoderPure)
-import qualified Network.TypedProtocol.Codec as TP
+import qualified Network.TypedProtocol.Codec as TP hiding (AnyMessageAndAgency)
 
 
 -- | A stateful codec.

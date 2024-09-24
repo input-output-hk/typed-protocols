@@ -45,8 +45,7 @@ module Network.TypedProtocol.Codec
     -- * CodecFailure
   , CodecFailure (..)
     -- * Testing codec properties
-  , AnyMessage (..)
-  , pattern AnyMessageAndAgency
+  , AnyMessage (AnyMessage, AnyMessageAndAgency)
   , prop_codecM
   , prop_codec
   , prop_codec_splitsM
