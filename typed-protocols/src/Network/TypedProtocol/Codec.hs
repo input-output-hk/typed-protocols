@@ -48,12 +48,12 @@ module Network.TypedProtocol.Codec
   , SomeState (..)
   ) where
 
-import           Control.Exception (Exception)
-import           Data.Kind (Type)
-import           Data.Monoid (All (..))
+import Control.Exception (Exception)
+import Data.Kind (Type)
+import Data.Monoid (All (..))
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Driver (SomeMessage (..))
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Driver (SomeMessage (..))
 
 
 -- | A codec for a 'Protocol' handles the encoding and decoding of typed

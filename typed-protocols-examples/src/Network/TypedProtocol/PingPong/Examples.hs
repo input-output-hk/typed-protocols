@@ -1,9 +1,9 @@
 module Network.TypedProtocol.PingPong.Examples where
 
-import           Network.TypedProtocol.PingPong.Client
-import           Network.TypedProtocol.PingPong.Server
+import Network.TypedProtocol.PingPong.Client
+import Network.TypedProtocol.PingPong.Server
 
-import           Network.TypedProtocol.Peer.Client
+import Network.TypedProtocol.Peer.Client
 
 
 -- | The standard stateless ping-pong server instance.

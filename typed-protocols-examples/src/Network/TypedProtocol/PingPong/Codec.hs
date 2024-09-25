@@ -1,8 +1,8 @@
 module Network.TypedProtocol.PingPong.Codec where
 
-import           Network.TypedProtocol.Codec
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.PingPong.Type
+import Network.TypedProtocol.Codec
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.PingPong.Type
 
 
 codecPingPong

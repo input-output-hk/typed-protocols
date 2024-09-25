@@ -2,9 +2,9 @@
 
 module Network.TypedProtocol.PingPong.Server where
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer.Server
-import           Network.TypedProtocol.PingPong.Type
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Peer.Server
+import Network.TypedProtocol.PingPong.Type
 
 
 data PingPongServer m a = PingPongServer {

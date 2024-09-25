@@ -2,7 +2,7 @@
 
 module Network.TypedProtocol.ReqResp.Type where
 
-import           Network.TypedProtocol.Core
+import Network.TypedProtocol.Core
 
 
 data ReqResp req resp where

@@ -3,9 +3,9 @@ module Network.TypedProtocol.Stateful.ReqResp.Server
   , reqRespServerPeer
   ) where
 
-import           Data.Typeable
-import           Network.TypedProtocol.Stateful.Peer.Server
-import           Network.TypedProtocol.Stateful.ReqResp.Type
+import Data.Typeable
+import Network.TypedProtocol.Stateful.Peer.Server
+import Network.TypedProtocol.Stateful.ReqResp.Type
 
 
 data ReqRespServer req m a = ReqRespServer {

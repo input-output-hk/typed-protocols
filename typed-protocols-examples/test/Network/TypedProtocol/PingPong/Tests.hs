@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP             #-}
+{-# LANGUAGE CPP #-}
 -- orphaned arbitrary instances
 {-# OPTIONS_GHC -Wno-orphans #-}
 
@@ -11,39 +11,39 @@ module Network.TypedProtocol.PingPong.Tests
   ) where
 
 
-import           Network.TypedProtocol.Channel
-import           Network.TypedProtocol.Codec
-import           Network.TypedProtocol.Driver.Simple
-import           Network.TypedProtocol.Proofs
+import Network.TypedProtocol.Channel
+import Network.TypedProtocol.Codec
+import Network.TypedProtocol.Driver.Simple
+import Network.TypedProtocol.Proofs
 
-import           Network.TypedProtocol.PingPong.Client
-import           Network.TypedProtocol.PingPong.Codec
-import qualified Network.TypedProtocol.PingPong.Codec.CBOR as CBOR
-import           Network.TypedProtocol.PingPong.Examples
-import           Network.TypedProtocol.PingPong.Server
-import           Network.TypedProtocol.PingPong.Type
+import Network.TypedProtocol.PingPong.Client
+import Network.TypedProtocol.PingPong.Codec
+import Network.TypedProtocol.PingPong.Codec.CBOR qualified as CBOR
+import Network.TypedProtocol.PingPong.Examples
+import Network.TypedProtocol.PingPong.Server
+import Network.TypedProtocol.PingPong.Type
 
-import           Control.Monad.Class.MonadAsync
-import           Control.Monad.Class.MonadSTM
-import           Control.Monad.Class.MonadThrow
-import           Control.Monad.IOSim (runSimOrThrow)
-import           Control.Monad.ST (runST)
-import           Control.Tracer (nullTracer)
+import Control.Monad.Class.MonadAsync
+import Control.Monad.Class.MonadSTM
+import Control.Monad.Class.MonadThrow
+import Control.Monad.IOSim (runSimOrThrow)
+import Control.Monad.ST (runST)
+import Control.Tracer (nullTracer)
 
-import           Data.Functor.Identity (Identity (..))
-import           Data.List (inits, tails)
+import Data.Functor.Identity (Identity (..))
+import Data.List (inits, tails)
 
-import qualified Data.ByteString.Lazy as LBS
+import Data.ByteString.Lazy qualified as LBS
 #if !defined(mingw32_HOST_OS)
-import qualified Network.Socket as Socket
-import           System.Directory (removeFile)
-import           System.IO
-import qualified System.Posix.Files as Posix
+import Network.Socket qualified as Socket
+import System.Directory (removeFile)
+import System.IO
+import System.Posix.Files qualified as Posix
 #endif
 
-import           Test.QuickCheck
-import           Test.Tasty (TestTree, testGroup)
-import           Test.Tasty.QuickCheck (testProperty)
+import Test.QuickCheck
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.QuickCheck (testProperty)
 
 
 --
