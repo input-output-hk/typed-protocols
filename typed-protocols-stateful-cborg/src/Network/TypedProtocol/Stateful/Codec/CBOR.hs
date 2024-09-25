@@ -1,10 +1,3 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE MonoLocalBinds      #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.Stateful.Codec.CBOR
   ( module Network.TypedProtocol.Stateful.Codec
   , DeserialiseFailure
@@ -48,7 +41,7 @@ mkCodecCborStrictBS
   => (forall (st :: ps) (st' :: ps).
              StateTokenI st
           =>ActiveState st
-          => f st' -> Message ps st st' -> CBOR.Encoding)
+          => f st -> Message ps st st' -> CBOR.Encoding)
   -- ^ cbor encoder
 
   -> (forall (st :: ps) s.
@@ -90,7 +83,7 @@ mkCodecCborLazyBS
   => (forall (st :: ps) (st' :: ps).
              StateTokenI st
           => ActiveState st
-          => f st'
+          => f st
           -> Message ps st st' -> CBOR.Encoding)
   -- ^ cbor encoder
 

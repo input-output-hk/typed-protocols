@@ -1,9 +1,3 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.ReqResp.Client
   ( -- * Normal client
     ReqRespClient (..)
@@ -17,11 +11,11 @@ module Network.TypedProtocol.ReqResp.Client
   , requestOnce
   ) where
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer.Client
-import           Network.TypedProtocol.Peer.Server (Server)
-import           Network.TypedProtocol.Proofs (connect)
-import           Network.TypedProtocol.ReqResp.Type
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Peer.Client
+import Network.TypedProtocol.Peer.Server (Server)
+import Network.TypedProtocol.Proofs (connect)
+import Network.TypedProtocol.ReqResp.Type
 
 data ReqRespClient req resp m a where
   SendMsgReq     :: req

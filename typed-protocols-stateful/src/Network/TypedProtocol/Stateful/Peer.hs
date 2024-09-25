@@ -1,16 +1,5 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE DeriveFunctor            #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE MultiParamTypeClasses    #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeOperators            #-}
 -- TODO: the 'Functor' instance of 'Peer' is undecidable
-{-# LANGUAGE UndecidableInstances     #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Protocol stateful EDSL.
 --
@@ -112,8 +101,10 @@ data Peer ps pr st f m a where
        )
     => WeHaveAgencyProof pr st
     -- ^ agency singleton
+    -> f st
+    -- ^ initial protocol state
     -> f st'
-    -- ^ protocol state
+    -- ^ final protocol state
     -> Message ps st st'
     -- ^ protocol message
     -> Peer ps pr st' f m a

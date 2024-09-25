@@ -1,18 +1,10 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.ReqResp.Codec where
 
-import           Network.TypedProtocol.Codec
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.PingPong.Codec (decodeTerminatedFrame)
-import           Network.TypedProtocol.ReqResp.Type
-import           Text.Read (readMaybe)
+import Network.TypedProtocol.Codec
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.PingPong.Codec (decodeTerminatedFrame)
+import Network.TypedProtocol.ReqResp.Type
+import Text.Read (readMaybe)
 
 
 codecReqResp ::

@@ -1,24 +1,12 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE InstanceSigs             #-}
-{-# LANGUAGE KindSignatures           #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeApplications         #-}
-{-# LANGUAGE TypeFamilies             #-}
-{-# LANGUAGE TypeOperators            #-}
-{-# LANGUAGE UndecidableInstances     #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Network.TypedProtocol.Trans.Wedge where
 
-import           Network.TypedProtocol.Core
+import Network.TypedProtocol.Core
 
-import qualified Network.TypedProtocol.Peer.Client as Client
-import qualified Network.TypedProtocol.PingPong.Type as PingPong
+import Network.TypedProtocol.Peer.Client qualified as Client
+import Network.TypedProtocol.PingPong.Type qualified as PingPong
 
 
 -- | A [wedge](https://hackage.haskell.org/package/smash-0.1.2/docs/Data-Wedge.html)

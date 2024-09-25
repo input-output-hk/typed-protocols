@@ -1,19 +1,11 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.Stateful.ReqResp.Server
   ( ReqRespServer (..)
   , reqRespServerPeer
   ) where
 
-import           Data.Typeable
-import           Network.TypedProtocol.Stateful.Peer.Server
-import           Network.TypedProtocol.Stateful.ReqResp.Type
+import Data.Typeable
+import Network.TypedProtocol.Stateful.Peer.Server
+import Network.TypedProtocol.Stateful.ReqResp.Type
 
 
 data ReqRespServer req m a = ReqRespServer {
@@ -30,7 +22,7 @@ reqRespServerPeer ReqRespServer { reqRespServerDone = a,
     MsgDone -> (Done a, StateDone)
     MsgReq req ->
       ( Effect $
-              (\(resp, k') -> Yield StateIdle (MsgResp req resp) (reqRespServerPeer  k'))
+              (\(resp, k') -> Yield (StateBusy req) StateIdle (MsgResp resp) (reqRespServerPeer  k'))
           <$> k req
       , StateBusy req
       )

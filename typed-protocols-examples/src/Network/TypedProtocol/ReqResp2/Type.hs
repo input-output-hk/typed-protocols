@@ -1,15 +1,8 @@
-{-# LANGUAGE DataKinds          #-}
-{-# LANGUAGE EmptyCase          #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE GADTs              #-}
-{-# LANGUAGE PolyKinds          #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies       #-}
-
+{-# LANGUAGE TypeFamilies #-}
 
 module Network.TypedProtocol.ReqResp2.Type where
 
-import           Network.TypedProtocol.Core
+import Network.TypedProtocol.Core
 
 
 data ReqResp2 req resp where

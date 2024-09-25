@@ -1,12 +1,4 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeFamilies             #-}
-
+{-# LANGUAGE TypeFamilies #-}
 
 -- | An RPC protocol which in which request type determines respond time.
 -- Unlike in the `Network.TypedProtocol.ReqResp.Type` where `req` and `resp`
@@ -15,9 +7,9 @@
 --
 module Network.TypedProtocol.Stateful.ReqResp.Type where
 
-import           Data.Kind (Type)
-import           Data.Typeable
-import           Network.TypedProtocol.Core
+import Data.Kind (Type)
+import Data.Typeable
+import Network.TypedProtocol.Core
 
 
 type ReqResp :: (Type -> Type) -> Type
@@ -54,12 +46,7 @@ instance Protocol (ReqResp req) where
                         --   promoted to the state `StBusy` state.
             -> Message (ReqResp req) StIdle (StBusy resp)
     MsgResp :: Typeable resp
-            => req resp -- ^ request, not sent over the wire, just useful in the
-                        -- codec.
-                        --
-                        -- TODO: https://github.com/input-output-hk/typed-protocols/issues/59
-
-            -> resp     -- ^ respond
+            => resp     -- ^ respond
             -> Message (ReqResp req) (StBusy resp) StIdle
     MsgDone :: Message (ReqResp req) StIdle StDone
 

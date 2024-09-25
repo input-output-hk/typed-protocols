@@ -1,11 +1,4 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE PatternSynonyms          #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeOperators            #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 -- | Bidirectional patterns for @'Peer' ps 'AsServer'@.   The advantage of
 -- these patterns is that they automatically provide the 'RelativeAgencyEq'
@@ -54,13 +47,14 @@ pattern Yield :: forall ps st f m a.
                  , StateTokenI st'
                  , StateAgency st ~ ServerAgency
                  )
-              => f st'
+              => f st
+              -> f st'
               -> Message ps st st'
               -- ^ protocol message
               -> Server ps st' f m a
               -- ^ continuation
               -> Server ps st  f m a
-pattern Yield f msg k = TP.Yield ReflServerAgency f msg k
+pattern Yield f f' msg k = TP.Yield ReflServerAgency f f' msg k
 
 
 -- | Server role pattern for 'TP.Await'

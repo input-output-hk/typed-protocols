@@ -1,14 +1,8 @@
-{-# LANGUAGE DataKinds          #-}
-{-# LANGUAGE EmptyCase          #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE GADTs              #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies       #-}
-
+{-# LANGUAGE TypeFamilies #-}
 
 module Network.TypedProtocol.PingPong.Type where
 
-import           Network.TypedProtocol.Core
+import Network.TypedProtocol.Core
 
 
 -- | The ping\/pong protocol and the states in its protocol state machine.
