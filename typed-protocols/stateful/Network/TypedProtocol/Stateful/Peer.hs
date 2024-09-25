@@ -8,9 +8,9 @@
 --
 module Network.TypedProtocol.Stateful.Peer (Peer (..)) where
 
-import           Data.Kind (Type)
+import Data.Kind (Type)
 
-import           Network.TypedProtocol.Core as Core
+import Network.TypedProtocol.Core as Core
 
 
 -- | A description of a peer that engages in a protocol.

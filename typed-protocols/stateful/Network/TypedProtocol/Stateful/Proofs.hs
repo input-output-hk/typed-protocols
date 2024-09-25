@@ -15,16 +15,16 @@ module Network.TypedProtocol.Stateful.Proofs
   , removeState
   ) where
 
-import           Control.Monad.Class.MonadSTM
+import Control.Monad.Class.MonadSTM
 
-import           Data.Kind (Type)
-import           Data.Singletons
+import Data.Kind (Type)
+import Data.Singletons
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer
-import           Network.TypedProtocol.Proofs (TerminalStates (..))
-import qualified Network.TypedProtocol.Proofs as TP
-import qualified Network.TypedProtocol.Stateful.Peer as ST
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Peer
+import Network.TypedProtocol.Proofs (TerminalStates (..))
+import Network.TypedProtocol.Proofs qualified as TP
+import Network.TypedProtocol.Stateful.Peer qualified as ST
 
 
 

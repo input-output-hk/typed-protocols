@@ -19,22 +19,22 @@ module Network.TypedProtocol.Channel
   , loggingChannel
   ) where
 
-import           Control.Concurrent.Class.MonadSTM
-import           Control.Monad ((>=>))
-import           Control.Monad.Class.MonadSay
-import           Control.Monad.Class.MonadTimer.SI
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as LBS
-import           Data.ByteString.Lazy.Internal (smallChunkSize)
-import           Data.Proxy
-import           Numeric.Natural
+import Control.Concurrent.Class.MonadSTM
+import Control.Monad ((>=>))
+import Control.Monad.Class.MonadSay
+import Control.Monad.Class.MonadTimer.SI
+import Data.ByteString qualified as BS
+import Data.ByteString.Lazy qualified as LBS
+import Data.ByteString.Lazy.Internal (smallChunkSize)
+import Data.Proxy
+import Numeric.Natural
 
 #if !defined(mingw32_HOST_OS)
-import           Network.Socket (Socket)
-import qualified Network.Socket.ByteString.Lazy as Socket
+import Network.Socket (Socket)
+import Network.Socket.ByteString.Lazy qualified as Socket
 #endif
 
-import qualified System.IO as IO (Handle, hFlush, hIsEOF)
+import System.IO qualified as IO (Handle, hFlush, hIsEOF)
 
 
 -- | One end of a duplex channel. It is a reliable, ordered channel of some

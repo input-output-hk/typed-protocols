@@ -1,9 +1,9 @@
 module Network.TypedProtocol.ReqResp2.Client where
 
-import           Network.TypedProtocol.ReqResp2.Type
+import Network.TypedProtocol.ReqResp2.Type
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer.Client
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Peer.Client
 
 
 reqResp2Client :: forall req resp m.

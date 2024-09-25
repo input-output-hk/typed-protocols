@@ -28,11 +28,11 @@ module Network.TypedProtocol.Peer.Client
   , Nat (..)
   ) where
 
-import           Data.Kind (Type)
+import Data.Kind (Type)
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer (Peer)
-import qualified Network.TypedProtocol.Peer as TP
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Peer (Peer)
+import Network.TypedProtocol.Peer qualified as TP
 
 
 type Client :: forall ps

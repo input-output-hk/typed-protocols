@@ -51,10 +51,10 @@ module Network.TypedProtocol.Core
   , unsafeIntToNat
   ) where
 
-import           Data.Kind (Constraint, Type)
-import           Unsafe.Coerce (unsafeCoerce)
+import Data.Kind (Constraint, Type)
+import Unsafe.Coerce (unsafeCoerce)
 
-import           Data.Singletons
+import Data.Singletons
 
 -- $intro
 -- A typed protocol between two peers is defined via a state machine: a

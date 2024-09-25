@@ -4,9 +4,9 @@
 
 module Network.TypedProtocol.ReqResp.Server where
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer.Server
-import           Network.TypedProtocol.ReqResp.Type
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Peer.Server
+import Network.TypedProtocol.ReqResp.Type
 
 
 data ReqRespServer req resp m a = ReqRespServer {
