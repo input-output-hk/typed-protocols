@@ -1,10 +1,4 @@
-{-# LANGUAGE DataKinds          #-}
-{-# LANGUAGE EmptyCase          #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE GADTs              #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TypeFamilies       #-}
-
+{-# LANGUAGE TypeFamilies #-}
 
 module Network.TypedProtocol.PingPong.Type where
 

@@ -1,12 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module Network.TypedProtocol.Documentation.Html
 where

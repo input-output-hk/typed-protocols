@@ -1,9 +1,3 @@
-{-# LANGUAGE BangPatterns        #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.ReqResp.Examples where
 
 import           Network.TypedProtocol.ReqResp.Client

@@ -1,16 +1,5 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE DeriveFunctor            #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE MultiParamTypeClasses    #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeOperators            #-}
 -- TODO: the 'Functor' instance of 'Peer' is undecidable
-{-# LANGUAGE UndecidableInstances     #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 -- | Protocol stateful EDSL.
 --

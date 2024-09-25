@@ -1,10 +1,3 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.Stateful.ReqResp.Client
   ( ReqRespClient (..)
   , reqRespClientPeer

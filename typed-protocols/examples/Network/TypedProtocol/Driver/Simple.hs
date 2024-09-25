@@ -1,11 +1,3 @@
-{-# LANGUAGE BangPatterns         #-}
-{-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE GADTs                #-}
-{-# LANGUAGE NamedFieldPuns       #-}
-{-# LANGUAGE PolyKinds            #-}
-{-# LANGUAGE RankNTypes           #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeFamilies         #-}
 -- @UndecidableInstances@ extensions is required for defining @Show@ instance
 -- of @'TraceSendRecv'@.

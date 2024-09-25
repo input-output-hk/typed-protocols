@@ -1,9 +1,3 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.ReqResp.Client
   ( -- * Normal client
     ReqRespClient (..)

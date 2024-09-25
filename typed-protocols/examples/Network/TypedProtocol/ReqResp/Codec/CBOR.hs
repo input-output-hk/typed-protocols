@@ -1,10 +1,3 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.ReqResp.Codec.CBOR where
 
 import           Control.Monad.Class.MonadST

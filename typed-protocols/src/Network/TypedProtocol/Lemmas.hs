@@ -1,9 +1,4 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE EmptyCase                #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeFamilies             #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 {-# HLINT ignore "Use camelCase" #-}

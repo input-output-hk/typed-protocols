@@ -26,21 +26,15 @@ library
                    , Network.TypedProtocol.Driver
                    , Network.TypedProtocol.Proofs
   other-modules:     Network.TypedProtocol.Lemmas
-
-  other-extensions:  GADTs
-                   , RankNTypes
-                   , PolyKinds
-                   , DataKinds
-                   , ScopedTypeVariables
-                   , TypeFamilies
-                   , TypeOperators
-                   , BangPatterns
   build-depends:     base >=4.12 && <4.22,
                      io-classes:io-classes ^>= 1.8,
                      singletons ^>= 3.0
 
   hs-source-dirs:    src
-  default-language:  Haskell2010
+  default-language:  GHC2021
+  default-extensions: DataKinds
+                      GADTs
+                      LambdaCase
   ghc-options:       -Wall
                      -Wno-unticked-promoted-constructors
                      -Wcompat
@@ -64,7 +58,8 @@ library cborg
                      typed-protocols:typed-protocols
 
   hs-source-dirs:    cborg
-  default-language:  Haskell2010
+  default-language:  GHC2021
+  default-extensions: LambdaCase
   ghc-options:       -Wall
                      -Wno-unticked-promoted-constructors
                      -Wcompat
@@ -82,23 +77,16 @@ library stateful
                     , Network.TypedProtocol.Stateful.Driver
                     , Network.TypedProtocol.Stateful.Proofs
                     , Network.TypedProtocol.Stateful.Codec
-
-  other-extensions:   GADTs
-                    , RankNTypes
-                    , PolyKinds
-                    , DataKinds
-                    , ScopedTypeVariables
-                    , TypeFamilies
-                    , TypeOperators
-                    , BangPatterns
-  default-extensions: ImportQualifiedPost
   build-depends:      base,
                       singletons,
                       io-classes:io-classes,
                       typed-protocols:typed-protocols
 
   hs-source-dirs:     stateful
-  default-language:   Haskell2010
+  default-language:   GHC2021
+  default-extensions: DataKinds
+                      GADTs
+                      ImportQualifiedPost
   ghc-options:        -Wall
                       -Wno-unticked-promoted-constructors
                       -Wcompat
@@ -121,7 +109,7 @@ library stateful-cborg
                      typed-protocols:{typed-protocols,cborg,stateful}
 
   hs-source-dirs:    stateful-cborg
-  default-language:  Haskell2010
+  default-language:  GHC2021
   default-extensions: ImportQualifiedPost
   ghc-options:       -Wall
                      -Wno-unticked-promoted-constructors
@@ -161,14 +149,6 @@ library examples
                    , Network.TypedProtocol.Stateful.ReqResp.Examples
 
                    , Network.TypedProtocol.Trans.Wedge
-  other-extensions:  GADTs
-                   , RankNTypes
-                   , PolyKinds
-                   , DataKinds
-                   , ScopedTypeVariables
-                   , TypeFamilies
-                   , TypeOperators
-                   , BangPatterns
   build-depends:     base,
                      bytestring,
                      cborg,
@@ -181,7 +161,10 @@ library examples
                      typed-protocols:{typed-protocols,cborg,stateful}
 
   hs-source-dirs:    examples
-  default-language:  Haskell2010
+  default-language:  GHC2021
+  default-extensions: DataKinds
+                      GADTs
+                      LambdaCase
   ghc-options:       -Wall
                      -Wno-unticked-promoted-constructors
                      -Wcompat
@@ -195,6 +178,9 @@ test-suite test
   type:              exitcode-stdio-1.0
   main-is:           Main.hs
   hs-source-dirs:    test
+  default-language:  GHC2021
+  default-extensions: GADTs
+                      LambdaCase
   other-modules:     Network.TypedProtocol.PingPong.Tests
                    , Network.TypedProtocol.ReqResp.Tests
   build-depends:     base
@@ -212,7 +198,6 @@ test-suite test
                    , network
                    , unix
 
-  default-language:  Haskell2010
   ghc-options:       -rtsopts
                      -Wall
                      -Wno-unticked-promoted-constructors
