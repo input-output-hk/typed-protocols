@@ -58,6 +58,7 @@ library
     hs-source-dirs:   src
     default-language:   GHC2021
     default-extensions: DataKinds
+                        LambdaCase
 
 executable typed-protocols-doc-demo
     import:           warnings

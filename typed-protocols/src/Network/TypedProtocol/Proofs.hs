@@ -24,10 +24,10 @@ module Network.TypedProtocol.Proofs
   , pipelineInterleaving
   ) where
 
-import           Data.Singletons
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Lemmas
-import           Network.TypedProtocol.Peer
+import Data.Singletons
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Lemmas
+import Network.TypedProtocol.Peer
 
 
 -- | The 'connect' function takes two peers that agree on a protocol and runs

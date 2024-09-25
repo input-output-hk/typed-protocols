@@ -13,11 +13,11 @@ module Network.TypedProtocol.Stateful.Peer.Client
   , pattern Done
   ) where
 
-import           Data.Kind (Type)
+import Data.Kind (Type)
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Stateful.Peer (Peer)
-import qualified Network.TypedProtocol.Stateful.Peer as TP
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Stateful.Peer (Peer)
+import Network.TypedProtocol.Stateful.Peer qualified as TP
 
 
 type Client :: forall ps

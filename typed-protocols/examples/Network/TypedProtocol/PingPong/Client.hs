@@ -8,9 +8,9 @@ module Network.TypedProtocol.PingPong.Client
   , pingPongClientPeerPipelined
   ) where
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer.Client
-import           Network.TypedProtocol.PingPong.Type
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Peer.Client
+import Network.TypedProtocol.PingPong.Type
 
 -- | A ping-pong client, on top of some effect 'm'.
 --

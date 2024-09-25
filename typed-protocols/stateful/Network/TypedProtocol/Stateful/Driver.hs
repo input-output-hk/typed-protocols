@@ -11,13 +11,13 @@ module Network.TypedProtocol.Stateful.Driver
   , DecodeStep (..)
   ) where
 
-import           Control.Monad.Class.MonadSTM
+import Control.Monad.Class.MonadSTM
 
-import           Data.Kind (Type)
+import Data.Kind (Type)
 
-import           Network.TypedProtocol.Codec (DecodeStep (..), SomeMessage (..))
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Stateful.Peer
+import Network.TypedProtocol.Codec (DecodeStep (..), SomeMessage (..))
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Stateful.Peer
 
 data Driver ps (pr :: PeerRole) bytes failure dstate f m =
         Driver {

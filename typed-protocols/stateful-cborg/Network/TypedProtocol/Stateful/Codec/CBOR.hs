@@ -5,22 +5,22 @@ module Network.TypedProtocol.Stateful.Codec.CBOR
   , mkCodecCborStrictBS
   ) where
 
-import           Control.Monad.Class.MonadST (MonadST (..))
+import Control.Monad.Class.MonadST (MonadST (..))
 
-import qualified Codec.CBOR.Decoding as CBOR (Decoder)
-import qualified Codec.CBOR.Encoding as CBOR (Encoding)
-import qualified Codec.CBOR.Read as CBOR
-import qualified Codec.CBOR.Write as CBOR
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Builder as BS
-import qualified Data.ByteString.Builder.Extra as BS
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.ByteString.Lazy.Internal as LBS (smallChunkSize)
+import Codec.CBOR.Decoding qualified as CBOR (Decoder)
+import Codec.CBOR.Encoding qualified as CBOR (Encoding)
+import Codec.CBOR.Read qualified as CBOR
+import Codec.CBOR.Write qualified as CBOR
+import Data.ByteString qualified as BS
+import Data.ByteString.Builder qualified as BS
+import Data.ByteString.Builder.Extra qualified as BS
+import Data.ByteString.Lazy qualified as LBS
+import Data.ByteString.Lazy.Internal qualified as LBS (smallChunkSize)
 
-import           Network.TypedProtocol.Codec.CBOR (DeserialiseFailure,
-                     convertCborDecoderBS, convertCborDecoderLBS)
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Stateful.Codec
+import Network.TypedProtocol.Codec.CBOR (DeserialiseFailure,
+           convertCborDecoderBS, convertCborDecoderLBS)
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Stateful.Codec
 
 
 -- | Construct a 'Codec' for a CBOR based serialisation format, using strict

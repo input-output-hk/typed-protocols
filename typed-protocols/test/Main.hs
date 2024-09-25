@@ -1,9 +1,9 @@
 module Main (main) where
 
-import           Test.Tasty
+import Test.Tasty
 
-import qualified Network.TypedProtocol.PingPong.Tests as PingPong
-import qualified Network.TypedProtocol.ReqResp.Tests as ReqResp
+import Network.TypedProtocol.PingPong.Tests qualified as PingPong
+import Network.TypedProtocol.ReqResp.Tests qualified as ReqResp
 
 main :: IO ()
 main = defaultMain tests

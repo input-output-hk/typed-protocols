@@ -1,7 +1,7 @@
 module Network.TypedProtocol.Stateful.ReqResp.Examples where
 
-import           Network.TypedProtocol.Stateful.ReqResp.Server
-import           Network.TypedProtocol.Stateful.ReqResp.Type
+import Network.TypedProtocol.Stateful.ReqResp.Server
+import Network.TypedProtocol.Stateful.ReqResp.Type
 
 
 fileRPCServer :: Monad m

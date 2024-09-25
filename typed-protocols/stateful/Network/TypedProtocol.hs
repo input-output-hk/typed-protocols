@@ -16,9 +16,9 @@ module Network.TypedProtocol
   , module Network.TypedProtocol.Driver
   ) where
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Driver
-import           Network.TypedProtocol.Proofs
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Driver
+import Network.TypedProtocol.Proofs
 
 
 -- $intro

@@ -43,15 +43,14 @@ module Network.TypedProtocol.Stateful.Codec
   , prop_codecs_compat
   ) where
 
-import           Data.Kind (Type)
-import           Data.Monoid (All (..))
+import Data.Kind (Type)
+import Data.Monoid (All (..))
 
-import           Network.TypedProtocol.Codec (CodecFailure (..),
-                     DecodeStep (..), SomeMessage (..), hoistDecodeStep,
-                     isoDecodeStep, mapFailureDecodeStep, runDecoder,
-                     runDecoderPure)
-import qualified Network.TypedProtocol.Codec as TP hiding (AnyMessageAndAgency)
-import           Network.TypedProtocol.Core
+import Network.TypedProtocol.Codec (CodecFailure (..), DecodeStep (..),
+           SomeMessage (..), hoistDecodeStep, isoDecodeStep,
+           mapFailureDecodeStep, runDecoder, runDecoderPure)
+import Network.TypedProtocol.Codec qualified as TP hiding (AnyMessageAndAgency)
+import Network.TypedProtocol.Core
 
 
 -- | A stateful codec.
