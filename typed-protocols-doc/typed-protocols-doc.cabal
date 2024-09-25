@@ -56,11 +56,12 @@ library
                  , serdoc-core
                  , typed-protocols ^>= 1.0
     hs-source-dirs:   src
-    default-language: Haskell2010
+    default-language:   GHC2021
+    default-extensions: DataKinds
 
 executable typed-protocols-doc-demo
     import:           warnings
-    default-language: Haskell2010
+    default-language: GHC2021
     hs-source-dirs:   demo
     main-is:          Main.hs
     other-modules:    DemoProtocol
@@ -75,7 +76,7 @@ executable typed-protocols-doc-demo
 
 test-suite typed-protocols-doc-test
     import:           warnings
-    default-language: Haskell2010
+    default-language: GHC2021
     type:             exitcode-stdio-1.0
     hs-source-dirs:   test
     main-is:          Main.hs

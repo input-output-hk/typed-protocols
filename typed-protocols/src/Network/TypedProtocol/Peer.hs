@@ -1,13 +1,4 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE DeriveFunctor            #-}
-{-# LANGUAGE DerivingVia              #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeOperators            #-}
+{-# LANGUAGE DerivingVia #-}
 
 -- | Protocol EDSL.
 --

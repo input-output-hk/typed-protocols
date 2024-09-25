@@ -1,14 +1,5 @@
-{-# LANGUAGE DataKinds             #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE PatternSynonyms       #-}
-{-# LANGUAGE PolyKinds             #-}
 {-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE ScopedTypeVariables   #-}
-{-# LANGUAGE TypeFamilies          #-}
 -- @UndecidableInstances@ extension is required for defining @Show@ instance of
 -- @'AnyMessage'@ and @'AnyMessage'@.
 {-# LANGUAGE UndecidableInstances  #-}

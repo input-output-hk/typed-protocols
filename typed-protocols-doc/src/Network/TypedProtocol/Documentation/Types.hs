@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveLift #-}
-{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Network.TypedProtocol.Documentation.Types

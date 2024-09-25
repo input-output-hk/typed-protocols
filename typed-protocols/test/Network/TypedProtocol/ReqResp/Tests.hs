@@ -1,15 +1,6 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
-
+{-# LANGUAGE CPP             #-}
 -- orphaned arbitrary instances
 {-# OPTIONS_GHC -Wno-orphans #-}
-
 
 module Network.TypedProtocol.ReqResp.Tests (tests) where
 

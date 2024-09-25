@@ -1,11 +1,4 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
-
+{-# LANGUAGE TypeFamilies #-}
 
 -- This is already implied by the -Wall in the .cabal file, but lets just be
 -- completely explicit about it too, since we rely on the completeness
