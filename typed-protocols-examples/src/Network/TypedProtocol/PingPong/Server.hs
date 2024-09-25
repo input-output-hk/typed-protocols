@@ -1,5 +1,3 @@
-{-# LANGUAGE DataKinds       #-}
-{-# LANGUAGE GADTs           #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Network.TypedProtocol.PingPong.Server where
