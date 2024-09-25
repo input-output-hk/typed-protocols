@@ -1,10 +1,3 @@
-{-# LANGUAGE BangPatterns        #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators       #-}
-
 module Network.TypedProtocol.PingPong.Examples where
 
 import           Network.TypedProtocol.PingPong.Client

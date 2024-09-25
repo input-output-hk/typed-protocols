@@ -1,12 +1,4 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeFamilies             #-}
-
+{-# LANGUAGE TypeFamilies #-}
 
 -- | An RPC protocol which in which request type determines respond time.
 -- Unlike in the `Network.TypedProtocol.ReqResp.Type` where `req` and `resp`

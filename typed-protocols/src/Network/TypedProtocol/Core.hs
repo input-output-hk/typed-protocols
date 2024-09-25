@@ -1,20 +1,7 @@
-{-# LANGUAGE ConstraintKinds          #-}
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE DerivingVia              #-}
-{-# LANGUAGE EmptyCase                #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE MultiParamTypeClasses    #-}
-{-# LANGUAGE PatternSynonyms          #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeFamilyDependencies   #-}
-{-# LANGUAGE TypeOperators            #-}
-{-# LANGUAGE ViewPatterns             #-}
+{-# LANGUAGE DerivingVia     #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeFamilies    #-}
+{-# LANGUAGE ViewPatterns    #-}
 
 {-# OPTIONS_HADDOCK show-extensions #-}
 
