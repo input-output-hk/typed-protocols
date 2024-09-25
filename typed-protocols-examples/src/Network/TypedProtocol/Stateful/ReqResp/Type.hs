@@ -7,9 +7,9 @@
 --
 module Network.TypedProtocol.Stateful.ReqResp.Type where
 
-import           Data.Kind (Type)
-import           Data.Typeable
-import           Network.TypedProtocol.Core
+import Data.Kind (Type)
+import Data.Typeable
+import Network.TypedProtocol.Core
 
 
 type ReqResp :: (Type -> Type) -> Type

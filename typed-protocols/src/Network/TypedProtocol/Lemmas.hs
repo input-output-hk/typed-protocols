@@ -11,8 +11,8 @@
 --
 module Network.TypedProtocol.Lemmas where
 
-import           Data.Kind (Type)
-import           Network.TypedProtocol.Core
+import Data.Kind (Type)
+import Network.TypedProtocol.Core
 
 
 -- $about

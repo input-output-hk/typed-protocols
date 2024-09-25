@@ -1,48 +1,48 @@
-{-# LANGUAGE CPP             #-}
+{-# LANGUAGE CPP #-}
 -- orphaned arbitrary instances
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Network.TypedProtocol.ReqResp.Tests (tests) where
 
-import           Network.TypedProtocol.Channel
-import           Network.TypedProtocol.Codec
-import           Network.TypedProtocol.Driver.Simple
-import           Network.TypedProtocol.Proofs
+import Network.TypedProtocol.Channel
+import Network.TypedProtocol.Codec
+import Network.TypedProtocol.Driver.Simple
+import Network.TypedProtocol.Proofs
 
-import           Network.TypedProtocol.ReqResp.Client
-import           Network.TypedProtocol.ReqResp.Codec
-import qualified Network.TypedProtocol.ReqResp.Codec.CBOR as CBOR
-import           Network.TypedProtocol.ReqResp.Examples
-import           Network.TypedProtocol.ReqResp.Server
-import           Network.TypedProtocol.ReqResp.Type
+import Network.TypedProtocol.ReqResp.Client
+import Network.TypedProtocol.ReqResp.Codec
+import Network.TypedProtocol.ReqResp.Codec.CBOR qualified as CBOR
+import Network.TypedProtocol.ReqResp.Examples
+import Network.TypedProtocol.ReqResp.Server
+import Network.TypedProtocol.ReqResp.Type
 
-import           Control.Exception (throw)
-import           Control.Monad.Class.MonadAsync
-import           Control.Monad.Class.MonadST
-import           Control.Monad.Class.MonadSTM
-import           Control.Monad.Class.MonadThrow
-import           Control.Monad.Class.MonadTimer.SI
-import           Control.Monad.IOSim
-import           Control.Monad.ST (runST)
-import           Control.Tracer (nullTracer)
+import Control.Exception (throw)
+import Control.Monad.Class.MonadAsync
+import Control.Monad.Class.MonadST
+import Control.Monad.Class.MonadSTM
+import Control.Monad.Class.MonadThrow
+import Control.Monad.Class.MonadTimer.SI
+import Control.Monad.IOSim
+import Control.Monad.ST (runST)
+import Control.Tracer (nullTracer)
 
-import           Data.Functor.Identity (Identity (..))
-import           Data.List (intercalate, mapAccumL)
-import           Data.Tuple (swap)
+import Data.Functor.Identity (Identity (..))
+import Data.List (intercalate, mapAccumL)
+import Data.Tuple (swap)
 #if !defined(mingw32_HOST_OS)
-import qualified Network.Socket as Socket
-import           System.Directory (removeFile)
-import           System.IO
-import qualified System.Posix.Files as Posix
+import Network.Socket qualified as Socket
+import System.Directory (removeFile)
+import System.IO
+import System.Posix.Files qualified as Posix
 #endif
 
-import           Network.TypedProtocol.PingPong.Tests (splits2, splits2BS,
-                     splits3, splits3BS)
+import Network.TypedProtocol.PingPong.Tests (splits2, splits2BS, splits3,
+           splits3BS)
 
-import           Test.QuickCheck
-import           Test.Tasty (TestTree, testGroup)
-import           Test.Tasty.QuickCheck (testProperty)
-import           Text.Show.Functions ()
+import Test.QuickCheck
+import Test.Tasty (TestTree, testGroup)
+import Test.Tasty.QuickCheck (testProperty)
+import Text.Show.Functions ()
 
 
 --
