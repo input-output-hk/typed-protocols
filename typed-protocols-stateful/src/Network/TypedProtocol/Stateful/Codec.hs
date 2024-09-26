@@ -69,13 +69,22 @@ data Codec ps failure (f :: ps -> Type) m bytes = Codec {
                  StateTokenI st
               => ActiveState st
               => f st
+              -- local state, which contain extra context for the encoding
+              -- process.
+              --
+              -- TODO: input-output-hk/typed-protocols#57
               -> Message ps st st'
+              -- message to be encoded
               -> bytes,
 
        decode :: forall (st :: ps).
                  ActiveState st
               => StateToken st
               -> f st
+              -- local state, which can contain extra context from the
+              -- previous message.
+              --
+              -- TODO: input-output-hk/typed-protocols#57
               -> m (DecodeStep bytes failure m (SomeMessage st))
      }
 
@@ -130,7 +139,9 @@ data AnyMessage ps (f :: ps -> Type) where
                 , ActiveState st
                 )
              => f st
+             -- ^ local state
              -> Message ps (st :: ps) (st' :: ps)
+             -- ^ protocol messsage
              -> AnyMessage ps f
 
 
@@ -175,6 +186,7 @@ pattern AnyMessageAndAgency stateToken f msg <- AnyMessage f (getAgency -> (msg,
 --
 getAgency :: StateTokenI st => Message ps st st' -> (Message ps st st', StateToken st)
 getAgency msg = (msg, stateToken)
+
 
 -- | The 'Codec' round-trip property: decode after encode gives the same
 -- message. Every codec must satisfy this property.

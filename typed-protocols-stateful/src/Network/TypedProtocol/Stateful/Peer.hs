@@ -41,21 +41,22 @@ import Network.TypedProtocol.Core as Core
 -- * the protocol itself;
 -- * the client\/server role;
 -- *.the current protocol state;
+-- * the local state type;
 -- * the monad in which the peer operates; and
 -- * the type of any final result once the peer terminates.
 --
 -- For example:
 --
--- > pingPongClientExample :: Peer PingPong AsClient StIdle m ()
--- > pingPongServerExample :: Peer PingPong AsServer StIdle m Int
+-- > reqRespClientExample :: Peer (ReqResp FileAPI) AsClient StIdle State m ()
+-- > reqRespServerExample :: Peer (ReqResp FileAPI) AsServer StIdle State m Int
 --
 -- The actions that a peer can take are:
 --
--- * to perform local monadic effects
--- * to terminate with a result (but only in a terminal protocol state)
--- * to send a message (but only in a protocol state in which we have agency)
--- * to wait to receive a message (but only in a protocol state in which the
---   other peer has agency)
+-- * perform a local monadic effect,
+-- * terminate with a result (but only in a terminal protocol state),
+-- * send a message (but only in a protocol state in which we have agency),
+-- * wait to receive a message (but only in a protocol state in which the
+--   other peer has agency).
 --
 -- The 'Yield', 'Await' and 'Done' constructors require to provide an evidence
 -- that the appropriate peer has agency.  This information is supplied using
@@ -96,13 +97,19 @@ data Peer ps pr st f m a where
     -- ^ monadic continuation
     ->    Peer ps pr st f m a
 
-  -- | Send a message to the other peer and then continue. This takes the
-  -- message and the continuation. It also requires evidence that we have
-  -- agency for this protocol state and thus are allowed to send messages.
+  -- | Send a message to the other peer and then continue. The constructor
+  -- requires evidence that we have agency for this protocol state and thus are
+  -- allowed to send messages.  It takes local state associated to the source
+  -- and target protocol state of the message that is sent.  This state is only
+  -- maintained locally, never shared remotely.  It also takes the message and
+  -- the continuation. It also requires evidence that we have agency for this
+  -- protocol state and thus are allowed to send messages.
   --
   -- Example:
   --
-  -- > Yield ReflClientAgency MsgPing $ ...
+  -- > Yield ReflClientAgency (StateBusy (ReadFile /etc/os-release))
+  -- >                        StateIdle
+  -- >                      $ MsgResp "..."
   --
   Yield
     :: forall ps pr (st :: ps) (st' :: ps) f m a.
@@ -113,9 +120,9 @@ data Peer ps pr st f m a where
     => WeHaveAgencyProof pr st
     -- ^ agency singleton
     -> f st
-    -- ^ initial protocol state
+    -- ^ associated local state to the source protocol state 'st'
     -> f st'
-    -- ^ final protocol state
+    -- ^ associated local state to the target protocol state `st'`
     -> Message ps st st'
     -- ^ protocol message
     -> Peer ps pr st' f m a
@@ -134,10 +141,13 @@ data Peer ps pr st f m a where
   --
   -- Example:
   --
-  -- > Await ReflClientAgency $ \msg ->
-  -- > case msg of
-  -- >   MsgDone -> ...
-  -- >   MsgPing -> ...
+  -- > Await ReflClientAgency $ \f msg ->
+  -- > case (f, msg) of
+  -- >   (StateBusy (ReadFile path), MsgResp resp) ->
+  -- >     ( _continuation
+  -- >     , StateIdle
+  -- >     )
+  --
   --
   Await
     :: forall ps pr (st :: ps) f m a.
@@ -148,10 +158,21 @@ data Peer ps pr st f m a where
     -- ^ agency singleton
     -> (forall (st' :: ps).
            f st
+        -- associated local state to the source protocol state 'st'
+        --
+        -- TODO: input-output-hk/typed-protocols#57
         -> Message ps st st'
         -> ( Peer ps pr st' f m a
            , f st'
            )
+         -- continuation and associated local state to the target protocol
+         -- state `st'`
+         --
+         -- NOTE: the API is limited to pure transition of local state e.g.
+         -- `f st -> Message ps st st' -> f st'`,
+         -- see https://github.com/input-output-hk/typed-protocols/discussions/63
+         --
+         -- TODO: input-output-hk/typed-protocols#57
        )
     -- ^ continuation
     -> Peer ps pr st f m a
