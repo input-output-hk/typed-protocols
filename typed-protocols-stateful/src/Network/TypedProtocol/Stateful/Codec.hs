@@ -41,8 +41,8 @@ module Network.TypedProtocol.Stateful.Codec
     -- * CodecFailure
   , CodecFailure (..)
     -- * Testing codec properties
-  , AnyMessage (..)
-  , pattern AnyMessageAndAgency
+  , AnyMessage (.., AnyMessageAndAgency)
+  , showAnyMessage
   , prop_codecM
   , prop_codec
   , prop_codec_splitsM
@@ -59,7 +59,7 @@ import           Network.TypedProtocol.Codec (CodecFailure (..),
                    DecodeStep (..),  SomeMessage (..), hoistDecodeStep,
                    isoDecodeStep, mapFailureDecodeStep, runDecoder,
                    runDecoderPure)
-import qualified Network.TypedProtocol.Codec as TP
+import qualified Network.TypedProtocol.Codec as TP hiding (AnyMessageAndAgency)
 
 
 -- | A stateful codec.
@@ -68,14 +68,23 @@ data Codec ps failure (f :: ps -> Type) m bytes = Codec {
        encode :: forall (st :: ps) (st' :: ps).
                  StateTokenI st
               => ActiveState st
-              => f st'
+              => f st
+              -- local state, which contain extra context for the encoding
+              -- process.
+              --
+              -- TODO: input-output-hk/typed-protocols#57
               -> Message ps st st'
+              -- message to be encoded
               -> bytes,
 
        decode :: forall (st :: ps).
                  ActiveState st
               => StateToken st
               -> f st
+              -- local state, which can contain extra context from the
+              -- previous message.
+              --
+              -- TODO: input-output-hk/typed-protocols#57
               -> m (DecodeStep bytes failure m (SomeMessage st))
      }
 
@@ -130,22 +139,32 @@ data AnyMessage ps (f :: ps -> Type) where
                 , ActiveState st
                 )
              => f st
-             -> f st'
+             -- ^ local state
              -> Message ps (st :: ps) (st' :: ps)
+             -- ^ protocol messsage
              -> AnyMessage ps f
 
-instance ( forall (st :: ps) (st' :: ps). Show (Message ps st st')
-         , forall (st :: ps). Show (f st)
-         )
-      => Show (AnyMessage ps f) where
-  show (AnyMessage st st' msg) = concat [ "AnyMessage "
-                                        , show st
-                                        , " "
-                                        , show st'
-                                        , " "
-                                        , show msg
-                                        ]
 
+-- | `showAnyMessage` is can be used to provide `Show` instance for
+-- `AnyMessage` if showing `Message` is independent of the state or one accepts
+-- showing only partial information included in message constructors or accepts
+-- message constructors to carry `Show` instances for its arguments.  Note that
+-- the proper solution is to define a custom `Show (AnyMessage ps f)` instance
+-- for a protocol `ps`, which give access to the state functor `f` in scope of
+-- `show`.
+--
+showAnyMessage :: forall ps f.
+                  ( forall st st'. Show (Message ps st st')
+                  , forall st. Show (f st)
+                  )
+               => AnyMessage ps f
+               -> String
+showAnyMessage (AnyMessage st msg) =
+    concat [ "AnyMessage "
+           , show st
+           , " "
+           , show msg
+           ]
 
 
 -- | A convenient pattern synonym which unwrap 'AnyMessage' giving both the
@@ -156,10 +175,9 @@ pattern AnyMessageAndAgency :: forall ps f. ()
                                (StateTokenI st, ActiveState st)
                             => StateToken st
                             -> f st
-                            -> f st'
                             -> Message ps st st'
                             -> AnyMessage ps f
-pattern AnyMessageAndAgency stateToken f f' msg <- AnyMessage f f' (getAgency -> (msg, stateToken))
+pattern AnyMessageAndAgency stateToken f msg <- AnyMessage f (getAgency -> (msg, stateToken))
   where
     AnyMessageAndAgency _ msg = AnyMessage msg
 {-# COMPLETE AnyMessageAndAgency #-}
@@ -169,28 +187,29 @@ pattern AnyMessageAndAgency stateToken f f' msg <- AnyMessage f f' (getAgency ->
 getAgency :: StateTokenI st => Message ps st st' -> (Message ps st st', StateToken st)
 getAgency msg = (msg, stateToken)
 
+
 -- | The 'Codec' round-trip property: decode after encode gives the same
 -- message. Every codec must satisfy this property.
 --
 prop_codecM
   :: forall ps failure f m bytes.
      ( Monad m
-     , Eq (TP.AnyMessage ps)
+     , Eq (AnyMessage ps f)
      )
   => Codec ps failure f m bytes
   -> AnyMessage ps f
   -> m Bool
-prop_codecM Codec {encode, decode} (AnyMessage f f' (msg :: Message ps st st')) = do
-    r <- decode (stateToken :: StateToken st) f >>= runDecoder [encode f' msg]
+prop_codecM Codec {encode, decode} a@(AnyMessage f (msg :: Message ps st st')) = do
+    r <- decode (stateToken :: StateToken st) f >>= runDecoder [encode f msg]
     case r :: Either failure (SomeMessage st) of
-      Right (SomeMessage msg') -> return $ TP.AnyMessage msg' == TP.AnyMessage msg
+      Right (SomeMessage msg') -> return $ AnyMessage f msg' == a
       Left _                   -> return False
 
 -- | The 'Codec' round-trip property in a pure monad.
 --
 prop_codec
   :: forall ps failure f m bytes.
-     (Monad m, Eq (TP.AnyMessage ps))
+     (Monad m, Eq (AnyMessage ps f))
   => (forall a. m a -> a)
   -> Codec ps failure f m bytes
   -> AnyMessage ps f
@@ -212,20 +231,20 @@ prop_codec runM codec msg =
 --
 prop_codec_splitsM
   :: forall ps failure f m bytes.
-     (Monad m, Eq (TP.AnyMessage ps))
+     (Monad m, Eq (AnyMessage ps f))
   => (bytes -> [[bytes]])   -- ^ alternative re-chunkings of serialised form
   -> Codec ps failure f m bytes
   -> AnyMessage ps f
   -> m Bool
 prop_codec_splitsM splits
-                   Codec {encode, decode} (AnyMessage f f' (msg :: Message ps st st')) = do
+                   Codec {encode, decode} a@(AnyMessage f (msg :: Message ps st st')) = do
     and <$> sequence
       [ do r <- decode (stateToken :: StateToken st) f >>= runDecoder bytes'
            case r :: Either failure (SomeMessage st) of
-             Right (SomeMessage msg') -> return $ TP.AnyMessage msg' == TP.AnyMessage msg
+             Right (SomeMessage msg') -> return $ AnyMessage f msg' == a
              Left _                   -> return False
 
-      | let bytes = encode f' msg
+      | let bytes = encode f msg
       , bytes' <- splits bytes ]
 
 
@@ -233,7 +252,7 @@ prop_codec_splitsM splits
 --
 prop_codec_splits
   :: forall ps failure f m bytes.
-     (Monad m, Eq (TP.AnyMessage ps))
+     (Monad m, Eq (AnyMessage ps f))
   => (bytes -> [[bytes]])
   -> (forall a. m a -> a)
   -> Codec ps failure f m bytes
@@ -250,7 +269,7 @@ prop_codec_splits splits runM codec msg =
 prop_codecs_compatM
   :: forall ps failure f m bytes.
      ( Monad m
-     , Eq (TP.AnyMessage ps)
+     , Eq (AnyMessage ps f)
      , forall a. Monoid a => Monoid (m a)
      )
   => Codec ps failure f m bytes
@@ -258,14 +277,14 @@ prop_codecs_compatM
   -> AnyMessage ps f
   -> m Bool
 prop_codecs_compatM codecA codecB
-                    (AnyMessage f f' (msg :: Message ps st st')) =
-    getAll <$> do r <- decode codecB (stateToken :: StateToken st) f >>= runDecoder [encode codecA f' msg]
+                    a@(AnyMessage f (msg :: Message ps st st')) =
+    getAll <$> do r <- decode codecB (stateToken :: StateToken st) f >>= runDecoder [encode codecA f msg]
                   case r :: Either failure (SomeMessage st) of
-                    Right (SomeMessage msg') -> return $ All $ TP.AnyMessage msg' == TP.AnyMessage msg
+                    Right (SomeMessage msg') -> return $ All $ AnyMessage f msg' == a
                     Left _                   -> return $ All False
-            <> do r <- decode codecA (stateToken :: StateToken st) f >>= runDecoder [encode codecB f' msg]
+            <> do r <- decode codecA (stateToken :: StateToken st) f >>= runDecoder [encode codecB f msg]
                   case r :: Either failure (SomeMessage st) of
-                    Right (SomeMessage msg') -> return $ All $ TP.AnyMessage msg' == TP.AnyMessage msg
+                    Right (SomeMessage msg') -> return $ All $ AnyMessage f msg' == a
                     Left _                   -> return $ All False
 
 -- | Like @'prop_codecs_compatM'@ but run in a pure monad @m@, e.g. @Identity@.
@@ -273,7 +292,7 @@ prop_codecs_compatM codecA codecB
 prop_codecs_compat
   :: forall ps failure f m bytes.
      ( Monad m
-     , Eq (TP.AnyMessage ps)
+     , Eq (AnyMessage ps f)
      , forall a. Monoid a => Monoid (m a)
      )
   => (forall a. m a -> a)

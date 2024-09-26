@@ -30,12 +30,12 @@ reqRespClientPeer
   -> Client (ReqResp req) StIdle State m a
 
 reqRespClientPeer (SendMsgDone a) =
-      Yield StateDone MsgDone (Done a)
+      Yield StateIdle StateDone MsgDone (Done a)
 
 reqRespClientPeer (SendMsgReq req next) =
-    Yield (StateBusy req)
+    Yield StateIdle (StateBusy req)
           (MsgReq req) $
-    Await $ \_ (MsgResp _ resp) ->
+    Await $ \_ (MsgResp resp) ->
       let client = next resp
       in ( Effect $ reqRespClientPeer <$> client
          , StateIdle

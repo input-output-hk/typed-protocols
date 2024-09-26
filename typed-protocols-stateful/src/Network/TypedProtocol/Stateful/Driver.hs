@@ -41,8 +41,16 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
                         => ReflRelativeAgency (StateAgency st)
                                                WeHaveAgency
                                               (Relative pr (StateAgency st))
-                        -> f st'
+                        -> f st
+                        -- local state associated to protocol state `st`;
+                        -- local state should not be sent to the remote side.
+                        -- However it provide extra context for the encoder.
+                        --
+                        -- TODO: input-output-hk/typed-protocols#57
                         -> Message ps st st'
+                        -- message to send
+                        --
+                        -- TODO: input-output-hk/typed-protocols#57
                         -> m ()
 
         , -- | Receive a message, a blocking action which reads from the network
@@ -55,10 +63,20 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
                                                TheyHaveAgency
                                               (Relative pr (StateAgency st))
                         -> f st
+                        -- local state which provides extra context for the
+                        -- decoder.
+                        --
+                        -- TODO: input-output-hk/typed-protocols#57
                         -> dstate
+                        -- decoder state, e.g. bytes left from decoding of
+                        -- a previous message.
+                        --
+                        -- TODO: input-output-hk/typed-protocols#57
                         -> m (SomeMessage st, dstate)
 
-        , initialDState :: dstate
+        , -- | Initial decoder state.
+          --
+          initialDState :: dstate
         }
 
 
@@ -69,6 +87,9 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
 -- | Run a peer with the given driver.
 --
 -- This runs the peer to completion (if the protocol allows for termination).
+--
+-- NOTE: this function threads local state (i.e. `f`) through evolution of
+-- a protocol (i.e. `Peer`).
 --
 runPeerWithDriver
   :: forall ps (st :: ps) pr bytes failure dstate (f :: ps -> Type) m a.
@@ -92,9 +113,9 @@ runPeerWithDriver Driver{ sendMessage
 
     go !dstate  _ (Done _ x) = return (x, dstate)
 
-    go !dstate  _ (Yield refl !f msg k) = do
+    go !dstate  _ (Yield refl !f !f' msg k) = do
       sendMessage refl f msg
-      go dstate f k
+      go dstate f' k
 
     go !dstate !f (Await refl k) = do
       (SomeMessage msg, dstate') <- recvMessage refl f dstate

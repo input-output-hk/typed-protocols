@@ -48,7 +48,7 @@ mkCodecCborStrictBS
   => (forall (st :: ps) (st' :: ps).
              StateTokenI st
           =>ActiveState st
-          => f st' -> Message ps st st' -> CBOR.Encoding)
+          => f st -> Message ps st st' -> CBOR.Encoding)
   -- ^ cbor encoder
 
   -> (forall (st :: ps) s.
@@ -90,7 +90,7 @@ mkCodecCborLazyBS
   => (forall (st :: ps) (st' :: ps).
              StateTokenI st
           => ActiveState st
-          => f st'
+          => f st
           -> Message ps st st' -> CBOR.Encoding)
   -- ^ cbor encoder
 
