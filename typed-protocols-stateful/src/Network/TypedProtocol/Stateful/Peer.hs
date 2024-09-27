@@ -40,7 +40,7 @@ import Network.TypedProtocol.Core as Core
 --
 -- * the protocol itself;
 -- * the client\/server role;
--- *.the current protocol state;
+-- * the current protocol state;
 -- * the local state type;
 -- * the monad in which the peer operates; and
 -- * the type of any final result once the peer terminates.
