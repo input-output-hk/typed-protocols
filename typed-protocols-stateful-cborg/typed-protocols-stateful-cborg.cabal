@@ -14,7 +14,7 @@ category:            Control
 build-type:          Simple
 
 -- These should probably be added at some point.
-extra-source-files:  ChangeLog.md, README.md
+extra-doc-files:     CHANGELOG.md, README.md
 
 library
   exposed-modules:   Network.TypedProtocol.Stateful.Codec.CBOR
