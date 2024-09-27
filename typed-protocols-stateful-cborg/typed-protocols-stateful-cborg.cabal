@@ -11,6 +11,7 @@ copyright:           2022-2024 Input Output Global Inc (IOG)
 author:              Marcin Szamotulski
 maintainer:          marcin.szamotulski@iohk.io
 category:            Control
+tested-with:         GHC == {8.10, 9.2, 9.4, 9.6, 9.8, 9.10}
 build-type:          Simple
 
 -- These should probably be added at some point.

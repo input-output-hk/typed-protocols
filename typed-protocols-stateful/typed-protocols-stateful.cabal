@@ -12,10 +12,8 @@ author:              Marcin Szamotulski
 maintainer:          marcin.szamotulski@iohk.io
 category:            Control
 build-type:          Simple
-extra-source-files:  CHANGELOG.md
-
--- These should probably be added at some point.
--- extra-source-files:  ChangeLog.md, README.md
+tested-with:         GHC == {8.10, 9.2, 9.4, 9.6, 9.8, 9.10}
+extra-doc-files:     CHANGELOG.md
 
 library
   exposed-modules:    Network.TypedProtocol.Stateful.Peer
