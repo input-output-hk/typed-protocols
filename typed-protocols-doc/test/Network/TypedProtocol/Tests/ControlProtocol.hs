@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE EmptyCase #-}
@@ -30,10 +32,10 @@ import Data.Typeable
 import Data.Word
 import Network.TypedProtocol.Core
 
-data AgentInfo c =
+data AgentInfo =
   AgentInfo
-    { agentInfoCurrentBundle :: !(Maybe (BundleInfo c))
-    , agentInfoStagedKey :: !(Maybe (KeyInfo c))
+    { agentInfoCurrentBundle :: !(Maybe BundleInfo)
+    , agentInfoStagedKey :: !(Maybe KeyInfo)
     , agentInfoBootstrapConnections :: ![BootstrapInfo]
     }
     deriving (Show, Eq)
@@ -50,7 +52,6 @@ deriving via (ViaEnum Command)
   instance
     ( Codec codec
     , HasInfo codec (DefEnumEncoding codec)
-    , Integral (DefEnumEncoding codec)
     ) => HasInfo codec Command
 
 instance
@@ -63,16 +64,16 @@ instance
     encode codec = encodeEnum codec (Proxy @(DefEnumEncoding codec))
     decode codec = decodeEnum codec (Proxy @(DefEnumEncoding codec))
 
-newtype FakeKey k = FakeKey { fakeKeyData :: ByteString }
+newtype FakeKey = FakeKey { fakeKeyData :: ByteString }
   deriving (Show, Eq, Ord)
 
 newtype VersionIdentifier = VersionIdentifier { versionIdentifierData :: ByteString }
   deriving (Show, Eq, Ord)
 
-instance HasInfo (TestCodec ()) VersionIdentifier where
+instance HasInfo TestCodec VersionIdentifier where
   info _ _ = basicField "Bytes" (FixedSize 32)
 
-instance HasInfo (TestCodec ()) (FakeKey k) where
+instance HasInfo TestCodec FakeKey where
   info _ _ = basicField "Bytes" (FixedSize 128)
 
 data BootstrapInfo =
@@ -92,25 +93,25 @@ deriving via (ViaEnum ConnectionStatus)
   instance (Codec codec, HasInfo codec (DefEnumEncoding codec))
     => HasInfo codec ConnectionStatus
 
-data BundleInfo c =
+data BundleInfo =
   BundleInfo
     { bundleInfoEvolution :: !Word32
     , bundleInfoOCertN :: !Word64
-    , bundleInfoVK :: !(FakeKey c)
+    , bundleInfoVK :: !FakeKey
     }
     deriving (Show, Eq)
 
-newtype KeyInfo c =
+newtype KeyInfo =
   KeyInfo
-    { keyInfoVK :: FakeKey c
+    { keyInfoVK :: FakeKey
     }
     deriving (Show, Eq)
 
 deriving newtype
   instance
-    ( HasInfo codec (FakeKey c)
+    ( HasInfo codec FakeKey
     , Codec codec
-    ) => HasInfo codec (KeyInfo c)
+    ) => HasInfo codec KeyInfo
 
 $(deriveSerDoc ''TestCodec [] ''BundleInfo)
 $(deriveSerDoc ''TestCodec [] ''BootstrapInfo)
@@ -129,27 +130,27 @@ $(deriveSerDoc ''TestCodec [] ''AgentInfo)
 -- through. This allows the control client to report success to the user, but it
 -- also helps make things more predictable in testing, because it means that
 -- sending keys is now synchronous.
-data ControlProtocol (m :: Type -> Type) (k :: Type) where
+data ControlProtocol (m :: Type -> Type) (c :: Type) where
   -- | Default state after connecting, but before the protocol version has been
   -- negotiated.
-  InitialState :: ControlProtocol m k
+  InitialState :: ControlProtocol m c
 
   -- | System is idling, waiting for the server to push the next key.
-  IdleState :: ControlProtocol m k
+  IdleState :: ControlProtocol m c
 
   -- | Client has requested a new KES key to be generated in the staging area.
-  WaitForPublicKeyState :: ControlProtocol m k
+  WaitForPublicKeyState :: ControlProtocol m c
 
   -- | Client has requested agent information
-  WaitForInfoState :: ControlProtocol m k
+  WaitForInfoState :: ControlProtocol m c
 
   -- | An OpCert has been pushed, client must now confirm that it has been
   -- received, and that it matches the staged KES key.
-  WaitForConfirmationState :: ControlProtocol m k
+  WaitForConfirmationState :: ControlProtocol m c
 
   -- | The server has closed the connection, thus signalling the end of the
   -- session.
-  EndState :: ControlProtocol m k
+  EndState :: ControlProtocol m c
 
 {-# ANN VersionMessage (Description ["Announce the protocol version."]) #-}
 {-# ANN GenStagedKeyMessage
@@ -217,10 +218,10 @@ instance Protocol (ControlProtocol m c) where
 
           DropStagedKeyMessage :: Message (ControlProtocol m c) IdleState WaitForPublicKeyState
 
-          PublicKeyMessage :: Maybe (FakeKey c)
+          PublicKeyMessage :: Maybe FakeKey
                            -> Message (ControlProtocol m c) WaitForPublicKeyState IdleState
 
-          InstallKeyMessage :: FakeKey c
+          InstallKeyMessage :: FakeKey
                             -> Message (ControlProtocol m c) IdleState WaitForConfirmationState
 
           InstallResultMessage :: Word32
@@ -228,7 +229,7 @@ instance Protocol (ControlProtocol m c) where
 
           RequestInfoMessage :: Message (ControlProtocol m c) IdleState WaitForInfoState
 
-          InfoMessage :: AgentInfo c
+          InfoMessage :: AgentInfo
                       -> Message (ControlProtocol m c) WaitForInfoState IdleState
 
           AbortMessage :: Message (ControlProtocol m c) InitialState EndState
@@ -236,42 +237,30 @@ instance Protocol (ControlProtocol m c) where
           ProtocolErrorMessage :: Message (ControlProtocol m c) a EndState
 
   -- | Server always has agency, except between sending a key and confirming it
-  data ServerHasAgency st where
-    TokInitial :: ServerHasAgency InitialState
-    TokIdle :: ServerHasAgency IdleState
+  type StateAgency InitialState = ServerAgency
+  type StateAgency IdleState = ServerAgency
+  type StateAgency WaitForConfirmationState = ClientAgency
+  type StateAgency WaitForPublicKeyState = ClientAgency
+  type StateAgency WaitForInfoState = ClientAgency
+  type StateAgency EndState = NobodyAgency
 
-  -- | Client only has agency between sending a key and confirming it
-  data ClientHasAgency st where
-    TokWaitForConfirmation :: ClientHasAgency WaitForConfirmationState
-    TokWaitForPublicKey :: ClientHasAgency WaitForPublicKeyState
-    TokWaitForInfo :: ClientHasAgency WaitForInfoState
+  type StateToken = SControlProtocol
 
-  -- | Someone, i.e., the server, always has agency
-  data NobodyHasAgency st where
-    TokEnd :: NobodyHasAgency EndState
+data SControlProtocol (st :: ControlProtocol m c) where
+  SInitialState :: SControlProtocol InitialState
+  SIdleState :: SControlProtocol IdleState
+  SWaitForConfirmationState :: SControlProtocol WaitForConfirmationState
+  SWaitForPublicKeyState :: SControlProtocol WaitForPublicKeyState
+  SWaitForInfoState :: SControlProtocol WaitForInfoState
+  SEndState :: SControlProtocol EndState
 
-  exclusionLemma_ClientAndServerHaveAgency tok1 tok2 =
-    case tok1 of
-      TokWaitForConfirmation ->
-        case tok2 of {}
-      TokWaitForPublicKey ->
-        case tok2 of {}
-      TokWaitForInfo ->
-        case tok2 of {}
-  exclusionLemma_NobodyAndClientHaveAgency tok1 tok2 =
-    case tok1 of
-      TokEnd -> case tok2 of {}
-  exclusionLemma_NobodyAndServerHaveAgency tok1 tok2 =
-    case tok1 of
-      TokEnd -> case tok2 of {}
-
-instance HasInfo (TestCodec ()) (Message (ControlProtocol m c) InitialState IdleState) where
+instance HasInfo TestCodec (Message (ControlProtocol m c) InitialState IdleState) where
   info codec _ = aliasField
             ("Message<" ++
               "InitialState,IdleState" ++
               ">")
             (info codec (Proxy @VersionIdentifier))
-instance HasInfo (TestCodec ()) (Message (ControlProtocol m c) IdleState WaitForPublicKeyState) where
+instance HasInfo TestCodec (Message (ControlProtocol m c) IdleState WaitForPublicKeyState) where
   info codec _ = aliasField
             ("Message<" ++
               "IdleState,WaitForPublicKeyState" ++
@@ -283,39 +272,39 @@ instance HasInfo (TestCodec ()) (Message (ControlProtocol m c) IdleState WaitFor
 --    QueryStagedKeyMessage -> infoOf QueryStagedKeyCmd
 --    DropStagedKeyMessage -> infoOf DropStagedKeyCmd
 
-instance (HasInfo (TestCodec ()) (FakeKey c)) => HasInfo (TestCodec ()) (Message (ControlProtocol m c) WaitForPublicKeyState IdleState) where
+instance (HasInfo TestCodec FakeKey) => HasInfo TestCodec (Message (ControlProtocol m c) WaitForPublicKeyState IdleState) where
   info codec _ = aliasField
             ("Message<" ++
               "WaitForPublicKeyState,IdleState" ++
               ">")
-            (info codec (Proxy @(Maybe (FakeKey c))))
-instance (HasInfo (TestCodec ()) (FakeKey c)) => HasInfo (TestCodec ()) (Message (ControlProtocol m c) IdleState WaitForConfirmationState) where
+            (info codec (Proxy @(Maybe FakeKey)))
+instance (HasInfo TestCodec FakeKey) => HasInfo TestCodec (Message (ControlProtocol m c) IdleState WaitForConfirmationState) where
   info codec _ = aliasField
             ("Message<" ++
               "IdleState,WaitForConfirmationState" ++
               ">")
-            (info codec (Proxy @(FakeKey c)))
-instance HasInfo (TestCodec ()) (Message (ControlProtocol m c) WaitForConfirmationState IdleState) where
+            (info codec (Proxy @FakeKey))
+instance HasInfo TestCodec (Message (ControlProtocol m c) WaitForConfirmationState IdleState) where
   info codec _ = aliasField
             ("Message<" ++
               "WaitForConfirmationState,IdleState" ++
               ">")
             (info codec (Proxy @Word32))
-instance HasInfo (TestCodec ()) (Message (ControlProtocol m c) IdleState WaitForInfoState) where
+instance HasInfo TestCodec (Message (ControlProtocol m c) IdleState WaitForInfoState) where
   info codec _ = aliasField
             ("Message<" ++
               "IdleState,WaitForInfoState" ++
               ">")
             (info codec (Proxy @()))
-instance ( HasInfo (TestCodec ()) (FakeKey c)
-         , HasInfo (TestCodec ()) (AgentInfo c)
-         ) => HasInfo (TestCodec ()) (Message (ControlProtocol m c) WaitForInfoState IdleState) where
+instance ( HasInfo TestCodec FakeKey
+         , HasInfo TestCodec AgentInfo
+         ) => HasInfo TestCodec (Message (ControlProtocol m c) WaitForInfoState IdleState) where
   info codec _ = aliasField
             ("Message<" ++
               "WaitForInfoState,IdleState" ++
               ">")
-            (info codec (Proxy @(AgentInfo c)))
-instance HasInfo (TestCodec ()) (Message (ControlProtocol m c) _st EndState) where
+            (info codec (Proxy @AgentInfo))
+instance HasInfo TestCodec (Message (ControlProtocol m c) _st EndState) where
   info codec _ = aliasField
             ("Message<" ++
               "st,EndState" ++

@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE EmptyCase #-}
@@ -34,50 +36,47 @@ data PongInfo =
     }
     deriving (Show, Eq)
 
-data TestProtocol a where
+data TestProtocol where
   -- | Idle state: server waits for ping.
-  IdleState :: TestProtocol a
+  IdleState :: TestProtocol
 
   -- | Awaiting pong state: server has received ping, client waits for pong.
-  AwaitingPongState :: TestProtocol a
+  AwaitingPongState :: TestProtocol
 
   -- | End state: either side has terminated the session
-  EndState :: TestProtocol a
+  EndState :: TestProtocol
 
-instance Protocol (TestProtocol a) where
-  data Message (TestProtocol a) st st' where
-    PingMessage :: Message (TestProtocol a) IdleState AwaitingPongState
-    PongMessage :: Message (TestProtocol a) AwaitingPongState IdleState
-    ComplexPongMessage :: Message (TestProtocol a) AwaitingPongState IdleState
-    EndMessage :: Message (TestProtocol a) st EndState
+instance Protocol TestProtocol where
+  data Message TestProtocol st st' where
+    PingMessage :: Message TestProtocol IdleState AwaitingPongState
+    PongMessage :: Message TestProtocol AwaitingPongState IdleState
+    ComplexPongMessage :: Message TestProtocol AwaitingPongState IdleState
+    EndMessage :: Message TestProtocol st EndState
 
-  data ServerHasAgency st where
-    TokIdle :: ServerHasAgency IdleState
+  type StateAgency IdleState = ServerAgency
+  type StateAgency AwaitingPongState = ClientAgency
+  type StateAgency EndState = NobodyAgency
 
-  data ClientHasAgency st where
-    TokAwaitingPongState :: ClientHasAgency AwaitingPongState
+  type StateToken = STestProtocol
 
-  data NobodyHasAgency st where
-    TokEnd :: NobodyHasAgency EndState
+data STestProtocol (st :: TestProtocol) where
+  SingIdle :: STestProtocol IdleState
+  SingAwaitingPong :: STestProtocol AwaitingPongState
+  SingEnd :: STestProtocol EndState
 
+instance StateTokenI IdleState where stateToken = SingIdle
+instance StateTokenI AwaitingPongState where stateToken = SingAwaitingPong
+instance StateTokenI EndState where stateToken = SingEnd
 
-  exclusionLemma_ClientAndServerHaveAgency tok1 tok2 =
-    case tok1 of
-      TokAwaitingPongState -> case tok2 of {}
+data TestCodec
 
-  exclusionLemma_NobodyAndClientHaveAgency tok1 tok2 =
-    case tok1 of
-      TokEnd -> case tok2 of {}
+instance Codec TestCodec where
+  type MonadEncode TestCodec = Identity
+  type MonadDecode TestCodec = Except String
 
-  exclusionLemma_NobodyAndServerHaveAgency tok1 tok2 =
-    case tok1 of
-      TokEnd -> case tok2 of {}
-
-data TestCodec a
-
-instance Codec (TestCodec a) where
-  type MonadEncode (TestCodec a) = Identity
-  type MonadDecode (TestCodec a) = Except String
+instance Serializable TestCodec a where
+  encode _ = pure (pure ())
+  decode _ = throwError "this is a mock codec"
 
 data PongEnum = NormalPong | ComplexPong
   deriving (Show, Read, Eq, Ord, Enum, Bounded, Typeable)
@@ -91,17 +90,17 @@ deriving via (ViaEnum PongEnum)
 deriving via (ViaEnum PingEnum)
   instance (Codec codec, HasInfo codec (DefEnumEncoding codec)) => HasInfo codec PingEnum
 
-instance HasInfo (TestCodec b) () where
+instance HasInfo TestCodec () where
   info _ _ = basicField "()" (FixedSize 0)
 
-instance HasInfo (TestCodec b) Text where
+instance HasInfo TestCodec Text where
   info codec _ =
     compoundField "Text"
       [ ("length", info codec (Proxy @Word32))
       , ("data", basicField "UTF8 dat" (FixedSize 0))
       ]
 
-instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) [a] where
+instance HasInfo TestCodec a => HasInfo TestCodec [a] where
   info codec (_ :: Proxy [a]) =
     compoundField "List"
       [ ( "length", info codec (Proxy @Word32))
@@ -111,7 +110,7 @@ instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) [a] where
       ]
 
 
-instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) (Maybe a) where
+instance HasInfo TestCodec a => HasInfo TestCodec (Maybe a) where
   info codec (_ :: Proxy (Maybe a)) =
     compoundField "Maybe"
       [ ("isJust", info codec (Proxy @Word32))
@@ -123,24 +122,24 @@ instance HasInfo (TestCodec b) a => HasInfo (TestCodec b) (Maybe a) where
         )
       ]
 
-instance HasInfo (TestCodec b) (Message (TestProtocol a) IdleState AwaitingPongState) where
+instance HasInfo TestCodec (Message TestProtocol IdleState AwaitingPongState) where
   info codec _ = infoOf "PingRequest" $ info codec (Proxy @PingEnum)
 
-instance HasInfo (TestCodec b) (Message (TestProtocol a) st EndState) where
+instance HasInfo TestCodec (Message TestProtocol st EndState) where
   info codec _ = infoOf "EndPing" $ info codec (Proxy @PingEnum)
 
-instance HasInfo (TestCodec a) Word16 where
+instance HasInfo TestCodec Word16 where
   info _ _ = basicField "Word16" (FixedSize 2)
 
-instance HasInfo (TestCodec a) Word32 where
+instance HasInfo TestCodec Word32 where
   info _ _ = basicField "Word32" (FixedSize 4)
 
-instance HasInfo (TestCodec a) Word64 where
+instance HasInfo TestCodec Word64 where
   info _ _ = basicField "Word64" (FixedSize 8)
 
 $(deriveSerDoc ''TestCodec [] ''PongInfo)
 
-instance HasInfo (TestCodec b) (Message (TestProtocol a) AwaitingPongState IdleState) where
+instance HasInfo TestCodec (Message TestProtocol AwaitingPongState IdleState) where
   info codec _ =
     compoundField "Pong"
       [ ("pongType", info codec (Proxy @PongEnum))

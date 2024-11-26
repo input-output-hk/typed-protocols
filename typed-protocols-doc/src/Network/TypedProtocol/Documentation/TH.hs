@@ -15,6 +15,7 @@ import Control.Monad
 -- This import is only needed when 'getDoc' is available.
 import Data.Maybe (maybeToList)
 #endif
+import Data.Maybe (mapMaybe)
 import Data.Proxy
 import Language.Haskell.TH
 import Language.Haskell.TH.Datatype
@@ -34,45 +35,29 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
   protoDescription <- getDescription protoTyCon
   let pname = nameBase (datatypeName info)
 
-  let extractMessageStateNames :: InstanceDec -> [Name]
-      extractMessageStateNames (DataInstD _ _ _ _ tys _) =
-        [ case ty of
-            ForallC _ _ (GadtC _ _ ty') -> go ty'
-            GadtC _ _ ty' -> go ty'
-            _ -> error $ "Not a GADT: " ++ show ty
-        | ty <- tys
-        ]
-        where
-          go (PromotedT tyName) = tyName
-          go (SigT ty' _) = go ty'
-          go (AppT _ ty') = go ty'
-          go ty' = error $ "Cannot detect message name from type: " ++ show ty'
-      extractMessageStateNames i = error $ "Not a DataInstD: " ++ show i
+  let extractAgency :: InstanceDec -> Maybe Name
+      extractAgency (TySynInstD (TySynEqn _ _ (PromotedT agency))) = Just agency
+      extractAgency dec = error $ "Unexpected InstanceDec: " ++ show dec
+
+  let extractAgencies :: [InstanceDec] -> [Name]
+      extractAgencies = mapMaybe extractAgency
+
+  let extractTheAgency :: [InstanceDec] -> Name
+      extractTheAgency inst = case extractAgencies inst of
+        [agency] -> agency
+        xs -> error $ "Incorrect number of agencies: " ++ show xs
 
   pstates <- forM (datatypeCons info) $ \conInfo -> do
     let conName = constructorName conInfo
     stateDescription <- getDescription conName
 
-    serverAgencies <- reifyInstances ''ServerHasAgency [ConT conName]
-    let serverAgencies' =
-          [ nameBase tyName
-          | inst <- serverAgencies
-          , tyName <- extractMessageStateNames inst
-          , nameBase tyName == nameBase conName
-          ]
-    clientAgencies <- reifyInstances ''ClientHasAgency [ConT conName]
-    let clientAgencies' =
-          [ nameBase tyName
-          | inst <- clientAgencies
-          , tyName <- extractMessageStateNames inst
-          , nameBase tyName == nameBase conName
-          ]
-
-    let agencyID = case (serverAgencies', clientAgencies') of
-          ([], []) -> NobodyAgencyID
-          (_, []) -> ServerAgencyID
-          ([], _) -> ClientAgencyID
-          _ -> error $ show (nameBase conName, serverAgencies', clientAgencies')
+    stateAgencies <- reifyInstances ''StateAgency [ConT conName]
+    let agencyName = extractTheAgency stateAgencies
+        agencyID = case nameBase agencyName of
+          "ServerAgency" -> 'ServerAgencyID
+          "ClientAgency" -> 'ClientAgencyID
+          "NobodyAgency" -> 'NobodyAgencyID
+          x -> error $ "Unknown agency type " ++ x ++ " in state " ++ nameBase conName
 
     return (conName, stateDescription, agencyID)
 
@@ -87,7 +72,7 @@ describeProtocol protoTyCon protoTyArgs codecTyCon codecTyArgs = do
         protoDescription
         ""
         $(listE
-            [ [| ( $(makeState $ ConT conName), stateDescription, agencyID) |]
+            [ [| ( $(makeState $ ConT conName), stateDescription, $(conE agencyID)) |]
             | (conName, stateDescription, agencyID) <- pstates
             ]
          )
