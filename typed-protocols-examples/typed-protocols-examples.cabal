@@ -59,8 +59,7 @@ library
                      serialise,
                      singletons,
                      contra-tracer,
-                     io-classes,
-                     si-timers,
+                     io-classes:{io-classes,si-timers},
                      network,
                      time,
                      typed-protocols ^>= 0.3,
@@ -90,9 +89,8 @@ test-suite test
                    , typed-protocols
                    , typed-protocols-cborg
                    , typed-protocols-examples
-                   , io-classes
+                   , io-classes:{io-classes,si-timers}
                    , io-sim
-                   , si-timers
                    , QuickCheck
                    , tasty
                    , tasty-quickcheck

@@ -35,7 +35,7 @@ library
                    , TypeOperators
                    , BangPatterns
   build-depends:     base,
-                     io-classes >= 1.0 && < 1.6,
+                     io-classes:io-classes ^>= 1.7,
                      singletons >= 3.0
 
   hs-source-dirs:    src

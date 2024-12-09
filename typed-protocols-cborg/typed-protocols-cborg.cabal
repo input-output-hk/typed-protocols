@@ -23,7 +23,7 @@ library
                      cborg            >=0.2.1 && <0.3,
                      singletons,        
 
-                     io-classes      ^>=1.5,
+                     io-classes:io-classes ^>=1.7,
                      typed-protocols ^>=0.3
 
   hs-source-dirs:    src
