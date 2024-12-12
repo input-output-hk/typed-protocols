@@ -1,6 +1,6 @@
 cabal-version:       3.4
 name:                typed-protocols
-version:             0.3.0.0
+version:             0.4.0.0
 synopsis:            A framework for strongly typed protocols
 -- description:
 license:             Apache-2.0
@@ -35,7 +35,7 @@ library
                    , TypeOperators
                    , BangPatterns
   build-depends:     base,
-                     io-classes >= 1.0 && < 1.6,
+                     io-classes:io-classes ^>= 1.7,
                      singletons >= 3.0
 
   hs-source-dirs:    src
