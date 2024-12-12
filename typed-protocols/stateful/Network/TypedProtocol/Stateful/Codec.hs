@@ -1,18 +1,18 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE NamedFieldPuns           #-}
-{-# LANGUAGE PatternSynonyms          #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE QuantifiedConstraints    #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE TypeFamilies             #-}
-{-# LANGUAGE ViewPatterns             #-}
+{-# LANGUAGE DataKinds             #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE GADTs                 #-}
+{-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE ViewPatterns          #-}
 -- @UndecidableInstances@ extension is required for defining @Show@ instance of
 -- @'AnyMessage'@ and @'AnyMessage'@.
-{-# LANGUAGE UndecidableInstances     #-}
+{-# LANGUAGE UndecidableInstances  #-}
 {-# OPTIONS_GHC -Wno-dodgy-imports #-}
 
 -- | Stateful codec.  This module is intended to be imported qualified.
@@ -31,7 +31,7 @@ module Network.TypedProtocol.Stateful.Codec
     -- ** Related types
     -- *** SomeMessage
   , SomeMessage (..)
-    -- *** StateToken 
+    -- *** StateToken
   , StateToken
   , StateTokenI (..)
     -- *** ActiveState
@@ -54,12 +54,12 @@ module Network.TypedProtocol.Stateful.Codec
 import           Data.Kind (Type)
 import           Data.Monoid (All (..))
 
-import           Network.TypedProtocol.Core
 import           Network.TypedProtocol.Codec (CodecFailure (..),
-                   DecodeStep (..),  SomeMessage (..), hoistDecodeStep,
-                   isoDecodeStep, mapFailureDecodeStep, runDecoder,
-                   runDecoderPure)
+                     DecodeStep (..), SomeMessage (..), hoistDecodeStep,
+                     isoDecodeStep, mapFailureDecodeStep, runDecoder,
+                     runDecoderPure)
 import qualified Network.TypedProtocol.Codec as TP hiding (AnyMessageAndAgency)
+import           Network.TypedProtocol.Core
 
 
 -- | A stateful codec.
