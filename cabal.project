@@ -15,10 +15,6 @@ index-state:
   , cardano-haskell-packages 2024-07-24T14:16:32Z
 
 packages: ./typed-protocols
-          ./typed-protocols-cborg
-          ./typed-protocols-stateful
-          ./typed-protocols-stateful-cborg
-          ./typed-protocols-examples
           -- ./typed-protocols-doc
 
 test-show-details: direct
