@@ -90,8 +90,8 @@ jobs:
     - name: Build projects [build]
       run: cabal build all
 
-    - name: typed-protocols-examples [test]
-      run: cabal run typed-protocols-examples:test
+    - name: typed-protocols:test
+      run: cabal run typed-protocols:test
 
     # - name: typed-protocols-doc [test]
     #   run: cabal test typed-protocols-doc
