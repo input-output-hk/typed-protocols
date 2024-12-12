@@ -3,9 +3,9 @@
 {-# LANGUAGE FlexibleContexts         #-}
 {-# LANGUAGE FlexibleInstances        #-}
 {-# LANGUAGE GADTs                    #-}
+{-# LANGUAGE MultiParamTypeClasses    #-}
 {-# LANGUAGE PolyKinds                #-}
 {-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE MultiParamTypeClasses    #-}
 {-# LANGUAGE StandaloneDeriving       #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeOperators            #-}
@@ -17,13 +17,11 @@
 -- __Note__: 'Network.TypedProtocol.Peer.Client.Client' and
 -- 'Network.TypedProtocol.Peer.Server.Server' patterns are easier to use.
 --
-module Network.TypedProtocol.Stateful.Peer
-   ( Peer (..)
-   ) where
+module Network.TypedProtocol.Stateful.Peer (Peer (..)) where
 
-import Data.Kind (Type)
+import           Data.Kind (Type)
 
-import Network.TypedProtocol.Core as Core
+import           Network.TypedProtocol.Core as Core
 
 
 -- | A description of a peer that engages in a protocol.
