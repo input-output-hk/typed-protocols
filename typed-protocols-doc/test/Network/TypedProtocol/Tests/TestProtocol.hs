@@ -79,10 +79,10 @@ instance Serializable TestCodec a where
   decode _ = throwError "this is a mock codec"
 
 data PongEnum = NormalPong | ComplexPong
-  deriving (Show, Read, Eq, Ord, Enum, Bounded, Typeable)
+  deriving (Show, Read, Eq, Ord, Enum, Bounded)
 
 data PingEnum = PingRequest | EndPing
-  deriving (Show, Read, Eq, Ord, Enum, Bounded, Typeable)
+  deriving (Show, Read, Eq, Ord, Enum, Bounded)
 
 deriving via (ViaEnum PongEnum)
   instance (Codec codec, HasInfo codec (DefEnumEncoding codec)) => HasInfo codec PongEnum

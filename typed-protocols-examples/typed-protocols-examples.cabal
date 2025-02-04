@@ -1,13 +1,13 @@
 cabal-version:       3.4
 name:                typed-protocols-examples
-version:             0.5.0.0
+version:             0.6.0.0
 synopsis:            Examples and tests for the typed-protocols framework
 -- description:
 license:             Apache-2.0
 license-files:
   LICENSE
   NOTICE
-copyright:           2019-2024 Input Output Global Inc (IOG)
+copyright:           2019-2025 Input Output Global Inc (IOG)
 author:              Alexander Vieth, Duncan Coutts, Marcin Szamotulski
 maintainer:          alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io
 category:            Control
@@ -59,11 +59,10 @@ library
                      serialise,
                      singletons,
                      contra-tracer,
-                     io-classes,
-                     si-timers,
+                     io-classes:{io-classes,si-timers},
                      network,
                      time,
-                     typed-protocols ^>= 0.3,
+                     typed-protocols ^>= 0.4,
                      typed-protocols-cborg,
                      typed-protocols-stateful
 
@@ -90,9 +89,8 @@ test-suite test
                    , typed-protocols
                    , typed-protocols-cborg
                    , typed-protocols-examples
-                   , io-classes
+                   , io-classes:{io-classes,si-timers}
                    , io-sim
-                   , si-timers
                    , QuickCheck
                    , tasty
                    , tasty-quickcheck
