@@ -65,8 +65,7 @@ pMainOptions =
           )
 
 
-defaultMain :: ( Codec codec
-               , HasInfo codec (DefEnumEncoding codec)
+defaultMain :: ( HasInfo codec (DefEnumEncoding codec)
                , HasInfo codec Word32
                ) => [ProtocolDescription codec] -> IO ()
 defaultMain descriptions = do
@@ -79,8 +78,7 @@ defaultMain descriptions = do
         render = getRenderer (moOutputFormat mainOptions) (moOutputFile mainOptions)
     write . render $ descriptions
 
-getRenderer :: ( Codec codec
-               , HasInfo codec (DefEnumEncoding codec)
+getRenderer :: ( HasInfo codec (DefEnumEncoding codec)
                , HasInfo codec Word32
                )
             => OutputFormat

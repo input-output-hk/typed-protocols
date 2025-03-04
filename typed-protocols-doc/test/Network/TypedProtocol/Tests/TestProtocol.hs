@@ -23,7 +23,6 @@ import Control.Monad.Identity
 import Control.Monad.Except
 import Data.Proxy
 import Data.Word
-import Data.Typeable
 import Data.SerDoc.Class
 import Data.SerDoc.TH
 import Data.Text (Text)
