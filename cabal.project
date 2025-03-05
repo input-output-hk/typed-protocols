@@ -19,7 +19,7 @@ packages: ./typed-protocols
           ./typed-protocols-stateful
           ./typed-protocols-stateful-cborg
           ./typed-protocols-examples
-          -- ./typed-protocols-doc
+          ./typed-protocols-doc
 
 test-show-details: direct
 
@@ -30,3 +30,7 @@ if impl (ghc >= 9.12)
     , cborg:ghc-prim
     , serialise:base
     , serialise:ghc-prim
+
+if(os(windows))
+  package text
+    flags: -simdutf

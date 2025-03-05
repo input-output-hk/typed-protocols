@@ -24,10 +24,10 @@ tests = testGroup "Documentation"
           , testProperty "state transitions" (p_correctStateTransitions testProtocolDescription)
           ]
 
-testProtocolDescription :: ProtocolDescription (TestCodec ())
-testProtocolDescription = $(describeProtocol ''ControlProtocol [''IO, ''()] ''TestCodec [''()])
+testProtocolDescription :: ProtocolDescription TestCodec
+testProtocolDescription = $(describeProtocol ''ControlProtocol [''IO, ''()] ''TestCodec [])
 
-p_correctAgencies :: ProtocolDescription (TestCodec ()) -> Property
+p_correctAgencies :: ProtocolDescription TestCodec -> Property
 p_correctAgencies d =
   counterexample (show stateAgencyMap) .
   once $
@@ -45,7 +45,7 @@ p_correctAgencies d =
   where
     stateAgencyMap = [(state, agency) | (state, _, agency) <- protocolStates d]
 
-p_correctStateTransitions :: ProtocolDescription (TestCodec ()) -> Property
+p_correctStateTransitions :: ProtocolDescription TestCodec -> Property
 p_correctStateTransitions d =
   once $
     checkMessage "VersionMessage" (State "InitialState") (State "IdleState")
@@ -83,6 +83,6 @@ p_correctStateTransitions d =
           counterexample "toState"
             (messageToState msg === toState)
 
-    findMessage :: String -> Maybe (MessageDescription (TestCodec ()))
+    findMessage :: String -> Maybe (MessageDescription TestCodec)
     findMessage msgName =
       listToMaybe [ msg | msg <- protocolMessages d, messageName msg == msgName ]

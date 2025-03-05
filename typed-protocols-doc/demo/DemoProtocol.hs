@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -12,19 +13,23 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
+-- for `deriveSerDoc`
+{-# OPTIONS_GHC -Wno-redundant-constraints #-}
+
 module DemoProtocol
 where
 
-import Network.TypedProtocol.Core
-import Data.SerDoc.Info
 import Control.Monad.Identity
 import Control.Monad.Except
+
 import Data.Proxy
-import Data.Word
-import Data.Typeable
 import Data.SerDoc.Class
+import Data.SerDoc.Info
 import Data.SerDoc.TH
 import Data.Text (Text)
+import Data.Word
+
+import Network.TypedProtocol.Core
 
 data PongInfo =
   PongInfo
@@ -44,6 +49,15 @@ data DemoProtocol a where
   -- | End state: either side has terminated the session
   EndState :: DemoProtocol a
 
+data SingDemoProtocol a where
+    SingIdleState         :: SingDemoProtocol (IdleState         :: DemoProtocol a)
+    SingAwaitingPongState :: SingDemoProtocol (AwaitingPongState :: DemoProtocol a)
+    SingEndState          :: SingDemoProtocol (EndState          :: DemoProtocol a)
+
+instance StateTokenI IdleState         where stateToken = SingIdleState
+instance StateTokenI AwaitingPongState where stateToken = SingAwaitingPongState
+instance StateTokenI EndState          where stateToken = SingEndState
+
 instance Protocol (DemoProtocol a) where
   data Message (DemoProtocol a) st st' where
     PingMessage :: Message (DemoProtocol a) IdleState AwaitingPongState
@@ -51,27 +65,13 @@ instance Protocol (DemoProtocol a) where
     ComplexPongMessage :: Message (DemoProtocol a) AwaitingPongState IdleState
     EndMessage :: Message (DemoProtocol a) st EndState
 
-  data ServerHasAgency st where
-    TokIdle :: ServerHasAgency IdleState
+  type StateAgency IdleState         = ServerAgency
+  type StateAgency AwaitingPongState = ClientAgency
+  type StateAgency EndState          = NobodyAgency
 
-  data ClientHasAgency st where
-    TokAwaitingPongState :: ClientHasAgency AwaitingPongState
-
-  data NobodyHasAgency st where
-    TokEnd :: NobodyHasAgency EndState
+  type StateToken = SingDemoProtocol
 
 
-  exclusionLemma_ClientAndServerHaveAgency tok1 tok2 =
-    case tok1 of
-      TokAwaitingPongState -> case tok2 of {}
-
-  exclusionLemma_NobodyAndClientHaveAgency tok1 tok2 =
-    case tok1 of
-      TokEnd -> case tok2 of {}
-
-  exclusionLemma_NobodyAndServerHaveAgency tok1 tok2 =
-    case tok1 of
-      TokEnd -> case tok2 of {}
 
 data DemoCodec a
 

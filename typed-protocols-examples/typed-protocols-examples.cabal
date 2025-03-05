@@ -64,10 +64,12 @@ library
                      time,
                      typed-protocols ^>= 0.4,
                      typed-protocols-cborg,
-                     typed-protocols-stateful
-
+                     typed-protocols-stateful,
   hs-source-dirs:    src
   default-language:  Haskell2010
+  -- ghc-9.2 pulls `ghc-heap-9.12` which is not compatible
+  if impl(ghc < 9.4)
+    build-depends: ghc-heap < 9.12
   ghc-options:       -Wall
                      -Wno-unticked-promoted-constructors
                      -Wcompat
