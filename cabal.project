@@ -30,3 +30,7 @@ if impl (ghc >= 9.12)
     , cborg:ghc-prim
     , serialise:base
     , serialise:ghc-prim
+
+if(os(windows))
+  package text
+    flags: -simdutf
