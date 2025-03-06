@@ -23,11 +23,11 @@ library
                      cborg            >=0.2.1 && <0.3,
                      singletons,        
 
-                     io-classes:io-classes ^>=1.7,
+                     io-classes      ^>=1.7,
                      typed-protocols ^>=0.4
-
   hs-source-dirs:    src
-  default-language:  Haskell2010
+  default-language:  GHC2021
+  default-extensions: LambdaCase
   ghc-options:       -Wall
                      -Wno-unticked-promoted-constructors
                      -Wcompat

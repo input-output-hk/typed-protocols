@@ -1,24 +1,17 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.PingPong.Codec.CBOR where
 
-import           Control.Monad.Class.MonadST
+import Control.Monad.Class.MonadST
 
-import           Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy (ByteString)
 
-import qualified Codec.CBOR.Decoding as CBOR (Decoder, decodeWord)
-import qualified Codec.CBOR.Encoding as CBOR (Encoding, encodeWord)
-import qualified Codec.CBOR.Read as CBOR
+import Codec.CBOR.Decoding qualified as CBOR (Decoder, decodeWord)
+import Codec.CBOR.Encoding qualified as CBOR (Encoding, encodeWord)
+import Codec.CBOR.Read qualified as CBOR
 
-import           Network.TypedProtocol.Codec
-import           Network.TypedProtocol.Codec.CBOR
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.PingPong.Type
+import Network.TypedProtocol.Codec
+import Network.TypedProtocol.Codec.CBOR
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.PingPong.Type
 
 codecPingPong
   :: forall m.

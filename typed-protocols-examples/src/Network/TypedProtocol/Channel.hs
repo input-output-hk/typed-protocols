@@ -1,9 +1,4 @@
-{-# LANGUAGE CPP                 #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
+{-# LANGUAGE CPP #-}
 
 module Network.TypedProtocol.Channel
   ( Channel (..)
@@ -24,15 +19,15 @@ module Network.TypedProtocol.Channel
   , loggingChannel
   ) where
 
-import           Control.Concurrent.Class.MonadSTM
-import           Control.Monad ((>=>))
-import           Control.Monad.Class.MonadSay
-import           Control.Monad.Class.MonadTimer.SI
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Lazy as LBS
-import           Data.ByteString.Lazy.Internal (smallChunkSize)
-import           Data.Proxy
-import           Numeric.Natural
+import Control.Concurrent.Class.MonadSTM
+import Control.Monad ((>=>))
+import Control.Monad.Class.MonadSay
+import Control.Monad.Class.MonadTimer.SI
+import Data.ByteString qualified as BS
+import Data.ByteString.Lazy qualified as LBS
+import Data.ByteString.Lazy.Internal (smallChunkSize)
+import Data.Proxy
+import Numeric.Natural
 
 #if !defined(mingw32_HOST_OS)
 import           Network.Socket (Socket)

@@ -1,11 +1,3 @@
-{-# LANGUAGE BangPatterns         #-}
-{-# LANGUAGE DataKinds            #-}
-{-# LANGUAGE FlexibleContexts     #-}
-{-# LANGUAGE GADTs                #-}
-{-# LANGUAGE NamedFieldPuns       #-}
-{-# LANGUAGE PolyKinds            #-}
-{-# LANGUAGE RankNTypes           #-}
-{-# LANGUAGE ScopedTypeVariables  #-}
 {-# LANGUAGE TypeFamilies         #-}
 -- @UndecidableInstances@ extensions is required for defining @Show@ instance
 -- of @'TraceSendRecv'@.
@@ -32,15 +24,15 @@ module Network.TypedProtocol.Driver.Simple
   , runDecoderWithChannel
   ) where
 
-import           Network.TypedProtocol.Channel
-import           Network.TypedProtocol.Codec
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Driver
-import           Network.TypedProtocol.Peer
+import Network.TypedProtocol.Channel
+import Network.TypedProtocol.Codec
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Driver
+import Network.TypedProtocol.Peer
 
-import           Control.Monad.Class.MonadAsync
-import           Control.Monad.Class.MonadThrow
-import           Control.Tracer (Tracer (..), contramap, traceWith)
+import Control.Monad.Class.MonadAsync
+import Control.Monad.Class.MonadThrow
+import Control.Tracer (Tracer (..), contramap, traceWith)
 
 
 -- $intro

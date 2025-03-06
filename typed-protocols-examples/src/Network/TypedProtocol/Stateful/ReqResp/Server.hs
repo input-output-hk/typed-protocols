@@ -1,19 +1,11 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.Stateful.ReqResp.Server
   ( ReqRespServer (..)
   , reqRespServerPeer
   ) where
 
-import           Data.Typeable
-import           Network.TypedProtocol.Stateful.Peer.Server
-import           Network.TypedProtocol.Stateful.ReqResp.Type
+import Data.Typeable
+import Network.TypedProtocol.Stateful.Peer.Server
+import Network.TypedProtocol.Stateful.ReqResp.Type
 
 
 data ReqRespServer req m a = ReqRespServer {

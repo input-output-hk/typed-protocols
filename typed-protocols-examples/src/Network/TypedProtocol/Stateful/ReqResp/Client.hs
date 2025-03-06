@@ -1,18 +1,11 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.Stateful.ReqResp.Client
   ( ReqRespClient (..)
   , reqRespClientPeer
   ) where
 
-import           Data.Typeable
-import           Network.TypedProtocol.Stateful.Peer.Client
-import           Network.TypedProtocol.Stateful.ReqResp.Type
+import Data.Typeable
+import Network.TypedProtocol.Stateful.Peer.Client
+import Network.TypedProtocol.Stateful.ReqResp.Type
 
 data ReqRespClient req m a where
   SendMsgReq  :: Typeable resp

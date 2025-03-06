@@ -1,15 +1,9 @@
-{-# LANGUAGE BangPatterns        #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 module Network.TypedProtocol.ReqResp.Examples where
 
-import           Network.TypedProtocol.ReqResp.Client
-import           Network.TypedProtocol.ReqResp.Server
+import Network.TypedProtocol.ReqResp.Client
+import Network.TypedProtocol.ReqResp.Server
 
-import           Network.TypedProtocol.Peer.Client
+import Network.TypedProtocol.Peer.Client
 
 -- | An example request\/response client which ignores received responses.
 --

@@ -1,11 +1,4 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE PatternSynonyms          #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeOperators            #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 -- | Bidirectional patterns for @'Peer' ps 'AsServer'@.   The advantage of
 -- these patterns is that they automatically provide the 'RelativeAgencyEq'

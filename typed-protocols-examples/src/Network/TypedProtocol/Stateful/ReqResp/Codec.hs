@@ -1,21 +1,12 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeOperators       #-}
-
 module Network.TypedProtocol.Stateful.ReqResp.Codec where
 
-import           Data.Kind (Type)
-import           Data.Singletons.Decide
-import           Data.Typeable
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.PingPong.Codec (decodeTerminatedFrame)
-import           Network.TypedProtocol.Stateful.Codec
-import           Network.TypedProtocol.Stateful.ReqResp.Type
+import Data.Kind (Type)
+import Data.Singletons.Decide
+import Data.Typeable
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.PingPong.Codec (decodeTerminatedFrame)
+import Network.TypedProtocol.Stateful.Codec
+import Network.TypedProtocol.Stateful.ReqResp.Type
 
 data Some (f :: k -> Type) where
     Some :: Typeable a => f a -> Some f
