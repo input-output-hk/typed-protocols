@@ -25,7 +25,7 @@ An [Agda][typed-protocols-agda] implementation by Marcin Szamotulski (@coot).
 
 
 [protocol-pipelining]: https://www.wikiwand.com/en/Protocol_pipelining
-[haskell-eXchange]: https://skillsmatter.com/skillscasts/14633-45-minute-talk-by-duncan-coutts
+[haskell-eXchange]: https://www.youtube.com/watch?v=kkynmgwa7gE
 [monadic-party-part-1]: https://www.youtube.com/watch?v=j8gza2L61nM
 [monadic-party-part-2]: https://www.youtube.com/watch?v=oV6KSl1srL8
 [monadic-party-part-3]: https://www.youtube.com/watch?v=nOIQCRPwmPA
