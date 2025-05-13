@@ -67,7 +67,14 @@ import Network.TypedProtocol.Core as Core
 -- 'Network.TypedProtocol.Peer.Client' or 'Network.TypedProtocol.Peer.Server'
 -- pattern synonyms provide this evidence automatically.
 --
--- TODO:
+-- __NOTE__:
+-- one should not allocate resources within a `Peer` since there's no way to
+-- safely clean-up resources in case of an asynchronous exception.  The proper
+-- way to allocate resources is to call
+-- `Network.TypedProtocol.Stateful.Driver.runPeerWithDriver` within
+-- a `Control.Exception.bracket`.
+--
+-- __TODO__:
 -- We are not exposing pipelined version, since it is not possible to write
 -- a driver & proofs in a type safe which take into account the state when the
 -- peer type only tracks depth of pipelining rather than pipelined transitions.
