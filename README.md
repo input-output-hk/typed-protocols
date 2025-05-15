@@ -8,6 +8,8 @@ typed-protocols
 
 A robust session type framework which supports [protocol pipelining][protocol-pipelining].
 
+Haddocks are published [here][haddocks].
+
 
 Public content
 --------------
@@ -34,3 +36,4 @@ An [Agda][typed-protocols-agda] implementation by Marcin Szamotulski ([coot]).
 [typed-protocols-agda]: https://coot.me/agda/posts.agda.typed-protocols.html
 [coot]: https://github.com/coot
 [dcoutts]: https://github.com/dcoutts
+[haddocks]: https://input-output-hk.github.io/typed-protocols

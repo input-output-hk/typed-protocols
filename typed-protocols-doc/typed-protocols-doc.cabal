@@ -2,7 +2,8 @@ cabal-version:      3.0
 name:               typed-protocols-doc
 version:            0.2.0.0
 synopsis:           Derive documentation from typed-protocols source code
--- description:
+description:        Derive documentation for protocols implemented with
+                    [typed-protocols](https://hackage.haskell.org/package/typed-protocols).
 license:            Apache-2.0
 license-file:       LICENSE
 author:             Tobias Dammers
