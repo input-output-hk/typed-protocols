@@ -79,6 +79,13 @@ import           Network.TypedProtocol.Core as Core
 -- "Network.TypedProtocol.Peer.Client" supply this evidence for you, and hence
 -- are easier to use and let you avoid some kinds of type errors.
 --
+-- __NOTE__:
+-- one should not allocate resources within a `Peer` since there's no way to
+-- safely clean-up resources in case of an asynchronous exception.  The proper
+-- way to allocate resources is to call
+-- `Network.TypedProtocol.Driver.runPeerWithDriver` (or `runPeer`,
+-- `runPipelinedPeer`) within a `Control.Exception.bracket`.
+--
 type Peer :: forall ps
           -> PeerRole
           -> IsPipelined

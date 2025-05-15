@@ -1,4 +1,4 @@
-index-state:  2025-01-30T00:54:30Z
+index-state:  2025-05-05T00:00:00Z
 
 packages: ./typed-protocols
           ./typed-protocols-cborg
@@ -11,11 +11,8 @@ test-show-details: direct
 
 if impl(ghc >= 9.12)
   allow-newer:
-    -- https://github.com/well-typed/cborg/pull/339
-    , cborg:base
-    , cborg:ghc-prim
-    , serialise:base
-    , serialise:ghc-prim
+    , serdoc-core:template-haskell
+    , serdoc-core:th-abstraction
 
 if os(windows)
   package text
