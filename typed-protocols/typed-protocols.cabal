@@ -50,7 +50,7 @@ library
                      -Widentities
                      -Wredundant-constraints
 
-library cborg
+library typed-protocols-cborg
   visibility:        public
   exposed-modules:   Network.TypedProtocol.Codec.CBOR
 
@@ -74,7 +74,7 @@ library cborg
                      -Widentities
                      -Wredundant-constraints
 
-library stateful
+library typed-protocols-stateful
   visibility:         public
   exposed-modules:    Network.TypedProtocol.Stateful.Peer
                     , Network.TypedProtocol.Stateful.Peer.Client
@@ -108,7 +108,7 @@ library stateful
                       -Widentities
                       -Wredundant-constraints
 
-library stateful-cborg
+library typed-protocols-stateful-cborg
   visibility:        public
   exposed-modules:   Network.TypedProtocol.Stateful.Codec.CBOR
 
@@ -118,7 +118,7 @@ library stateful-cborg
                      singletons,       
 
                      io-classes:io-classes,
-                     typed-protocols:{typed-protocols,cborg,stateful}
+                     typed-protocols:{typed-protocols,typed-protocols-cborg,typed-protocols-stateful}
 
   hs-source-dirs:    stateful-cborg
   default-language:  Haskell2010
@@ -132,7 +132,7 @@ library stateful-cborg
                      -Widentities
                      -Wredundant-constraints
 
-library examples
+library typed-protocols-examples
   visibility:        public
   exposed-modules:   Network.TypedProtocol.Channel
                    , Network.TypedProtocol.Driver.Simple
@@ -178,7 +178,7 @@ library examples
                      io-classes:{io-classes,si-timers},
                      network,
                      time,
-                     typed-protocols:{typed-protocols,cborg,stateful}
+                     typed-protocols:{typed-protocols,typed-protocols-cborg,typed-protocols-stateful}
 
   hs-source-dirs:    examples
   default-language:  Haskell2010
@@ -191,7 +191,7 @@ library examples
                      -Widentities
                      -Wredundant-constraints
 
-test-suite test
+test-suite typed-protocols-test
   type:              exitcode-stdio-1.0
   main-is:           Main.hs
   hs-source-dirs:    test
@@ -200,7 +200,7 @@ test-suite test
   build-depends:     base
                    , bytestring
                    , contra-tracer
-                   , typed-protocols:{typed-protocols,cborg,examples}
+                   , typed-protocols:{typed-protocols,typed-protocols-cborg,typed-protocols-examples}
                    , io-classes:{io-classes,si-timers}
                    , io-sim
                    , QuickCheck
