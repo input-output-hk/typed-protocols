@@ -92,7 +92,6 @@ library stateful
                     , BangPatterns
   default-extensions: ImportQualifiedPost
   build-depends:      base,
-                      contra-tracer,
                       singletons >= 3.0,
                       io-classes:io-classes,
                       typed-protocols:typed-protocols
