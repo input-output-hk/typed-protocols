@@ -1,6 +1,6 @@
 cabal-version:       3.4
 name:                typed-protocols
-version:             0.4.0.0
+version:             1.0.0.0
 synopsis:            A framework for strongly typed protocols
 -- description:
 license:             Apache-2.0
@@ -34,7 +34,7 @@ library
                    , TypeFamilies
                    , TypeOperators
                    , BangPatterns
-  build-depends:     base,
+  build-depends:     base >=4.12 && <4.22,
                      io-classes:io-classes ^>= 1.7,
                      singletons >= 3.0
 
@@ -53,7 +53,7 @@ library cborg
   visibility:        public
   exposed-modules:   Network.TypedProtocol.Codec.CBOR
 
-  build-depends:     base            >=4.12  && <4.22,
+  build-depends:     base,
                      bytestring      >=0.10  && <0.13,
                      cborg           >=0.2.1 && <0.3,
                      singletons,       
@@ -92,7 +92,7 @@ library stateful
                     , BangPatterns
   default-extensions: ImportQualifiedPost
   build-depends:      base,
-                      singletons >= 3.0,
+                      singletons,
                       io-classes:io-classes,
                       typed-protocols:typed-protocols
 
@@ -111,9 +111,9 @@ library stateful-cborg
   visibility:        public
   exposed-modules:   Network.TypedProtocol.Stateful.Codec.CBOR
 
-  build-depends:     base            >=4.12  && <4.22,
-                     bytestring      >=0.10  && <0.13,
-                     cborg           >=0.2.1 && <0.3,
+  build-depends:     base,
+                     bytestring,
+                     cborg,
                      singletons,       
 
                      io-classes:io-classes,
