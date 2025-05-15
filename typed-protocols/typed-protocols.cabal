@@ -133,7 +133,7 @@ library stateful-cborg
                      -Wredundant-constraints
 
 library examples
-  visibility:        private
+  visibility:        public
   exposed-modules:   Network.TypedProtocol.Channel
                    , Network.TypedProtocol.Driver.Simple
 
