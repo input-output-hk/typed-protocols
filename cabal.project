@@ -1,10 +1,6 @@
 index-state:  2025-05-05T00:00:00Z
 
 packages: ./typed-protocols
-          ./typed-protocols-cborg
-          ./typed-protocols-stateful
-          ./typed-protocols-stateful-cborg
-          ./typed-protocols-examples
           ./typed-protocols-doc
 
 test-show-details: direct
@@ -17,3 +13,11 @@ if impl(ghc >= 9.12)
 if os(windows)
   package text
     flags: -simdutf
+
+source-repository-package
+  type: git
+  location: https://github.com/input-output-hk/io-sim
+  tag: a2cdd8a7fb9cf9ac65da1aa3199dde47d9dbaeb5
+  --sha256: sha256-2Ryhf7t7RhELyAOhBB/SEFetgVNn73U/TwMG8xZzOhE=
+  subdir: io-classes
+          io-sim

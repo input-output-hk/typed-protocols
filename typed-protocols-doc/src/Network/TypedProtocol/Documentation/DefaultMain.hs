@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 module Network.TypedProtocol.Documentation.DefaultMain
 where
 
