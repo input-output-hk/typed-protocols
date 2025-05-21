@@ -9,7 +9,7 @@ license-files:
   NOTICE
 copyright:           2019-2025 Input Output Global Inc (IOG)
 author:              Alexander Vieth, Duncan Coutts, Marcin Szamotulski
-maintainer:          alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io
+maintainer:          duncan@well-typed.com, marcin.szamotulski@iohk.io
 category:            Control
 build-type:          Simple
 tested-with:         GHC == {9.6, 9.8, 9.10, 9.12}
