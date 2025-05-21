@@ -1,13 +1,4 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE DeriveFunctor            #-}
-{-# LANGUAGE DerivingVia              #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeOperators            #-}
+{-# LANGUAGE DerivingVia #-}
 
 -- | Protocol EDSL.
 --
@@ -22,9 +13,9 @@ module Network.TypedProtocol.Peer
   , unsafeIntToNat
   ) where
 
-import           Data.Kind (Type)
+import Data.Kind (Type)
 
-import           Network.TypedProtocol.Core as Core
+import Network.TypedProtocol.Core as Core
 
 -- | A description of a peer that engages in a protocol.
 --

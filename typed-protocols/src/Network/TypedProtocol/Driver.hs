@@ -1,13 +1,4 @@
-{-# LANGUAGE BangPatterns        #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE EmptyCase           #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE NamedFieldPuns      #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | Actions for running 'Peer's with a 'Driver'
 --
@@ -23,15 +14,15 @@ module Network.TypedProtocol.Driver
   , runPipelinedPeerWithDriver
   ) where
 
-import           Data.Void (Void)
+import Data.Void (Void)
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Peer
 
-import           Control.Concurrent.Class.MonadSTM.TQueue
-import           Control.Monad.Class.MonadAsync
-import           Control.Monad.Class.MonadFork
-import           Control.Monad.Class.MonadSTM
+import Control.Concurrent.Class.MonadSTM.TQueue
+import Control.Monad.Class.MonadAsync
+import Control.Monad.Class.MonadFork
+import Control.Monad.Class.MonadSTM
 
 
 -- $intro

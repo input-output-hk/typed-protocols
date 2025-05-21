@@ -1,11 +1,5 @@
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE PatternSynonyms          #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeOperators            #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeOperators   #-}
 
 -- | Bidirectional patterns for @'Peer' ps 'AsServer'@.   The advantage of
 -- these patterns is that they automatically provide the 'ReflRelativeAgency'
@@ -35,11 +29,11 @@ module Network.TypedProtocol.Peer.Server
   , Nat (..)
   ) where
 
-import           Data.Kind (Type)
+import Data.Kind (Type)
 
-import           Network.TypedProtocol.Core
-import           Network.TypedProtocol.Peer (Peer)
-import qualified Network.TypedProtocol.Peer as TP
+import Network.TypedProtocol.Core
+import Network.TypedProtocol.Peer (Peer)
+import Network.TypedProtocol.Peer qualified as TP
 
 
 type Server :: forall ps

@@ -31,6 +31,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
+    - name: Install pandoc
+      run: sudo apt install pandoc
+
     - name: Checkout ouroboros-network repository
       uses: actions/checkout@v4
 
@@ -54,9 +57,12 @@ jobs:
     - name: Build plan
       run: cabal build --dry-run --enable-tests all
 
+    - name: Run pandoc
+      run: pandoc --from=gfm --to=haddock --output=README.haddock README.md
+
     - name: Build Haddock documentation 🔧
       run: |
-        cabal haddock-project --hackage all
+        cabal haddock-project --prologue=README.haddock --hackage all
 
     - name: Upload artifacts
       uses: actions/upload-pages-artifact@v3

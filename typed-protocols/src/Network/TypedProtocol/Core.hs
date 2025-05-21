@@ -1,20 +1,7 @@
-{-# LANGUAGE ConstraintKinds          #-}
-{-# LANGUAGE DataKinds                #-}
-{-# LANGUAGE DerivingVia              #-}
-{-# LANGUAGE EmptyCase                #-}
-{-# LANGUAGE FlexibleContexts         #-}
-{-# LANGUAGE FlexibleInstances        #-}
-{-# LANGUAGE GADTs                    #-}
-{-# LANGUAGE MultiParamTypeClasses    #-}
-{-# LANGUAGE PatternSynonyms          #-}
-{-# LANGUAGE PolyKinds                #-}
-{-# LANGUAGE RankNTypes               #-}
-{-# LANGUAGE ScopedTypeVariables      #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeFamilyDependencies   #-}
-{-# LANGUAGE TypeOperators            #-}
-{-# LANGUAGE ViewPatterns             #-}
+{-# LANGUAGE DerivingVia     #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeFamilies    #-}
+{-# LANGUAGE ViewPatterns    #-}
 
 {-# OPTIONS_HADDOCK show-extensions #-}
 
@@ -64,10 +51,10 @@ module Network.TypedProtocol.Core
   , unsafeIntToNat
   ) where
 
-import           Data.Kind (Constraint, Type)
-import           Unsafe.Coerce (unsafeCoerce)
+import Data.Kind (Constraint, Type)
+import Unsafe.Coerce (unsafeCoerce)
 
-import           Data.Singletons
+import Data.Singletons
 
 -- $intro
 -- A typed protocol between two peers is defined via a state machine: a
