@@ -1,4 +1,4 @@
-index-state:  2025-05-05T00:00:00Z
+index-state:  2025-05-21T15:48:46Z
 
 packages: ./typed-protocols
           ./typed-protocols-doc
@@ -13,11 +13,3 @@ if impl(ghc >= 9.12)
 if os(windows)
   package text
     flags: -simdutf
-
-source-repository-package
-  type: git
-  location: https://github.com/input-output-hk/io-sim
-  tag: aef112549bf85d51a03919008b6091af8933e9e2
-  --sha256: sha256-yfhBeAYwWktqBAkvXUVdrgBzNvTwAqMKglcjwflMtM4=
-  subdir: io-classes
-          io-sim
