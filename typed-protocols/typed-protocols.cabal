@@ -17,19 +17,24 @@ tested-with:         GHC == {9.6, 9.8, 9.10, 9.12}
 extra-doc-files:     CHANGELOG.md
                      README.md
 
-common warnings
-  ghc-options:      -Wall
-                    -Wno-unticked-promoted-constructors
-                    -Wcompat
-                    -Wincomplete-uni-patterns
-                    -Wincomplete-record-updates
-                    -Wpartial-fields
-                    -Widentities
-                    -Wredundant-constraints
-                    -Wunused-packages
+-- Minimal GHC setup, additional extensions are enabled per package (e.g.
+-- pervasive type level extensions in the code base like `GADTs` or
+-- `DataKinds`, etc), or per module (e.g. `CPP` or other more exotic ones).
+common GHC
+  default-language:   GHC2021
+  default-extensions: LambdaCase
+  ghc-options:       -Wall
+                     -Wno-unticked-promoted-constructors
+                     -Wcompat
+                     -Wincomplete-uni-patterns
+                     -Wincomplete-record-updates
+                     -Wpartial-fields
+                     -Widentities
+                     -Wredundant-constraints
+                     -Wunused-packages
 
 library
-  import:             warnings
+  import:             GHC
   exposed-modules:    Network.TypedProtocol
                     , Network.TypedProtocol.Core
                     , Network.TypedProtocol.Peer
@@ -43,13 +48,11 @@ library
                       io-classes:io-classes ^>= 1.8,
                       singletons ^>= 3.0
   hs-source-dirs:     src
-  default-language:   GHC2021
   default-extensions: DataKinds
                       GADTs
-                      LambdaCase
 
 library cborg
-  import:             warnings
+  import:             GHC
   visibility:         public
   exposed-modules:    Network.TypedProtocol.Codec.CBOR
   build-depends:      base,
@@ -59,11 +62,9 @@ library cborg
                       io-classes:io-classes,
                       typed-protocols:typed-protocols
   hs-source-dirs:     cborg
-  default-language:   GHC2021
-  default-extensions: LambdaCase
 
 library stateful
-  import:             warnings
+  import:             GHC
   visibility:         public
   exposed-modules:    Network.TypedProtocol.Stateful.Peer
                     , Network.TypedProtocol.Stateful.Peer.Client
@@ -76,13 +77,12 @@ library stateful
                       io-classes:io-classes,
                       typed-protocols:typed-protocols
   hs-source-dirs:     stateful
-  default-language:   GHC2021
   default-extensions: DataKinds
                       GADTs
                       ImportQualifiedPost
 
 library stateful-cborg
-  import:             warnings
+  import:             GHC
   visibility:         public
   exposed-modules:    Network.TypedProtocol.Stateful.Codec.CBOR
 
@@ -93,11 +93,10 @@ library stateful-cborg
                       io-classes:io-classes,
                       typed-protocols:{typed-protocols,cborg,stateful}
   hs-source-dirs:     stateful-cborg
-  default-language:   GHC2021
   default-extensions: ImportQualifiedPost
 
 library examples
-  import:             warnings
+  import:             GHC
   visibility:         public
   exposed-modules:    Network.TypedProtocol.Channel
                     , Network.TypedProtocol.Driver.Simple
@@ -137,19 +136,15 @@ library examples
   if !os(windows)
     build-depends:    network
   hs-source-dirs:     examples
-  default-language:   GHC2021
   default-extensions: DataKinds
                       GADTs
-                      LambdaCase
 
 test-suite test
-  import:             warnings
+  import:             GHC
   type:               exitcode-stdio-1.0
   main-is:            Main.hs
   hs-source-dirs:     test
-  default-language:   GHC2021
   default-extensions: GADTs
-                      LambdaCase
   other-modules:      Network.TypedProtocol.PingPong.Tests
                     , Network.TypedProtocol.ReqResp.Tests
   build-depends:      base
