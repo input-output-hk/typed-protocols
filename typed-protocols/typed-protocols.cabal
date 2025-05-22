@@ -3,6 +3,7 @@ name:                typed-protocols
 version:             1.0.0.0
 synopsis:            A framework for strongly typed protocols
 description:         A robust session type framework which supports protocol pipelining.
+                     Haddocks are published [here](https://input-output-hk.github.io/typed-protocols/)
 license:             Apache-2.0
 license-files:
   LICENSE
