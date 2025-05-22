@@ -25,6 +25,7 @@ common warnings
                     -Wpartial-fields
                     -Widentities
                     -Wredundant-constraints
+                    -Wunused-packages
 
 library
   import:             warnings
@@ -53,8 +54,6 @@ library cborg
   build-depends:      base,
                       bytestring      >=0.10  && <0.13,
                       cborg           >=0.2.1 && <0.3,
-                      singletons,       
-                      primitive,
 
                       io-classes:io-classes,
                       typed-protocols:typed-protocols
@@ -89,7 +88,6 @@ library stateful-cborg
   build-depends:      base,
                       bytestring,
                       cborg,
-                      singletons,       
 
                       io-classes:io-classes,
                       typed-protocols:{typed-protocols,cborg,stateful}
@@ -134,9 +132,9 @@ library examples
                       singletons,
                       contra-tracer,
                       io-classes:{io-classes, si-timers},
-                      network,
-                      time,
                       typed-protocols:{typed-protocols,cborg,stateful}
+  if !os(windows)
+    build-depends:    network
   hs-source-dirs:     examples
   default-language:   GHC2021
   default-extensions: DataKinds
