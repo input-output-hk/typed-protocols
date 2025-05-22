@@ -21,7 +21,6 @@ import Control.Monad.Class.MonadAsync
 import Control.Monad.Class.MonadST
 import Control.Monad.Class.MonadSTM
 import Control.Monad.Class.MonadThrow
-import Control.Monad.Class.MonadTimer.SI
 import Control.Monad.IOSim
 import Control.Monad.ST (runST)
 import Control.Tracer (nullTracer)
@@ -193,7 +192,7 @@ prop_channel_ST f xs =
 
 
 prop_channelPipelined :: ( MonadLabelledSTM m, MonadAsync m, MonadCatch m
-                         , MonadDelay m, MonadST m)
+                         , MonadST m)
                       => (Int -> Int -> (Int, Int)) -> [Int]
                       -> m Bool
 prop_channelPipelined f xs = do

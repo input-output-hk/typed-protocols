@@ -142,6 +142,7 @@ library examples
                       LambdaCase
 
 test-suite test
+  import:             warnings
   type:               exitcode-stdio-1.0
   main-is:            Main.hs
   hs-source-dirs:     test
@@ -153,19 +154,14 @@ test-suite test
   build-depends:      base
                     , bytestring
                     , contra-tracer
-                    , typed-protocols:{typed-protocols,cborg,examples}
-                    , io-classes:{io-classes,si-timers}
+                    , typed-protocols:{typed-protocols,examples}
+                    , io-classes:io-classes
                     , io-sim
                     , QuickCheck
                     , tasty
                     , tasty-quickcheck
-
   if !os(windows)
       build-depends: directory
                    , network
                    , unix
-
-  ghc-options:       -rtsopts
-                     -Wall
-                     -Wno-unticked-promoted-constructors
-                     -Wno-orphans
+  ghc-options:      -rtsopts
