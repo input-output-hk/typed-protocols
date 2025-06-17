@@ -322,8 +322,10 @@ data AnyMessage ps where
 -- requires @UndecidableInstances@ and @QuantifiedConstraints@.
 instance (forall (st :: ps) (st' :: ps). Show (Message ps st st'))
       => Show (AnyMessage ps) where
-  show (AnyMessage (msg :: Message ps st st')) =
-    "AnyMessage " ++ show msg
+  showsPrec d (AnyMessage (msg :: Message ps st st')) =
+      showParen (d > app_prec) (showString "AnyMessage " . showsPrec (app_prec + 1) msg)
+    where
+      app_prec = 10
 
 
 -- | A convenient pattern synonym which unwrap 'AnyMessage' giving both the
