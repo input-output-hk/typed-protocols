@@ -6,6 +6,7 @@ module Network.TypedProtocol.ReqResp.Tests (tests) where
 
 import Network.TypedProtocol.Channel
 import Network.TypedProtocol.Codec
+import Network.TypedProtocol.Codec.Properties
 import Network.TypedProtocol.Driver.Simple
 import Network.TypedProtocol.Proofs
 
@@ -314,14 +315,14 @@ instance (Eq req, Eq resp) => Eq (AnyMessage (ReqResp req resp)) where
   (AnyMessage MsgDone)      == (AnyMessage MsgDone)      = True
   _                         == _                         = False
 
-prop_codec_ReqResp :: AnyMessage (ReqResp String String) -> Bool
+prop_codec_ReqResp :: AnyMessage (ReqResp String String) -> Property
 prop_codec_ReqResp =
     prop_codec
       runIdentity
       codecReqResp
 
 prop_codec_splits2_ReqResp :: AnyMessage (ReqResp String String)
-                           -> Bool
+                           -> Property
 prop_codec_splits2_ReqResp =
     prop_codec_splits
       splits2
@@ -329,7 +330,7 @@ prop_codec_splits2_ReqResp =
       codecReqResp
 
 prop_codec_splits3_ReqResp :: AnyMessage (ReqResp String String)
-                           -> Bool
+                           -> Property
 prop_codec_splits3_ReqResp =
     prop_codec_splits
       splits3
@@ -338,13 +339,13 @@ prop_codec_splits3_ReqResp =
 
 prop_codec_cbor_ReqResp
   :: AnyMessage (ReqResp String String)
-  -> Bool
+  -> Property
 prop_codec_cbor_ReqResp msg =
   runST $ prop_codecM CBOR.codecReqResp msg
 
 prop_codec_cbor_splits2_ReqResp
   :: AnyMessage (ReqResp String String)
-  -> Bool
+  -> Property
 prop_codec_cbor_splits2_ReqResp msg =
   runST $ prop_codec_splitsM
       splits2BS
@@ -353,7 +354,7 @@ prop_codec_cbor_splits2_ReqResp msg =
 
 prop_codec_cbor_splits3_ReqResp
   :: AnyMessage (ReqResp String String)
-  -> Bool
+  -> Property
 prop_codec_cbor_splits3_ReqResp msg =
   runST $ prop_codec_splitsM
       splits3BS

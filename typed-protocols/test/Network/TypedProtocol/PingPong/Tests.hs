@@ -13,6 +13,7 @@ module Network.TypedProtocol.PingPong.Tests
 
 import Network.TypedProtocol.Channel
 import Network.TypedProtocol.Codec
+import Network.TypedProtocol.Codec.Properties
 import Network.TypedProtocol.Driver.Simple
 import Network.TypedProtocol.Proofs
 
@@ -390,20 +391,20 @@ instance Eq (AnyMessage PingPong) where
   AnyMessage MsgDone == AnyMessage MsgDone = True
   _                  ==                  _ = False
 
-prop_codec_PingPong :: AnyMessage PingPong -> Bool
+prop_codec_PingPong :: AnyMessage PingPong -> Property
 prop_codec_PingPong =
     prop_codec
       runIdentity
       codecPingPong
 
-prop_codec_splits2_PingPong :: AnyMessage PingPong -> Bool
+prop_codec_splits2_PingPong :: AnyMessage PingPong -> Property
 prop_codec_splits2_PingPong =
     prop_codec_splits
       splits2
       runIdentity
       codecPingPong
 
-prop_codec_splits3_PingPong :: AnyMessage PingPong -> Bool
+prop_codec_splits3_PingPong :: AnyMessage PingPong -> Property
 prop_codec_splits3_PingPong =
     prop_codec_splits
       splits3
@@ -416,13 +417,13 @@ prop_codec_splits3_PingPong =
 
 prop_codec_cbor_PingPong
   :: AnyMessage PingPong
-  -> Bool
+  -> Property
 prop_codec_cbor_PingPong msg =
   runST $ prop_codecM CBOR.codecPingPong msg
 
 prop_codec_cbor_splits2_PingPong
   :: AnyMessage PingPong
-  -> Bool
+  -> Property
 prop_codec_cbor_splits2_PingPong msg =
   runST $ prop_codec_splitsM
       splits2BS
@@ -431,7 +432,7 @@ prop_codec_cbor_splits2_PingPong msg =
 
 prop_codec_cbor_splits3_PingPong
   :: AnyMessage PingPong
-  -> Bool
+  -> Property
 prop_codec_cbor_splits3_PingPong msg =
   runST $ prop_codec_splitsM
       splits3BS

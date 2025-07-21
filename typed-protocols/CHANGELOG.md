@@ -7,6 +7,8 @@
 * Annotated codecs which allow to retain original bytes received from the network.
   The `Codec` type evolved into a new `CodecF` data type, and two type aliases
   `AnnotatedCodec`, `Codec`.
+* `prop_codec` properties moved to `typed-protocols:codec-properties` library
+  (`Network.TypedProtocol.Codec.Properties` module).
 
 ### Non-breaking changes
 

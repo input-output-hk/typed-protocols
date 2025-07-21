@@ -51,6 +51,18 @@ library
   default-extensions: DataKinds
                       GADTs
 
+library codec-properties
+  import:             GHC
+  visibility:         public
+  exposed-modules:    Network.TypedProtocol.Codec.Properties
+                      Network.TypedProtocol.Stateful.Codec.Properties
+  build-depends:      base >=4.12 && <4.22,
+                      typed-protocols:{stateful, typed-protocols},
+                      QuickCheck >= 2.16
+  hs-source-dirs:     properties
+  default-extensions: GADTs
+                      ImportQualifiedPost
+
 library cborg
   import:             GHC
   visibility:         public
@@ -150,7 +162,7 @@ test-suite test
   build-depends:      base
                     , bytestring
                     , contra-tracer
-                    , typed-protocols:{typed-protocols,examples}
+                    , typed-protocols:{typed-protocols,codec-properties,examples}
                     , io-classes:io-classes
                     , io-sim
                     , QuickCheck
