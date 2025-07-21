@@ -73,6 +73,9 @@ tests = testGroup "Network.TypedProtocol.ReqResp"
       , testProperty "codec 3-splits"  $ withMaxSuccess 30 prop_codec_cbor_splits3_ReqResp
       ]
     ]
+  , testGroup "AnnotatedCodec"
+    [ testProperty "codec"             prop_anncodec_ReqResp
+    ]
   ]
 
 
@@ -360,3 +363,16 @@ prop_codec_cbor_splits3_ReqResp msg =
       splits3BS
       CBOR.codecReqResp
       msg
+
+
+instance (Show a, Arbitrary a) => Arbitrary (WithBytes a) where
+  arbitrary = mkWithBytes <$> arbitrary
+  shrink WithBytes { message } = mkWithBytes <$> shrink message
+
+prop_anncodec_ReqResp
+  :: AnyMessage (ReqResp (WithBytes Int) (WithBytes Int))
+  -> Property
+prop_anncodec_ReqResp =
+  prop_anncodec
+    runIdentity
+    anncodecReqResp

@@ -8,7 +8,8 @@
   The `Codec` type evolved into a new `CodecF` data type, and two type aliases
   `AnnotatedCodec`, `Codec`.
 * `prop_codec` properties moved to `typed-protocols:codec-properties` library
-  (`Network.TypedProtocol.Codec.Properties` module).
+  (`Network.TypedProtocol.Codec.Properties` module).  They now return the
+  `QuickCheck`'s `Property` rather than a `Bool`.
 
 ### Non-breaking changes
 

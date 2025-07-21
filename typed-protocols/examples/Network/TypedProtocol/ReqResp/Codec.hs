@@ -1,3 +1,5 @@
+{-# LANGUAGE BlockArguments #-}
+
 module Network.TypedProtocol.ReqResp.Codec where
 
 import Network.TypedProtocol.Codec
@@ -41,6 +43,68 @@ codecReqResp =
 
           (_       , _     ) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)
+
+
+data WithBytes a = WithBytes {
+    bytes   :: String,
+    message :: a
+  }
+  deriving (Show, Eq)
+
+mkWithBytes :: Show a => a -> WithBytes a
+mkWithBytes message = WithBytes { bytes = show message, message }
+
+
+anncodecReqResp ::
+    forall req resp m
+  .  (Monad m, Show req, Show resp, Read req, Read resp)
+  => AnnotatedCodec (ReqResp (WithBytes req) (WithBytes resp)) CodecFailure m String
+anncodecReqResp =
+      Codec{encode, decode}
+  where
+    encode :: forall req' resp'
+                     (st  :: ReqResp (WithBytes req') (WithBytes resp'))
+                     (st' :: ReqResp (WithBytes req') (WithBytes resp'))
+           .  ( Show req'
+              , Show resp'
+              )
+           => Message (ReqResp (WithBytes req') (WithBytes resp')) st st'
+           -> String
+    -- NOTE: we're not using 'Show (Message ...)' instance.  If `req ~ Int`,
+    -- then negative numbers will be surrounded with braces (e.g. @"(-1)"@) and
+    -- the `Read` type class doesn't have a way to see that brackets were consumed
+    -- from the input string.
+    encode (MsgReq WithBytes { message })
+      = "MsgReq " ++ show message ++ "\n"
+    encode (MsgResp WithBytes { message })
+      = "MsgResp " ++ show message ++ "\n"
+    encode MsgDone
+      = "MsgDone" ++ "\n"
+
+    decode :: forall req' resp' m'
+                     (st :: ReqResp (WithBytes req') (WithBytes resp'))
+           .  (Monad m', Read req', Read resp', ActiveState st)
+           => StateToken st
+           -> m' (DecodeStep String CodecFailure m' (Annotator String st))
+    decode stok =
+      decodeTerminatedFrame '\n' $ \str trailing ->
+        case (stok, break (==' ') str) of
+          (SingIdle, ("MsgReq", str'))
+             | Just req <- readMaybe @req' str'
+            -> DecodeDone (Annotator \str'' ->
+                           let used = init $ drop 7 str'' in
+                           SomeMessage (MsgReq (WithBytes used req))) trailing
+          (SingIdle, ("MsgDone", ""))
+            -> DecodeDone (Annotator \_str'' -> SomeMessage MsgDone) trailing
+          (SingBusy, ("MsgResp", str'))
+            | Just resp <- readMaybe @resp' str'
+            -> DecodeDone (Annotator \str'' ->
+                           let used = init $ drop 8 str'' in
+                           SomeMessage (MsgResp (WithBytes used resp))) trailing
+
+          (_       , _     ) -> DecodeFail failure
+            where failure = CodecFailure ("unexpected server message: " ++ str)
+
 
 
 codecReqRespId ::

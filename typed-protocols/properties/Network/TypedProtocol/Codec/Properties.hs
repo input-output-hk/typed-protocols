@@ -136,6 +136,14 @@ prop_codec = prop_codecF const
 
 -- | The 'Codec' round-trip property in a pure monad.
 --
+-- NOTE: when a message is annotated with bytes (e.g. `WithBytes` in
+-- `Network.TypedProtocol.ReqResp.Codec.anncodecReqResp`), this property will
+-- assess that the decoded bytes are equal to the supplied bytes with
+-- `msg :: AnyMessage ps`.  It is important to use the bytes in `WithBytes` when
+-- encoding the `msg`.  Verifying this property is especially important if the
+-- bytes are used to check a cryptographic signature, when the exact same bytes
+-- received from the network must be used.
+--
 prop_anncodec
   :: forall ps failure m bytes.
     ( Monad m
