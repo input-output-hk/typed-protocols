@@ -1,6 +1,6 @@
 # Revision history for typed-protocols
 
-## next release
+## 1.1.0.0 -- 05.08.2025
 
 ### Breaking changes
 
