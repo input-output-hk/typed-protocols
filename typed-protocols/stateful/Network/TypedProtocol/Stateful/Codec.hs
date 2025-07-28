@@ -55,6 +55,8 @@ import Network.TypedProtocol.Core
 
 -- | A stateful codec.
 --
+-- TODO: provide CodecF as in typed-protocols:typed-protocols library.
+--
 data Codec ps failure (f :: ps -> Type) m bytes = Codec {
        encode :: forall (st :: ps) (st' :: ps).
                  StateTokenI st

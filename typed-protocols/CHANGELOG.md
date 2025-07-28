@@ -1,5 +1,19 @@
 # Revision history for typed-protocols
 
+## next release
+
+### Breaking changes
+
+* Annotated codecs which allow to retain original bytes received from the network.
+  The `Codec` type evolved into a new `CodecF` data type, and two type aliases
+  `AnnotatedCodec`, `Codec`.
+
+### Non-breaking changes
+
+## 1.0.0.0
+
+* Hackage release.
+
 ## 0.3.0.0
 
 * `AnyMessageWithAgency` pattern synonym is exported as a constructor of `AnyMessage`.
