@@ -54,7 +54,7 @@ library
                  , th-abstraction >=0.6.0.0 && <0.8
                  , time >=1.12 && <1.14
                  , serdoc-core
-                 , typed-protocols ^>= 1.0
+                 , typed-protocols ^>= 1.0 || ^>= 1.1
     hs-source-dirs:   src
     default-language:   GHC2021
     default-extensions: DataKinds
@@ -89,7 +89,7 @@ test-suite typed-protocols-doc-test
     build-depends: base >=4.14.0.0 && <5
                  , blaze-html >=0.9.1.2 && <0.10
                  , tasty >=1.5 && <1.6
-                 , tasty-quickcheck >=0.10.3 && <0.11
+                 , tasty-quickcheck >=0.10.3 && <0.12
                  , typed-protocols
                  , typed-protocols-doc
                  , serdoc-core

@@ -1,5 +1,22 @@
 # Revision history for typed-protocols
 
+## 1.1.0.0 -- 05.08.2025
+
+### Breaking changes
+
+* Annotated codecs which allow to retain original bytes received from the network.
+  The `Codec` type evolved into a new `CodecF` data type, and two type aliases
+  `AnnotatedCodec`, `Codec`.
+* `prop_codec` properties moved to `typed-protocols:codec-properties` library
+  (`Network.TypedProtocol.Codec.Properties` module).  They now return the
+  `QuickCheck`'s `Property` rather than a `Bool`.
+
+### Non-breaking changes
+
+## 1.0.0.0
+
+* Hackage release.
+
 ## 0.3.0.0
 
 * `AnyMessageWithAgency` pattern synonym is exported as a constructor of `AnyMessage`.

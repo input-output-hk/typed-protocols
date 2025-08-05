@@ -1,4 +1,4 @@
-index-state:  2025-05-21T15:48:46Z
+index-state: 2025-07-08T15:23:02Z
 
 packages: ./typed-protocols
           ./typed-protocols-doc
@@ -9,6 +9,10 @@ if impl(ghc >= 9.12)
   allow-newer:
     , serdoc-core:template-haskell
     , serdoc-core:th-abstraction
+
+allow-newer:
+  , serdoc-core:QuickCheck
+  , serdoc-core:tasty-quickcheck
 
 if os(windows)
   package text
