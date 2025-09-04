@@ -5,7 +5,7 @@ synopsis:           Derive documentation from typed-protocols source code
 description:        Derive documentation for protocols implemented with
                     [typed-protocols](https://hackage.haskell.org/package/typed-protocols).
 license:            Apache-2.0
-license-file:       LICENSE
+license-files:      LICENSE NOTICE
 author:             Tobias Dammers
 maintainer:         tobias@well-typed.com
 copyright:          2023-2025 Input Output Global Inc (IOG)
