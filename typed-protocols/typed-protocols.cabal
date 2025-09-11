@@ -58,7 +58,7 @@ library codec-properties
                       Network.TypedProtocol.Stateful.Codec.Properties
   build-depends:      base >=4.12 && <4.22,
                       typed-protocols:{stateful, typed-protocols},
-                      QuickCheck >= 2.16
+                      QuickCheck
   hs-source-dirs:     properties
   default-extensions: GADTs
                       ImportQualifiedPost
