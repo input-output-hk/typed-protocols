@@ -55,6 +55,7 @@ library codec-properties
   exposed-modules:    Network.TypedProtocol.Codec.Properties
                       Network.TypedProtocol.Stateful.Codec.Properties
   build-depends:      base >=4.12 && <4.22,
+                      io-classes,
                       typed-protocols:{stateful, typed-protocols},
                       QuickCheck >= 2.16
   hs-source-dirs:     properties

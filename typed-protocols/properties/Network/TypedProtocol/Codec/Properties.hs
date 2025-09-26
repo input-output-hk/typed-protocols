@@ -33,6 +33,10 @@ module Network.TypedProtocol.Codec.Properties
   , SomeState (..)
   ) where
 
+import Control.Monad.Class.MonadST
+import Data.Maybe
+import Data.STRef
+
 import Network.TypedProtocol.Codec
 import Network.TypedProtocol.Core
 
@@ -161,28 +165,40 @@ prop_anncodec = prop_codecF runAnnotator
 -- | A more general version of 'prop_codec_splitsM' for 'CodecF'.
 --
 prop_codecF_splitsM
-  :: forall ps failure m f bytes.
-     ( Monad m
-     , Eq (AnyMessage ps)
+  :: forall ps failure m annotator f bytes channel.
+     ( Eq (AnyMessage ps)
      , Show (AnyMessage ps)
      , Show failure
-     , Monoid bytes
+     , MonadST m
      )
-  => (forall (st :: ps). f st -> bytes -> SomeMessage st)
+  => (forall (st :: ps). annotator st -> f (SomeMessage st))
+  -> (m (Maybe bytes) -> channel)
+  -> (forall (st :: ps).
+         channel
+      -> Maybe bytes
+      -> DecodeStep bytes failure m (f (SomeMessage st))
+      -> m (Either failure (SomeMessage st)))
   -> (bytes -> [[bytes]])
   -- ^ alternative re-chunkings of serialised form
-  -> CodecF ps failure m f bytes
+  -> CodecF ps failure m annotator bytes
   -> AnyMessage ps
   -> m Property
-prop_codecF_splitsM runF splits
+prop_codecF_splitsM conv mkChannel runDecoder' splits
                     Codec {encode, decode} (AnyMessage (msg :: Message ps st st')) = do
     property . foldMap Every <$> sequence
-      [ do r <- decode stateToken >>= runDecoder bytes'
-           case r :: Either failure (f st) of
-             Right f -> case runF f (mconcat bytes') of
-               SomeMessage msg' ->
-                 return $! AnyMessage msg' === AnyMessage msg
-             Left err -> return $ counterexample (show err) False
+      [ do
+          stateRef <- stToIO . newSTRef $ tail bytes'
+          let channelAction = stToIO $ do
+                chunksRemaining <- readSTRef stateRef
+                modifySTRef' stateRef (drop 1)
+                return $! listToMaybe chunksRemaining
+              channel = mkChannel channelAction
+          decoder <- decode @st stateToken
+          r <- runDecoder' channel (listToMaybe bytes') (conv <$> decoder)
+          case r of
+            Right (SomeMessage msg') ->
+                return $! AnyMessage msg' === AnyMessage msg
+            Left err -> return $ counterexample (show err) False
 
       | let bytes = encode msg
       , bytes' <- splits bytes ]
@@ -200,31 +216,42 @@ prop_codecF_splitsM runF splits
 -- to be checked.
 --
 prop_codec_splitsM
-  :: forall ps failure m bytes.
-     ( Monad m
-     , Eq (AnyMessage ps)
+  :: forall ps failure m f bytes channel.
+     ( Eq (AnyMessage ps)
      , Show (AnyMessage ps)
      , Show failure
-     , Monoid bytes
+     , Applicative f
+     , MonadST m
      )
-  => (bytes -> [[bytes]])
+  => (m (Maybe bytes) -> channel)
+  -> (forall (st :: ps).
+         channel
+      -> Maybe bytes
+      -> DecodeStep bytes failure m (f (SomeMessage st))
+      -> m (Either failure (SomeMessage st)))
+  -> (bytes -> [[bytes]])
   -- ^ alternative re-chunkings of serialised form
   -> Codec ps failure m bytes
   -> AnyMessage ps
   -> m Property
-prop_codec_splitsM = prop_codecF_splitsM const
+prop_codec_splitsM = prop_codecF_splitsM pure
 
 -- | A variant of 'prop_codec_splitsM' for 'AnnotatedCodec'.
 --
 prop_anncodec_splitsM
-  :: forall ps failure m bytes.
-     ( Monad m
-     , Eq (AnyMessage ps)
+  :: forall ps failure m bytes channel.
+     ( Eq (AnyMessage ps)
      , Show (AnyMessage ps)
      , Show failure
-     , Monoid bytes
+     , MonadST m
      )
-  => (bytes -> [[bytes]])
+  => (m (Maybe bytes) -> channel)
+  -> (forall (st :: ps).
+         channel
+      -> Maybe bytes
+      -> DecodeStep bytes failure m (bytes -> SomeMessage st)
+      -> m (Either failure (SomeMessage st)))
+  -> (bytes -> [[bytes]])
   -- ^ alternative re-chunkings of serialised form
   -> AnnotatedCodec ps failure m bytes
   -> AnyMessage ps
@@ -235,51 +262,67 @@ prop_anncodec_splitsM = prop_codecF_splitsM runAnnotator
 -- | A more general version of 'prop_codec_splits' for 'CodecF'.
 --
 prop_codecF_splits
-  :: forall ps failure m f bytes.
-     ( Monad m
-     , Eq (AnyMessage ps)
+  :: forall ps failure m annotator f bytes channel.
+     ( Eq (AnyMessage ps)
      , Show (AnyMessage ps)
      , Show failure
-     , Monoid bytes
+     , MonadST m
      )
-  => (forall (st :: ps). f st -> bytes -> SomeMessage st)
+  => (forall (st :: ps). annotator st -> f (SomeMessage st))
+  -> (m (Maybe bytes) -> channel)
+  -> (forall (st :: ps).
+         channel
+      -> Maybe bytes
+      -> DecodeStep bytes failure m (f (SomeMessage st))
+      -> m (Either failure (SomeMessage st)))
   -> (bytes -> [[bytes]])
   -- ^ alternative re-chunkings of serialised form
   -> (forall a. m a -> a)
-  -> CodecF ps failure m f bytes
+  -> CodecF ps failure m annotator bytes
   -> AnyMessage ps
   -> Property
-prop_codecF_splits runF splits runM codec msg =
-    runM $ prop_codecF_splitsM runF splits codec msg
+prop_codecF_splits runF mkChannel runDecoder' splits runM codec msg =
+    runM $ prop_codecF_splitsM runF mkChannel runDecoder' splits codec msg
 
 -- | Like @'prop_codec_splitsM'@ but run in a pure monad @m@, e.g. @Identity@.
 --
 prop_codec_splits
-  :: forall ps failure m bytes.
-     ( Monad m
-     , Eq (AnyMessage ps)
+  :: forall ps failure m f bytes channel.
+     ( Eq (AnyMessage ps)
      , Show (AnyMessage ps)
      , Show failure
-     , Monoid bytes
+     , Applicative f
+     , MonadST m
      )
-  => (bytes -> [[bytes]])
+  => (m (Maybe bytes) -> channel)
+  -> (forall (st :: ps).
+         channel
+      -> Maybe bytes
+      -> DecodeStep bytes failure m (f (SomeMessage st))
+      -> m (Either failure (SomeMessage st)))
+  -> (bytes -> [[bytes]])
   -- ^ alternative re-chunkings of serialised form
   -> (forall a. m a -> a)
   -> Codec ps failure m bytes
   -> AnyMessage ps
   -> Property
-prop_codec_splits = prop_codecF_splits const
+prop_codec_splits = prop_codecF_splits pure
 
 -- | Like 'prop_codec_splits' but for 'AnnotatorCodec'.
 prop_anncodec_splits
-  :: forall ps failure m bytes.
-     ( Monad m
-     , Eq (AnyMessage ps)
+  :: forall ps failure m bytes channel.
+     ( Eq (AnyMessage ps)
      , Show (AnyMessage ps)
      , Show failure
-     , Monoid bytes
+     , MonadST m
      )
-  => (bytes -> [[bytes]])
+  => (m (Maybe bytes) -> channel)
+  -> (forall (st :: ps).
+         channel
+      -> Maybe bytes
+      -> DecodeStep bytes failure m (bytes -> SomeMessage st)
+      -> m (Either failure (SomeMessage st)))
+  -> (bytes -> [[bytes]])
   -- ^ alternative re-chunkings of serialised form
   -> (forall a. m a -> a)
   -> AnnotatedCodec ps failure m bytes
