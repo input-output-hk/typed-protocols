@@ -1,5 +1,14 @@
 # Revision history for typed-protocols
 
+## next version
+
+### Breaking changes
+
+### Non-breaking changes
+
+* generalized prop_codecF_splitsM to run the decoder function provided by a client
+  library (instead of `runDecoder` here) to test it as well.
+
 ## 1.1.0.0 -- 05.08.2025
 
 ### Breaking changes
@@ -55,4 +64,4 @@
 * Support `ghc-9.6.1`.
 * Use `io-classes-1.1.0.0`.
 
-[singletons-3.0.1]: https://hackage.haskell.org/package/singletons 
+[singletons-3.0.1]: https://hackage.haskell.org/package/singletons
