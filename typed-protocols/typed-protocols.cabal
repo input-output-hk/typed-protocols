@@ -1,6 +1,6 @@
 cabal-version:       3.4
 name:                typed-protocols
-version:             1.1.0.0
+version:             1.1.0.1
 synopsis:            A framework for strongly typed protocols
 description:         A robust session type framework which supports protocol pipelining.
                      Haddocks are published [here](https://input-output-hk.github.io/typed-protocols/)
@@ -54,9 +54,10 @@ library codec-properties
   visibility:         public
   exposed-modules:    Network.TypedProtocol.Codec.Properties
                       Network.TypedProtocol.Stateful.Codec.Properties
+  other-modules:      Test.QuickCheck.Monoids.Compat
   build-depends:      base >=4.12 && <4.22,
                       typed-protocols:{stateful, typed-protocols},
-                      QuickCheck >= 2.16
+                      QuickCheck
   hs-source-dirs:     properties
   default-extensions: GADTs
                       ImportQualifiedPost

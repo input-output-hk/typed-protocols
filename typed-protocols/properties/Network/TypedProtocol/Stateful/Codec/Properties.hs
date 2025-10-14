@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
 module Network.TypedProtocol.Stateful.Codec.Properties
@@ -13,6 +14,9 @@ import Network.TypedProtocol.Core
 import Network.TypedProtocol.Stateful.Codec
 
 import Test.QuickCheck
+#if !MIN_VERSION_QuickCheck(2,16,0)
+import Test.QuickCheck.Monoids.Compat
+#endif
 
 
 -- | The 'Codec' round-trip property: decode after encode gives the same
