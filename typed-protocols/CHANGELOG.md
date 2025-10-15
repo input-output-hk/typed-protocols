@@ -1,6 +1,10 @@
 # Revision history for typed-protocols
 
-## 1.1.0.0 -- 05.08.2025
+## 1.1.0.1 -- 2025-10-14
+
+* Support QuickCheck <= 2.15
+
+## 1.1.0.0 -- 2025-08-03
 
 ### Breaking changes
 

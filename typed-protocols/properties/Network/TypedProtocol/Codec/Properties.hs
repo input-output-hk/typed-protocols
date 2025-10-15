@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
 module Network.TypedProtocol.Codec.Properties
@@ -37,6 +38,9 @@ import Network.TypedProtocol.Codec
 import Network.TypedProtocol.Core
 
 import Test.QuickCheck
+#if !MIN_VERSION_QuickCheck(2,16,0)
+import Test.QuickCheck.Monoids.Compat
+#endif
 
 
 -- | The 'CodecF' round-trip property: decode after encode gives the same
