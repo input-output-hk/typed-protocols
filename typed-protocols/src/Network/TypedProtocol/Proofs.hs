@@ -123,16 +123,16 @@ data TerminalStates ps where
 -- 'connectPipelined' but also as so-called @direct@ functions for running a
 -- client and server wrapper directly against each other.
 --
-data Queue (n :: N) a where
-  EmptyQ ::                   Queue  Z    a
-  ConsQ  :: a -> Queue n a -> Queue (S n) a
+data Queue (n :: N) c where
+  EmptyQ ::                   Queue  Z    c
+  ConsQ  :: c -> Queue n c -> Queue (S n) c
 
 -- | At an element to the end of a 'Queue'. This is not intended to be
 -- efficient. It is only for proofs and tests.
 --
-enqueue :: a -> Queue n a -> Queue (S n) a
-enqueue a  EmptyQ     = ConsQ a EmptyQ
-enqueue a (ConsQ b q) = ConsQ b (enqueue a q)
+enqueue :: c -> Queue n c -> Queue (S n) c
+enqueue c  EmptyQ     = ConsQ c EmptyQ
+enqueue c (ConsQ b q) = ConsQ b (enqueue c q)
 
 
 -- | Proof that we have a total conversion from pipelined peers to regular
