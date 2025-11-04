@@ -49,6 +49,23 @@ library
   default-extensions: DataKinds
                       GADTs
 
+library reqresp
+  import:             GHC
+  exposed-modules:    Data.Type.NatMap
+                      Network.TypedProtocol.ReqResp
+                      Network.TypedProtocol.ReqResp.Proofs
+  other-modules:      Data.Type.NatMap.Types
+                      Data.Type.NatMap.Impl
+                      Network.TypedProtocol.ReqResp.Core
+                      Network.TypedProtocol.ReqResp.Peer
+                      Network.TypedProtocol.ReqResp.PeerRole
+  build-depends:      base >=4.12 && <4.22,
+                      singletons,
+                      typed-protocols:typed-protocols,
+  hs-source-dirs:     reqresp
+  default-extensions: DataKinds
+                      GADTs
+
 library codec-properties
   import:             GHC
   visibility:         public
@@ -90,7 +107,6 @@ library stateful
   hs-source-dirs:     stateful
   default-extensions: DataKinds
                       GADTs
-                      ImportQualifiedPost
 
 library stateful-cborg
   import:             GHC
@@ -129,6 +145,10 @@ library examples
                     , Network.TypedProtocol.ReqResp2.Type
                     , Network.TypedProtocol.ReqResp2.Client
 
+                    , Network.TypedProtocol.ReqResp3.Type
+                    , Network.TypedProtocol.ReqResp3.Client
+                    , Network.TypedProtocol.ReqResp3.Server
+
                     , Network.TypedProtocol.Stateful.ReqResp.Type
                     , Network.TypedProtocol.Stateful.ReqResp.Client
                     , Network.TypedProtocol.Stateful.ReqResp.Server
@@ -142,8 +162,8 @@ library examples
                       serialise,
                       singletons,
                       contra-tracer,
-                      io-classes:{io-classes, si-timers},
-                      typed-protocols:{typed-protocols,cborg,stateful}
+                      io-classes:{io-classes, si-timers, strict-stm},
+                      typed-protocols:{typed-protocols,cborg,reqresp,stateful}
   if !os(windows)
     build-depends:    network
   hs-source-dirs:     examples
