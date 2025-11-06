@@ -1,5 +1,6 @@
 {-# LANGUAGE DerivingVia     #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE TypeData        #-}
 {-# LANGUAGE TypeFamilies    #-}
 {-# LANGUAGE ViewPatterns    #-}
 
@@ -486,7 +487,7 @@ type family FlipAgency pr where
 
 
 -- | A type level inductive natural number.
-data N = Z | S N
+type data N = Z | S N
 
 -- | Promoted data type which indicates if 'Peer' is used in
 -- pipelined mode or not.
