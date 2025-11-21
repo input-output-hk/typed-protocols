@@ -62,6 +62,7 @@ library reqresp
   build-depends:      base >=4.12 && <4.22,
                       singletons,
                       typed-protocols:typed-protocols,
+                      io-classes,
   hs-source-dirs:     reqresp
   default-extensions: DataKinds
                       GADTs
@@ -178,10 +179,11 @@ test-suite test
   default-extensions: GADTs
   other-modules:      Network.TypedProtocol.PingPong.Tests
                     , Network.TypedProtocol.ReqResp.Tests
+                    , Network.TypedProtocol.ReqResp3.Tests
   build-depends:      base
                     , bytestring
                     , contra-tracer
-                    , typed-protocols:{typed-protocols,codec-properties,examples}
+                    , typed-protocols:{typed-protocols,codec-properties,examples,reqresp}
                     , io-classes:io-classes
                     , io-sim
                     , QuickCheck

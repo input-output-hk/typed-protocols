@@ -27,6 +27,7 @@ module Network.TypedProtocol.ReqResp.Proofs
   ) where
 
 import Prelude hiding (length)
+import Control.Monad.Class.MonadSay
 import Data.Type.NatMap
 
 import Network.TypedProtocol.ReqResp.Core
@@ -289,7 +290,7 @@ data ClientServerState ps cs q m where
 -- mechanism, e.g. some form of `Collect` combinator from `typed-protocols`.
 --
 connect :: forall ps m a b.
-           Monad m
+           MonadSay m
         => Compare ps
         => Peer ps (AsClient Running) m a
         -> Peer ps (AsServer Empty) m b
@@ -379,10 +380,6 @@ connect = stage1 (ClientActive SingEmptyCbs)
       -> Peer ps (AsServer q) m b
       -> m (a, b)
 
-    -- handle effects
-    stage2 q (Effect k) server    = k >>= flip (stage2 q) server
-    stage2 q client    (Effect k) = k >>=       stage2 q  client
-
     -- server sends a response to one of outstanding requests
     -- NOTE: client is not advancing here, this explains the last comment in
     -- the haddocks for `connect`.
@@ -394,6 +391,18 @@ connect = stage1 (ClientActive SingEmptyCbs)
         ((q', CbActive handler, _), Refl) -> do
           handler msg
           stage2 q' client k
+
+    -- handle effects
+    --
+    -- NOTE: it is important to run client effects after `SendResponse`s.  So
+    -- that all the client's callbacks are executed before the simulation
+    -- terminates.   If we had `Collect` primitive, and we enforced collecting
+    -- all results before termination the proof would be more robust.
+    --
+    stage2 q (Effect k) server    = do
+      say "stage2:Effect:_"
+      k >>= flip (stage2 q) server
+    stage2 q client    (Effect k) = k >>=       stage2 q  client
 
     -- client and server are done
     stage2 _ (ClientDone a) (ServerDone b) =

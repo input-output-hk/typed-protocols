@@ -269,12 +269,12 @@ incrementLemma neq st st' (SingCons Refl (st'' :: SingState st'') _ q'''@(SingCo
 -- increased.
 --
 incrementLemma2
-  :: forall ps (st :: State ps) (natMap :: NatMap (State ps)).
+  :: forall ps (st :: State ps) (q :: NatMap (State ps)).
      Compare ps
   => Typeable st
   => SingState st
-  -> SingNatMap natMap
-  -> Lookup st (Increment st natMap) :~: S (Lookup st natMap)
+  -> SingNatMap q
+  -> Lookup st (Increment st q) :~: S (Lookup st q)
 incrementLemma2 st SingEmpty =
   case ( st `compareStates` st
        , reflexivityS st
