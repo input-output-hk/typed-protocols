@@ -33,17 +33,6 @@ import Data.Type.NatMap
 import Network.TypedProtocol.ReqResp.Core
 import Network.TypedProtocol.ReqResp.Peer
 
-
--- | A vector of `n :: N` values.
-type Vec :: N -> Type -> Type
-data Vec n a where
-    VecCons  :: a -> Vec n a -> Vec (S n) a
-    VecEmpty :: Vec Z a
-
-length :: Vec n a -> Nat n
-length VecEmpty = Zero
-length (VecCons _ as) = Succ (length as)
-
 -- | Callback for a given request type.
 data Cb ps (st :: State ps) m where
   CbActive   :: (Response ps st -> m ())

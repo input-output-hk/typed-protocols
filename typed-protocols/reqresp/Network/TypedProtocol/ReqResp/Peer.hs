@@ -2,6 +2,7 @@
 
 module Network.TypedProtocol.ReqResp.Peer where
 
+import Prelude hiding (length)
 import Data.Type.NatMap
 
 import Network.TypedProtocol.ReqResp.Core as Core
@@ -28,6 +29,38 @@ import Network.TypedProtocol.ReqResp.Core as Core
 -- we use in praos.  However, Leios freshest-first delivery is not compatible
 -- with it, and thus it will need to be changed.
 --
+-- | A vector of `n :: N` values.
+type Vec :: N -> Type -> Type
+data Vec n a where
+    VecCons  :: a -> Vec n a -> Vec (S n) a
+    VecEmpty :: Vec Z a
+
+
+length :: Vec n a -> Nat n
+length VecEmpty = Zero
+length (VecCons _ as) = Succ (length as)
+
+
+-- | A collection of requests that arrived in the meantime to the server.
+--
+type RequestBundle :: forall ps -> NatMap (State ps) -> Type
+data RequestBundle ps q where
+    RequestBundleCons
+      :: forall ps (st :: State ps) (n :: N) (q :: NatMap (State ps)).
+         CompareWithHead st q :~: LT
+      -> SingState st
+      -- a list of n requests of type `st`; the environment should ensure that
+      -- this vector is in the FIFO order
+      -> Vec (S n) (Request ps st)
+      -> RequestBundle ps q
+      -> RequestBundle ps (Cons (st :-> S n) q)
+
+    RequestBundleOne
+      :: forall ps (st :: State ps).
+         SingState st
+      -> Request ps st
+      -> RequestBundle ps (Cons (st :-> S Z) Empty)
+
 
 type Peer :: forall ps
           -- ^ protocol, which indexes all request types
@@ -86,16 +119,13 @@ data Peer ps pr m a where
     -> Peer ps (AsServer q) m a
 
   AwaitRequest
-    :: forall ps q m a.
-       Lookup Terminal q ~ Z
-       -- server cannot await for more request if `Terminal` request was
-       -- already received, client cannot send anything either.
-    => (forall (st :: State ps).
-             Request ps st
-          -> Peer ps (AsServer (Increment st q)) m a
+    :: forall ps m a.
+       (forall (q :: NatMap (State ps)).
+             RequestBundle ps q
+          -> Peer ps (AsServer q) m a
        )
        -- ^ continuation
-    ->  Peer ps (AsServer q) m a
+    ->  Peer ps (AsServer Empty) m a
 
   ServerDone
     :: forall ps m a.
