@@ -43,7 +43,7 @@ library
                     , Network.TypedProtocol.Proofs
   other-modules:      Network.TypedProtocol.Lemmas
   build-depends:      base >=4.12 && <4.22,
-                      io-classes:io-classes ^>= 1.8,
+                      io-classes:io-classes ^>= 1.8 || ^>= 1.9,
                       singletons ^>= 3.0
   hs-source-dirs:     src
   default-extensions: DataKinds
