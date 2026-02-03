@@ -30,6 +30,7 @@ import Network.TypedProtocol.Core
 import Network.TypedProtocol.Driver
 import Network.TypedProtocol.Peer
 
+import Control.DeepSeq (NFData, force)
 import Control.Monad.Class.MonadAsync
 import Control.Monad.Class.MonadThrow
 import Control.Tracer (Tracer (..), contramap, traceWith)
@@ -72,7 +73,11 @@ instance Show (AnyMessage ps) => Show (TraceSendRecv ps) where
 
 
 driverSimple :: forall ps pr failure bytes m.
-                (MonadThrow m, Exception failure)
+                ( MonadEvaluate m
+                , MonadThrow m
+                , Exception failure
+                , NFData failure
+                )
              => Tracer m (TraceSendRecv ps)
              -> Codec ps failure m bytes
              -> Channel m bytes
@@ -119,7 +124,13 @@ driverSimple tracer Codec{encode, decode} channel@Channel{send} =
 --
 runPeer
   :: forall ps (st :: ps) pr failure bytes m a.
-     (MonadThrow m, Exception failure)
+     ( MonadEvaluate m
+     , MonadThrow m
+     , Exception failure
+     , NFData failure
+     , NFData a
+     , NFData bytes
+     )
   => Tracer m (TraceSendRecv ps)
   -> Codec ps failure m bytes
   -> Channel m bytes
@@ -140,7 +151,13 @@ runPeer tracer codec channel peer =
 --
 runPipelinedPeer
   :: forall ps (st :: ps) pr failure bytes m a.
-     (MonadAsync m, MonadThrow m, Exception failure)
+     ( MonadAsync m
+     , MonadEvaluate m
+     , MonadThrow m
+     , Exception failure
+     , NFData failure
+     , NFData a
+     )
   => Tracer m (TraceSendRecv ps)
   -> Codec ps failure m bytes
   -> Channel m bytes
@@ -159,7 +176,10 @@ runPipelinedPeer tracer codec channel peer =
 -- | Run a codec incremental decoder 'DecodeStep' against a channel. It also
 -- takes any extra input data and returns any unused trailing data.
 --
-runDecoderWithChannel :: Monad m
+runDecoderWithChannel :: ( Monad m
+                         , MonadEvaluate m
+                         , NFData failure
+                         ) 
                       => Channel m bytes
                       -> Maybe bytes
                       -> DecodeStep bytes failure m a
@@ -168,7 +188,8 @@ runDecoderWithChannel :: Monad m
 runDecoderWithChannel Channel{recv} = go
   where
     go _ (DecodeDone x trailing)         = return (Right (x, trailing))
-    go _ (DecodeFail failure)            = return (Left failure)
+    go _ (DecodeFail failure)            =  (Left failure)
+                                         <$ evaluate (force failure)
     go Nothing         (DecodePartial k) = recv >>= k        >>= go Nothing
     go (Just trailing) (DecodePartial k) = k (Just trailing) >>= go Nothing
 
@@ -183,8 +204,15 @@ data Role = Client | Server
 -- The first argument is expected to create two channels that are connected,
 -- for example 'createConnectedChannels'.
 --
-runConnectedPeers :: (MonadAsync m, MonadCatch m,
-                      Exception failure)
+runConnectedPeers :: ( MonadAsync m
+                     , MonadCatch m
+                     , MonadEvaluate m
+                     , Exception failure
+                     , NFData bytes
+                     , NFData failure
+                     , NFData a
+                     , NFData b
+                     )
                   => m (Channel m bytes, Channel m bytes)
                   -> Tracer m (Role, TraceSendRecv ps)
                   -> Codec ps failure m bytes
@@ -201,8 +229,15 @@ runConnectedPeers createChannels tracer codec client server =
     tracerClient = contramap ((,) Client) tracer
     tracerServer = contramap ((,) Server) tracer
 
-runConnectedPeersPipelined :: (MonadAsync m, MonadCatch m,
-                               Exception failure)
+runConnectedPeersPipelined :: ( MonadAsync m
+                              , MonadCatch m
+                              , MonadEvaluate m
+                              , Exception failure
+                              , NFData bytes
+                              , NFData failure
+                              , NFData a
+                              , NFData b
+                              )
                            => m (Channel m bytes, Channel m bytes)
                            -> Tracer m (PeerRole, TraceSendRecv ps)
                            -> Codec ps failure m bytes
@@ -225,8 +260,13 @@ runConnectedPeersPipelined createChannels tracer codec client server =
 --
 runConnectedPeersAsymmetric
     :: ( MonadAsync      m
+       , MonadEvaluate   m
        , MonadMask       m
        , Exception failure
+       , NFData bytes
+       , NFData failure
+       , NFData a
+       , NFData b
        )
     => m (Channel m bytes, Channel m bytes)
     -> Tracer m (Role, TraceSendRecv ps)

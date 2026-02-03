@@ -43,6 +43,7 @@ library
                     , Network.TypedProtocol.Proofs
   other-modules:      Network.TypedProtocol.Lemmas
   build-depends:      base >=4.12 && <4.22,
+                      deepseq,
                       io-classes:io-classes ^>= 1.8,
                       singletons ^>= 3.0
   hs-source-dirs:     src
@@ -139,6 +140,7 @@ library examples
   build-depends:      base,
                       bytestring,
                       cborg,
+                      deepseq,
                       serialise,
                       singletons,
                       contra-tracer,
