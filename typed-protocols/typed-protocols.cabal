@@ -85,6 +85,7 @@ library stateful
                     , Network.TypedProtocol.Stateful.Proofs
                     , Network.TypedProtocol.Stateful.Codec
   build-depends:      base,
+                      deepseq,
                       singletons,
                       io-classes:io-classes,
                       typed-protocols:typed-protocols

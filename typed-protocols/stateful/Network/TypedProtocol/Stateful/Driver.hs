@@ -11,7 +11,9 @@ module Network.TypedProtocol.Stateful.Driver
   , DecodeStep (..)
   ) where
 
+import Control.DeepSeq (NFData, force)
 import Control.Monad.Class.MonadSTM
+import Control.Monad.Class.MonadThrow
 
 import Data.Kind (Type)
 
@@ -82,7 +84,10 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
 --
 runPeerWithDriver
   :: forall ps (st :: ps) pr bytes failure dstate (f :: ps -> Type) m a.
-     MonadSTM m
+     ( MonadEvaluate m
+     , MonadSTM m
+     , NFData a
+     )
   => Driver ps pr bytes failure dstate f m
   -> f st
   -> Peer ps pr st f m a
@@ -100,7 +105,9 @@ runPeerWithDriver Driver{ sendMessage
        -> m (a, dstate)
     go !dstate !f (Effect k) = k >>= go dstate f
 
-    go !dstate  _ (Done _ x) = return (x, dstate)
+    go !dstate  _ (Done _ x) = do
+      x' <- evaluate (force x)
+      return (x', dstate)
 
     go !dstate  _ (Yield refl !f !f' msg k) = do
       sendMessage refl f msg
