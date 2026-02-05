@@ -129,7 +129,6 @@ runPeer
      , Exception failure
      , NFData failure
      , NFData a
-     , NFData bytes
      )
   => Tracer m (TraceSendRecv ps)
   -> Codec ps failure m bytes
@@ -179,7 +178,7 @@ runPipelinedPeer tracer codec channel peer =
 runDecoderWithChannel :: ( Monad m
                          , MonadEvaluate m
                          , NFData failure
-                         ) 
+                         )
                       => Channel m bytes
                       -> Maybe bytes
                       -> DecodeStep bytes failure m a
@@ -188,8 +187,7 @@ runDecoderWithChannel :: ( Monad m
 runDecoderWithChannel Channel{recv} = go
   where
     go _ (DecodeDone x trailing)         = return (Right (x, trailing))
-    go _ (DecodeFail failure)            =  (Left failure)
-                                         <$ evaluate (force failure)
+    go _ (DecodeFail failure)            = Left <$> evaluate (force failure)
     go Nothing         (DecodePartial k) = recv >>= k        >>= go Nothing
     go (Just trailing) (DecodePartial k) = k (Just trailing) >>= go Nothing
 
@@ -208,7 +206,6 @@ runConnectedPeers :: ( MonadAsync m
                      , MonadCatch m
                      , MonadEvaluate m
                      , Exception failure
-                     , NFData bytes
                      , NFData failure
                      , NFData a
                      , NFData b
@@ -233,7 +230,6 @@ runConnectedPeersPipelined :: ( MonadAsync m
                               , MonadCatch m
                               , MonadEvaluate m
                               , Exception failure
-                              , NFData bytes
                               , NFData failure
                               , NFData a
                               , NFData b
@@ -263,7 +259,6 @@ runConnectedPeersAsymmetric
        , MonadEvaluate   m
        , MonadMask       m
        , Exception failure
-       , NFData bytes
        , NFData failure
        , NFData a
        , NFData b

@@ -1,6 +1,6 @@
 # Revision history for typed-protocols
 
-## Breaking changes
+## 1.2.0.0 -- 2025-02-05
 
 * Make `runPeerWithDriver` strict, it evaluates the result and `dstate` to
   normal form.

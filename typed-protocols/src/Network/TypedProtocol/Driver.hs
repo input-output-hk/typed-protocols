@@ -19,12 +19,12 @@ import Data.Void (Void)
 import Network.TypedProtocol.Core
 import Network.TypedProtocol.Peer
 
-import Control.DeepSeq (NFData, force)
 import Control.Concurrent.Class.MonadSTM.TQueue
+import Control.DeepSeq (NFData, force)
 import Control.Monad.Class.MonadAsync
 import Control.Monad.Class.MonadFork
-import Control.Monad.Class.MonadThrow
 import Control.Monad.Class.MonadSTM
+import Control.Monad.Class.MonadThrow
 
 
 -- $intro
@@ -116,12 +116,17 @@ data SomeMessage (st :: ps) where
 --
 -- This runs the peer to completion (if the protocol allows for termination).
 --
+-- The returned value `a` is evaluated to normal form, any pure exceptions will
+-- be raised by `runPeerWithDriver`.
+--
+-- The returned `dstate` should be fed back into `runPeerWithDriver`, where it
+-- will be evaluated incrementally.
+--
 runPeerWithDriver
   :: forall ps (st :: ps) pr dstate m a.
      ( Monad m
      , MonadEvaluate m
      , NFData a
-     , NFData dstate
      )
   => Driver ps pr dstate m
   -> Peer ps pr NonPipelined st m a
@@ -134,7 +139,9 @@ runPeerWithDriver Driver{sendMessage, recvMessage, initialDState} =
        -> Peer ps pr 'NonPipelined st' m a
        -> m (a, dstate)
     go dstate (Effect k) = k >>= go dstate
-    go dstate (Done _ x) = evaluate (force (x, dstate))
+    go dstate (Done _ x) = do
+      x' <- evaluate (force x)
+      return (x', dstate)
 
     go dstate (Yield refl msg k) = do
       sendMessage refl msg
@@ -185,7 +192,7 @@ runPipelinedPeerWithDriver driver@Driver{initialDState} (PeerPipelined peer) = d
            `withAsyncLoop`
          runPipelinedPeerSender        receiveQueue collectQueue driver
                                        peer initialDState
-                                  
+
     _ <- evaluate (force a)
     return r
 
