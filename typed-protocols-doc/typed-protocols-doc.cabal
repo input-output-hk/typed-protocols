@@ -54,7 +54,7 @@ library
                  , th-abstraction >=0.6.0.0 && <0.8
                  , time >=1.12 && <1.14
                  , serdoc-core
-                 , typed-protocols ^>= 1.0 || ^>= 1.1
+                 , typed-protocols ^>= 1.0 || ^>= 1.1 || ^>= 1.2
     hs-source-dirs:   src
     default-language:   GHC2021
     default-extensions: DataKinds

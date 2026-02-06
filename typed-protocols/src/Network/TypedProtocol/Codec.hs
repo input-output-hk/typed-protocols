@@ -47,6 +47,7 @@ module Network.TypedProtocol.Codec
   , SomeState (..)
   ) where
 
+import Control.DeepSeq (NFData (..))
 import Control.Exception (Exception)
 import Data.Kind (Type)
 
@@ -315,6 +316,10 @@ mapFailureDecodeStep f step = case step of
 data CodecFailure = CodecFailureOutOfInput
                   | CodecFailure String
   deriving (Eq, Show)
+
+instance NFData CodecFailure where
+    rnf CodecFailureOutOfInput = ()
+    rnf (CodecFailure failure) = rnf failure
 
 -- safe instance with @UndecidableInstances@ in scope
 instance Exception CodecFailure

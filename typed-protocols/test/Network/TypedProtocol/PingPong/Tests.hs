@@ -290,7 +290,12 @@ prop_connect_pipelined5 choices (Positive omax) (NonNegative n) =
 
 -- | Run a non-pipelined client and server over a channel using a codec.
 --
-prop_channel :: (MonadLabelledSTM m, MonadTraceSTM m, MonadAsync m, MonadCatch m)
+prop_channel :: ( MonadLabelledSTM m
+                , MonadTraceSTM m
+                , MonadAsync m
+                , MonadCatch m
+                , MonadEvaluate m
+                )
              => NonNegative Int
              -> m Bool
 prop_channel (NonNegative n) = do

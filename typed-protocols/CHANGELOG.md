@@ -1,5 +1,10 @@
 # Revision history for typed-protocols
 
+## 1.2.0.0 -- 2025-02-05
+
+* Make `runPeerWithDriver` strict, it evaluates the result and `dstate` to
+  normal form.
+
 ## 1.1.0.1 -- 2025-10-14
 
 * Support QuickCheck <= 2.15

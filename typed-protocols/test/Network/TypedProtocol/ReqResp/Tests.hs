@@ -172,7 +172,12 @@ prop_connectPipelined cs f xs =
 -- Properties using channels, codecs and drivers.
 --
 
-prop_channel :: (MonadLabelledSTM m, MonadTraceSTM m, MonadAsync m, MonadCatch m)
+prop_channel :: ( MonadLabelledSTM m
+                , MonadTraceSTM m
+                , MonadAsync m
+                , MonadCatch m
+                , MonadEvaluate m
+                )
              => (Int -> Int -> (Int, Int)) -> [Int]
              -> m Bool
 prop_channel f xs = do
@@ -195,8 +200,12 @@ prop_channel_ST f xs =
     runSimOrThrow (prop_channel f xs)
 
 
-prop_channelPipelined :: ( MonadLabelledSTM m, MonadAsync m, MonadCatch m
-                         , MonadST m)
+prop_channelPipelined :: ( MonadLabelledSTM m
+                         , MonadAsync m
+                         , MonadCatch m
+                         , MonadEvaluate m
+                         , MonadST m
+                         )
                       => (Int -> Int -> (Int, Int)) -> [Int]
                       -> m Bool
 prop_channelPipelined f xs = do
