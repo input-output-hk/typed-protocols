@@ -3,6 +3,10 @@ name: Haskell CI
 on:
   pull_request:
   merge_group:
+  push:
+    branches:
+      - main
+      - "release/*"
 
 jobs:
   build:
