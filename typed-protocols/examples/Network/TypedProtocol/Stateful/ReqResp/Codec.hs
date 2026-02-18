@@ -36,8 +36,7 @@ codecReqResp encodeReq decodeReq encodeResp decodeResp =
     encode (StateBusy req) (MsgResp resp) = "MsgResp " ++ encodeResp req resp ++ "\n"
 
     decode :: forall (st :: ReqResp req).
-              ActiveState st
-           => StateToken st
+              StateToken st
            -> State st
            -> m (DecodeStep String CodecFailure m (SomeMessage st))
     decode stok state =

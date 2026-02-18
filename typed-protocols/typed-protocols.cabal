@@ -31,6 +31,11 @@ common GHC
                      -Wredundant-constraints
                      -Wunused-packages
 
+  -- In ghc-9.14 the `pattern` namespace specifier is deprecated.
+  if impl(ghc >=9.14)
+    ghc-options:
+      -Wno-pattern-namespace-specifier
+
 library
   import:             GHC
   exposed-modules:    Network.TypedProtocol
@@ -42,7 +47,7 @@ library
                     , Network.TypedProtocol.Driver
                     , Network.TypedProtocol.Proofs
   other-modules:      Network.TypedProtocol.Lemmas
-  build-depends:      base >=4.12 && <4.22,
+  build-depends:      base >=4.12 && <4.23,
                       deepseq,
                       io-classes:io-classes ^>= 1.8 || ^>= 1.9,
                       singletons ^>= 3.0
@@ -56,7 +61,7 @@ library codec-properties
   exposed-modules:    Network.TypedProtocol.Codec.Properties
                       Network.TypedProtocol.Stateful.Codec.Properties
   other-modules:      Test.QuickCheck.Monoids.Compat
-  build-depends:      base >=4.12 && <4.22,
+  build-depends:      base >=4.12 && <4.23,
                       typed-protocols:{stateful, typed-protocols},
                       QuickCheck
   hs-source-dirs:     properties

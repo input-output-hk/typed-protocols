@@ -1,14 +1,28 @@
-index-state: 2026-01-23T20:36:08Z
+index-state: 2026-02-18T08:48:29Z
 
 packages: ./typed-protocols
           ./typed-protocols-doc
 
 test-show-details: direct
 
-if impl(ghc >= 9.12)
+if impl(ghc >= 9.14)
   allow-newer:
+    , aeson:containers
+    , aeson:template-haskell
+    , cborg:base
+    , cborg:containers
+    , haddock-library:base
+    , indexed-traversable-instances:base
+    , indexed-traversable:base
+    , indexed-traversable:containers
+    , semialign:base
+    , semialign:containers
     , serdoc-core:template-haskell
     , serdoc-core:th-abstraction
+    , serialise:base
+    , serialise:containers
+    , these:base
+    , uuid-types:template-haskell
 
 allow-newer:
   , serdoc-core:QuickCheck
