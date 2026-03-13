@@ -23,6 +23,9 @@ if impl(ghc >= 9.14)
     , serialise:containers
     , these:base
     , uuid-types:template-haskell
+    -- https://github.com/input-output-hk/io-sim/pull/249
+    , io-classes:base
+    , io-sim:base
 
 allow-newer:
   , serdoc-core:QuickCheck

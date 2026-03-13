@@ -31,6 +31,7 @@ codecPingPong =
             DecodeDone (SomeMessage MsgPing) trailing
           (SingIdle, "done") ->
             DecodeDone (SomeMessage MsgDone) trailing
+          (SingDone, _     ) -> notActiveState stok
 
           (_       , _     ) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)
