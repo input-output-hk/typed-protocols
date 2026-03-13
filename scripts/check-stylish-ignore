@@ -1,0 +1,10 @@
+*/Setup.hs
+typed-protocols/src/Network/TypedProtocol/Core.hs
+typed-protocols/src/Network/TypedProtocol/Channel.hs
+typed-protocols/src/Network/TypedProtocol/Driver.hs
+typed-protocols/src/Network/TypedProtocol/Peer/Client.hs
+typed-protocols/src/Network/TypedProtocol/Peer/Server.hs
+typed-protocols/stateful/Network/TypedProtocol/Stateful/Peer/Client.hs
+typed-protocols/stateful/Network/TypedProtocol/Stateful/Peer/Server.hs
+typed-protocols/properties/Test/QuickCheck/Monoids/Compat.hs
+typed-protocols/examples/Network/TypedProtocol/Channel.hs
