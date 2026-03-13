@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE PatternSynonyms #-}
 
 -- | Bidirectional patterns for @'Peer' ps 'AsClient'@.   The advantage of
@@ -7,10 +9,17 @@
 module Network.TypedProtocol.Stateful.Peer.Client
   ( -- * Client type alias and its pattern synonyms
     Client
+#if MIN_VERSION_GLASGOW_HASKELL(9,14,0,0)
+  , data Effect
+  , data Yield
+  , data Await
+  , data Done
+#else
   , pattern Effect
   , pattern Yield
   , pattern Await
   , pattern Done
+#endif
   ) where
 
 import Data.Kind (Type)

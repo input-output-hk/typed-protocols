@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE ExplicitNamespaces #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeOperators   #-}
 
@@ -8,17 +10,32 @@
 module Network.TypedProtocol.Peer.Server
   ( -- * Server type alias and its pattern synonyms
     Server
+#if MIN_VERSION_GLASGOW_HASKELL(9,14,0,0)
+  , data Effect
+  , data Yield
+  , data Await
+  , data Done
+  , data YieldPipelined
+  , data Collect
+#else
   , pattern Effect
   , pattern Yield
   , pattern Await
   , pattern Done
   , pattern YieldPipelined
   , pattern Collect
+#endif
     -- * Receiver type alias and its pattern synonyms
   , Receiver
+#if MIN_VERSION_GLASGOW_HASKELL(9,14,0,0)
+  , data ReceiverEffect
+  , data ReceiverAwait
+  , data ReceiverDone
+#else
   , pattern ReceiverEffect
   , pattern ReceiverAwait
   , pattern ReceiverDone
+#endif
     -- * ServerPipelined type alias and its pattern synonym
   , ServerPipelined
   , TP.PeerPipelined (ServerPipelined, runServerPipelined)

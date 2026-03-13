@@ -1,4 +1,4 @@
-index-state: 2026-02-18T08:48:29Z
+index-state: 2026-02-23T16:33:01Z
 
 packages: ./typed-protocols
           ./typed-protocols-doc
@@ -23,6 +23,9 @@ if impl(ghc >= 9.14)
     , serialise:containers
     , these:base
     , uuid-types:template-haskell
+    -- https://github.com/input-output-hk/io-sim/pull/249
+    , io-classes:base
+    , io-sim:base
 
 allow-newer:
   , serdoc-core:QuickCheck

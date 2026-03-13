@@ -40,6 +40,7 @@ codecReqResp =
           (SingBusy, ("MsgResp", str'))
             | Just resp <- readMaybe str'
             -> DecodeDone (SomeMessage (MsgResp resp)) trailing
+          (SingDone, _     ) -> notActiveState stok
 
           (_       , _     ) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)
@@ -101,6 +102,7 @@ anncodecReqResp =
             -> DecodeDone (Annotator \str'' ->
                            let used = init $ drop 8 str'' in
                            SomeMessage (MsgResp (WithBytes used resp))) trailing
+          (SingDone, _     ) -> notActiveState stok
 
           (_       , _     ) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)

@@ -12,7 +12,6 @@ module Network.TypedProtocol.Stateful.Driver
   ) where
 
 import Control.DeepSeq (NFData, force)
-import Control.Monad.Class.MonadSTM
 import Control.Monad.Class.MonadThrow
 
 import Data.Kind (Type)
@@ -85,7 +84,6 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
 runPeerWithDriver
   :: forall ps (st :: ps) pr bytes failure dstate (f :: ps -> Type) m a.
      ( MonadEvaluate m
-     , MonadSTM m
      , NFData a
      )
   => Driver ps pr bytes failure dstate f m

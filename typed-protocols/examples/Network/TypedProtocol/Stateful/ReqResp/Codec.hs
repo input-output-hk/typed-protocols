@@ -36,7 +36,8 @@ codecReqResp encodeReq decodeReq encodeResp decodeResp =
     encode (StateBusy req) (MsgResp resp) = "MsgResp " ++ encodeResp req resp ++ "\n"
 
     decode :: forall (st :: ReqResp req).
-              StateToken st
+              ActiveState st
+           => StateToken st
            -> State st
            -> m (DecodeStep String CodecFailure m (SomeMessage st))
     decode stok state =
@@ -51,6 +52,7 @@ codecReqResp encodeReq decodeReq encodeResp decodeResp =
             -- note that we need `req` to decode response of the given type
             |  Just resp <- decodeResp req str'
             -> DecodeDone (SomeMessage (MsgResp resp)) trailing
+          (SingDone, _, _) -> notActiveState stok
           (_, _, _) -> DecodeFail failure
             where failure = CodecFailure ("unexpected server message: " ++ str)
 

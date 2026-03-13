@@ -1,5 +1,15 @@
 # Revision history for typed-protocols
 
+## next
+
+### Breaking changes
+
+* Compatiblity with `io-classes-1.10`
+
+### Non-breaking changes
+
+* Support `GHC-9.14`
+
 ## 1.2.0.0 -- 2025-02-05
 
 * Make `runPeerWithDriver` strict, it evaluates the result and `dstate` to

@@ -175,8 +175,7 @@ runPipelinedPeer tracer codec channel peer =
 -- | Run a codec incremental decoder 'DecodeStep' against a channel. It also
 -- takes any extra input data and returns any unused trailing data.
 --
-runDecoderWithChannel :: ( Monad m
-                         , MonadEvaluate m
+runDecoderWithChannel :: ( MonadEvaluate m
                          , NFData failure
                          )
                       => Channel m bytes

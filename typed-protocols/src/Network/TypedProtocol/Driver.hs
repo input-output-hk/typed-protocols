@@ -124,8 +124,7 @@ data SomeMessage (st :: ps) where
 --
 runPeerWithDriver
   :: forall ps (st :: ps) pr dstate m a.
-     ( Monad m
-     , MonadEvaluate m
+     ( MonadEvaluate m
      , NFData a
      )
   => Driver ps pr dstate m
