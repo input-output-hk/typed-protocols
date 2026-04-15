@@ -49,7 +49,7 @@ library
   other-modules:      Network.TypedProtocol.Lemmas
   build-depends:      base >=4.12 && <4.23,
                       deepseq,
-                      io-classes:io-classes ^>= 1.8 || ^>= 1.9,
+                      io-classes:io-classes ^>= 1.8 || ^>= 1.9 || ^>= 1.10,
                       singletons ^>= 3.0
   hs-source-dirs:     src
   default-extensions: DataKinds

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP          #-}
 {-# LANGUAGE TypeFamilies #-}
 
 -- | Actions for running 'Peer's with a 'Driver'
@@ -124,8 +125,12 @@ data SomeMessage (st :: ps) where
 --
 runPeerWithDriver
   :: forall ps (st :: ps) pr dstate m a.
+#if MIN_VERSION_io_classes(1,10,0)
+     ( MonadEvaluate m
+#else
      ( Monad m
      , MonadEvaluate m
+#endif
      , NFData a
      )
   => Driver ps pr dstate m
