@@ -1,6 +1,6 @@
 cabal-version:       3.4
 name:                typed-protocols
-version:             1.2.0.0
+version:             1.2.1.0
 synopsis:            A framework for strongly typed protocols
 description:         A robust session type framework which supports protocol pipelining.
                      Haddocks are published [here](https://input-output-hk.github.io/typed-protocols/)
@@ -11,7 +11,7 @@ author:              Alexander Vieth, Duncan Coutts, Marcin Szamotulski
 maintainer:          alex@well-typed.com, duncan@well-typed.com, marcin.szamotulski@iohk.io
 category:            Control
 build-type:          Simple
-tested-with:         GHC == {9.6, 9.8, 9.10, 9.12}
+tested-with:         GHC == {9.6, 9.8, 9.10, 9.12, 9.14}
 extra-doc-files:     CHANGELOG.md
                      README.md
 
