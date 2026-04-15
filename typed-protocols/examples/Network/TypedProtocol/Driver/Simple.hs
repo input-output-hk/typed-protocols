@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                  #-}
 {-# LANGUAGE TypeFamilies         #-}
 -- @UndecidableInstances@ extensions is required for defining @Show@ instance
 -- of @'TraceSendRecv'@.
@@ -175,14 +176,17 @@ runPipelinedPeer tracer codec channel peer =
 -- | Run a codec incremental decoder 'DecodeStep' against a channel. It also
 -- takes any extra input data and returns any unused trailing data.
 --
-runDecoderWithChannel :: ( Monad m
-                         , MonadEvaluate m
-                         , NFData failure
-                         )
-                      => Channel m bytes
-                      -> Maybe bytes
-                      -> DecodeStep bytes failure m a
-                      -> m (Either failure (a, Maybe bytes))
+runDecoderWithChannel
+  :: ( MonadEvaluate m
+#if !MIN_VERSION_io_classes(1,10,0)
+     , Monad m
+#endif
+     , NFData failure
+     )
+  => Channel m bytes
+  -> Maybe bytes
+  -> DecodeStep bytes failure m a
+  -> m (Either failure (a, Maybe bytes))
 
 runDecoderWithChannel Channel{recv} = go
   where

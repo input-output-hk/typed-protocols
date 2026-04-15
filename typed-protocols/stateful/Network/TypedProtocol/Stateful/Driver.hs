@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 -- | Actions for running 'Peer's with a 'Driver'.  This module should be
 -- imported qualified.
 --
@@ -12,7 +14,9 @@ module Network.TypedProtocol.Stateful.Driver
   ) where
 
 import Control.DeepSeq (NFData, force)
+#if !MIN_VERSION_io_classes(1,10,0)
 import Control.Monad.Class.MonadSTM
+#endif
 import Control.Monad.Class.MonadThrow
 
 import Data.Kind (Type)
@@ -85,7 +89,9 @@ data Driver ps (pr :: PeerRole) bytes failure dstate f m =
 runPeerWithDriver
   :: forall ps (st :: ps) pr bytes failure dstate (f :: ps -> Type) m a.
      ( MonadEvaluate m
+#if !MIN_VERSION_io_classes(1,10,0)
      , MonadSTM m
+#endif
      , NFData a
      )
   => Driver ps pr bytes failure dstate f m

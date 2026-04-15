@@ -5,4 +5,4 @@ export LC_ALL=C.UTF-8
 
 [[ -x '/usr/bin/fd' ]] && FD="fd" ||  FD="fdfind"
 
-$FD . './typed-protocols' -e hs -E Setup.hs -E Core.hs -E Channel.hs -E QuickCheck -X stylish-haskell -c .stylish-haskell.yaml -i
+$FD . --full-path typed-protocols -e hs --ignore-file ./scripts/check-stylish-ignore -X stylish-haskell -c .stylish-haskell.yaml -i
